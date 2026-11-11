@@ -11,13 +11,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
 const CHAT_PASSWORD = process.env.CHAT_PASSWORD || "safelife100";
 const DATABASE_URL = process.env.DATABASE_URL;
-const ON_RENDER = Boolean(process.env.RENDER);
-
-if (ON_RENDER && !DATABASE_URL) {
-  console.error(
-    "FATAL: DATABASE_URL is missing. Render → Meow? → Environment → add Neon pooled URL.",
+if (process.env.RENDER && !DATABASE_URL) {
+  console.warn(
+    "WARNING: DATABASE_URL is not set. Add Neon pooled URL in Render → Meow? → Environment, then restart.",
   );
-  process.exit(1);
 }
 const UPLOAD_DIR = path.join(__dirname, "data", "uploads");
 

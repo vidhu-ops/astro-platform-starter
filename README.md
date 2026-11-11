@@ -4,9 +4,9 @@ One Node app: **Render** hosts it, **Neon** stores messages. Every send is saved
 
 ## Deploy (3 steps)
 
-1. **Render** → service **Meow?** must be **Node** (not Static).  
-   - Build: `npm ci`  
-   - Start: `npm start`  
+1. **Render** → **Meow?** → **Settings**: set **Language = Node** (not Static Site).  
+   - Build: `npm install` (or `yarn install && yarn build` if still on yarn — both work now)  
+   - Start Command: `npm start`  
    - Health: `/api/health`  
    - Repo: `main` (this project’s `render.yaml` has the rest).
 
@@ -16,7 +16,7 @@ One Node app: **Render** hosts it, **Neon** stores messages. Every send is saved
 
 3. Deploy, then open **https://sexychat.fun/api/health** → must show `"ok":true,"db":true`.
 
-Without `DATABASE_URL`, the service **exits on Render** so the dashboard shows the error clearly.
+Without `DATABASE_URL`, deploy still succeeds; `/api/health` shows `"db":false` until you add the Neon URL and **Manual Deploy**.
 
 ## Local
 
