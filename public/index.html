@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SexyChats</title>
+<style>
+:root{--bg:#0d0408;--panel:#1a0810;--panel2:#26101a;--rose:#ff2e75;--wine:#8a0f3c;--gold:#f5c97a;--text:#fbe9ef;--mute:#b98a9b;--line:#3a1626;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:radial-gradient(900px 500px at 80% -10%,#5a0f2e55,transparent),radial-gradient(700px 500px at -10% 110%,#8a0f3c44,transparent),var(--bg);color:var(--text);font-family:Georgia,"Times New Roman",serif}
+button,input{font:inherit;color:inherit}
+.hide{display:none!important}
+#gate{height:100%;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{width:100%;max-width:380px;background:linear-gradient(160deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:22px;padding:32px 26px;box-shadow:0 0 60px #ff2e7522}
+h1{margin:0 0 4px;font-size:42px;font-style:italic;letter-spacing:1px;background:linear-gradient(90deg,var(--rose),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--mute);margin:0 0 22px;font-size:14px}
+input[type=text],input[type=password]{width:100%;background:#12050b;border:1px solid var(--line);border-radius:12px;padding:13px 14px;margin-bottom:12px;outline:none}
+input:focus{border-color:var(--rose);box-shadow:0 0 0 3px #ff2e7533}
+.btn{width:100%;border:0;border-radius:12px;padding:13px;cursor:pointer;font-weight:bold;letter-spacing:.5px;background:linear-gradient(90deg,var(--wine),var(--rose));box-shadow:0 6px 24px #ff2e7544}
+.err{color:#ff8fb0;font-size:13px;min-height:18px;margin-top:10px}
+#app{height:100%;display:flex;flex-direction:column;max-width:760px;margin:0 auto}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line);background:#12050bcc;backdrop-filter:blur(8px)}
+header h2{margin:0;font-size:24px;font-style:italic;background:linear-gradient(90deg,var(--rose),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+header span{color:var(--mute);font-size:13px}
+header button{background:none;border:1px solid var(--line);border-radius:20px;padding:5px 12px;cursor:pointer;color:var(--mute);margin-left:8px}
+#feed{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:82%;padding:10px 13px;border-radius:18px;background:var(--panel2);border:1px solid var(--line);word-wrap:break-word;overflow-wrap:anywhere}
+.msg.me{align-self:flex-end;background:linear-gradient(135deg,var(--wine),#c2185b);border-color:#ff2e7566}
+.who{font-size:12px;color:var(--gold);margin-bottom:3px;font-style:italic}.me .who{color:#ffd9e6}
+.t{font-size:10px;color:var(--mute);margin-top:4px;text-align:right}
+.msg img,.msg video{max-width:100%;max-height:340px;border-radius:12px;display:block;margin-top:6px}
+.msg a{color:var(--gold)}
+.file{display:inline-block;margin-top:6px;padding:8px 12px;border:1px dashed var(--rose);border-radius:10px;text-decoration:none}
+#bar{display:flex;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid var(--line);background:#12050bee;position:relative}
+#bar input[type=text]{margin:0;flex:1;border-radius:24px}
+.ic{width:42px;height:42px;flex:none;border-radius:50%;border:1px solid var(--line);background:var(--panel2);cursor:pointer;font-size:19px}
+.send{width:46px;height:42px;flex:none;border:0;border-radius:24px;background:linear-gradient(90deg,var(--wine),var(--rose));cursor:pointer;font-size:18px}
+#emo{position:absolute;bottom:64px;left:12px;right:12px;max-width:360px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px;display:grid;grid-template-columns:repeat(8,1fr);gap:4px;max-height:200px;overflow:auto}
+#emo button{background:none;border:0;font-size:22px;cursor:pointer;padding:4px}
+#app{position:relative}
+.row{display:flex;gap:8px;align-items:flex-end}.row.me{justify-content:flex-end}
+.av{width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:13px;font-weight:bold;color:#fff}
+.day{align-self:center;font-size:11px;color:var(--mute);letter-spacing:1px;text-transform:uppercase;margin:8px 0 2px}
+.empty{margin:auto;color:var(--mute);font-style:italic;text-align:center;padding:30px}
+.show{display:block;color:var(--mute);font-size:13px;margin:0 0 14px}.show input{margin-right:6px;accent-color:var(--rose)}
+#online{color:#7dffb0;margin-right:10px}
+#down{position:absolute;right:16px;bottom:84px;width:38px;height:38px;border-radius:50%;border:1px solid var(--rose);background:var(--panel);cursor:pointer;z-index:5;box-shadow:0 4px 16px #0008}
+#lb{position:fixed;inset:0;background:#000d;display:flex;align-items:center;justify-content:center;z-index:30;cursor:zoom-out}#lb img{max-width:94%;max-height:92%;border-radius:12px}
+#modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;padding:20px;z-index:20}
+#modal .card{max-width:340px}#modal p{margin:0 0 16px}#modal .btn{margin-bottom:8px}#modal .btn.alt{background:var(--panel2);border:1px solid var(--line);box-shadow:none}
+.note{color:var(--mute);font-size:12px;text-align:center;padding:2px 0 8px}
+</style></head><body>
+<div id="gate"><div class="card">
+<h1>SexyChats</h1><p class="sub">Dim the lights. Say what you mean.</p>
+<input id="u" type="text" placeholder="Username" autocomplete="off" maxlength="20">
+<input id="p" type="password" placeholder="Password">
+<label class="show"><input type="checkbox" id="sp">Show password</label>
+<button class="btn" id="go">Sign up / Enter</button>
+<div class="err" id="err"></div>
+</div></div>
+
+<div id="app" class="hide">
+<header><h2>SexyChats</h2><div><span id="online"></span><span id="me"></span><button id="sv" title="Keep this chat">Save</button><button id="del" title="Delete chat">Delete</button><button id="out">Leave</button></div></header>
+<div id="feed"></div>
+<div class="note" id="note"></div>
+<div id="bar">
+<div id="emo" class="hide"></div>
+<button class="ic" id="emob" title="Emoji">😘</button>
+<button class="ic" id="att" title="Attach image, video, meme or file">📎</button>
+<input type="file" id="file" class="hide" accept="image/*,video/*,.pdf,.txt,.csv,.md,.json">
+<input type="text" id="txt" placeholder="Whisper something… paste a link or GIF URL too" autocomplete="off">
+<button class="send" id="send">➤</button>
+</div></div>
+<div id="lb" class="hide"><img id="lbi" alt=""></div>
+<div id="modal" class="hide"><div class="card"><h1 id="mt" style="font-size:28px"></h1><p class="sub" id="mp"></p>
+<button class="btn" id="m1"></button><button class="btn alt" id="m2"></button><button class="btn alt" id="m3">Cancel</button></div></div>
+
+<script>
+const PASS="safelife100";
+const $=id=>document.getElementById(id);
+const EMOJI="😘 😍 🥵 😏 😈 🔥 💋 ❤️ 💕 💘 😉 🥰 😜 🍑 🍒 🍷 🌹 ✨ 💃 🕺 😳 🙈 😂 🤤 💦 🖤 👀 🫦 😻 💫 🥂 🎉".split(" ");
+let db=null,assets=null,room=null,uid=null,name=null,unsub=null,unsubMeta=null,lastMsgs=[],lastDocs=[],joinedAt=0;
+const store={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};
+
+(async()=>{
+  try{db=await claude.use("db");assets=await claude.use("assets");const u=await claude.use("user");uid=u?await u.id():null}catch(e){}
+  if(!db||!uid){$("err").textContent="Sign in to claude.ai to use this chat.";}
+  const saved=store.get("velvet-name");if(saved&&db&&uid)enter(saved);
+})();
+
+$("go").onclick=async()=>{
+  const n=$("u").value.trim().toLowerCase().replace(/[^a-z0-9_]/g,"");
+  $("err").textContent="";
+  if(!db||!uid)return $("err").textContent="Chat service unavailable — sign in to claude.ai.";
+  if(n.length<3)return $("err").textContent="Username: 3+ letters, numbers or _";
+  if($("p").value!==PASS)return $("err").textContent="Wrong password.";
+  try{
+    const ref=db.collection("users").doc(n),s=await ref.get();
+    if(s.exists&&s.data().owner!==uid)return $("err").textContent="That username is taken.";
+    if(!s.exists)await ref.set({owner:uid,created:Date.now()});
+    store.set("velvet-name",n);enter(n);
+  }catch(e){$("err").textContent="Couldn't sign up. Try again."}
+};
+$("p").onkeydown=e=>{if(e.key==="Enter")$("go").click()};
+
+function enter(n){
+  name=n;$("gate").classList.add("hide");$("app").classList.remove("hide");$("me").textContent="@"+n;
+  if(!assets)$("att").classList.add("hide");
+  unsub=db.collection("messages").orderBy("ts","desc").limit(200).onSnapshot(snap=>{lastDocs=snap.docs;lastMsgs=snap.docs.map(d=>d.data()).reverse();render(lastMsgs)},()=>{$("note").textContent="Couldn't load messages."});
+  joinedAt=Date.now();
+  unsubMeta=db.collection("meta").doc("chat").onSnapshot(s=>{const m=s.exists&&s.data();if(m&&m.endedBy&&m.endedBy!==uid&&m.ts>joinedAt)$("note").textContent="Unsaved messages were cleared. Saved messages stay."},()=>{});
+  beginSession();
+}
+async function beginSession(){
+  try{
+    room=await claude.use("room");if(!room)return;
+    room.presence({name});
+    room.onPeers(c=>{$("online").textContent="● "+c.peers.filter(p=>p.kind!=="agent").length+" online"});
+    await new Promise(r=>setTimeout(r,2500));
+    const others=room.peers().filter(p=>!p.isMe&&p.kind!=="agent").length;
+    if(others===0){await wipe();$("note").textContent=lastDocs.some(d=>d.data().saved)?"Saved chat loaded — pick up where you left off.":"New chat started."}
+  }catch(e){}
+}
+async function wipe(all){
+  try{
+    const s=await db.collection("messages").get();
+    await Promise.all(s.docs.filter(d=>all||d.data().saved!==true).map(d=>db.collection("messages").doc(d.id).delete()));
+    await db.collection("meta").doc("chat").set({endedBy:uid,ts:Date.now()});
+  }catch(e){$("note").textContent="Couldn't clear the chat."}
+}
+async function saveChat(){
+  const todo=lastDocs.filter(d=>d.data().saved!==true);
+  if(!todo.length){$("note").textContent=lastDocs.length?"Already saved.":"Nothing to save yet.";return true}
+  try{await Promise.all(todo.map(d=>db.collection("messages").doc(d.id).update({saved:true})));$("note").textContent="Saved — it stays in the chat.";return true}
+  catch(e){$("note").textContent="Couldn't save.";return false}
+}
+function ask(title,text,b1,b2){
+  return new Promise(res=>{
+    $("mt").textContent=title;$("mp").textContent=text;$("m1").textContent=b1;$("m2").textContent=b2||"";$("m2").classList.toggle("hide",!b2);$("modal").classList.remove("hide");
+    const done=v=>{$("modal").classList.add("hide");res(v)};
+    $("m1").onclick=()=>done(1);$("m2").onclick=()=>done(2);$("m3").onclick=()=>done(0);
+  });
+}
+$("sv").onclick=saveChat;
+$("del").onclick=async()=>{
+  const c=await ask("Delete chat?","Removes this session's unsaved messages for everyone. Saved messages stay unless you choose to delete them too.","Delete this session","Delete everything, saved too");
+  if(!c)return;await wipe(c===2);
+};
+$("out").onclick=async()=>{
+  const c=await ask("Leave chat?","Leaving deletes this session's unsaved messages. Anything you saved stays for next time.","Save, then leave","Leave, clear unsaved");
+  if(!c)return;if(c===1&&!(await saveChat()))return;
+  await wipe(false);store.del("velvet-name");if(unsub)unsub();if(unsubMeta)unsubMeta();location.reload();
+};
+
+function hue(s){let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h}
+const IMG=/\.(png|jpe?g|gif|webp|avif)(\?|$)/i,VID=/\.(mp4|webm|mov)(\?|$)/i;
+function linkify(parent,text){
+  const re=/https?:\/\/[^\s<]+/g;let last=0,m;
+  const frag=document.createDocumentFragment();
+  const add=s=>{if(s)frag.appendChild(document.createTextNode(s))};
+  while((m=re.exec(text))){
+    add(text.slice(last,m.index));const url=m[0];
+    if(IMG.test(url)||/tenor\.com|giphy\.com\/media/i.test(url)&&IMG.test(url)){const i=document.createElement("img");i.src=url;i.loading="lazy";i.referrerPolicy="no-referrer";frag.appendChild(i)}
+    else if(VID.test(url)){const v=document.createElement("video");v.src=url;v.controls=true;v.preload="metadata";frag.appendChild(v)}
+    else{const a=document.createElement("a");a.href=url;a.target="_blank";a.rel="noopener noreferrer";a.textContent=url;frag.appendChild(a)}
+    last=m.index+url.length;
+  }
+  add(text.slice(last));parent.appendChild(frag);
+}
+function render(list){
+  const f=$("feed"),stick=f.scrollHeight-f.scrollTop-f.clientHeight<120;
+  f.textContent="";
+  if(!list.length){const e=document.createElement("div");e.className="empty";e.textContent="No messages yet. Say something irresistible. 💋";f.appendChild(e)}
+  let prev=null,lastDay="";
+  for(const m of list){
+    const day=new Date(m.ts).toDateString();
+    if(day!==lastDay){const s=document.createElement("div");s.className="day";s.textContent=day===new Date().toDateString()?"Today":day;f.appendChild(s);lastDay=day;prev=null}
+    const first=!prev||prev.user!==m.user||m.ts-prev.ts>300000;prev=m;
+    const row=document.createElement("div");row.className="row"+(m.user===name?" me":"");
+    const av=document.createElement("div");av.className="av";if(first){av.textContent=m.user[0].toUpperCase();av.style.background="hsl("+hue(m.user)+" 70% 38%)"}
+    const d=document.createElement("div");d.className="msg"+(m.user===name?" me":"");
+    if(first){const w=document.createElement("div");w.className="who";w.textContent="@"+m.user;d.appendChild(w)}
+    if(m.text){const p=document.createElement("div");linkify(p,String(m.text));d.appendChild(p)}
+    if(m.media&&String(m.media).startsWith("/_blob/")){
+      const k=m.kind||"";
+      if(k.startsWith("image/")){const i=document.createElement("img");i.src=m.media;i.loading="lazy";d.appendChild(i)}
+      else if(k.startsWith("video/")){const v=document.createElement("video");v.src=m.media;v.controls=true;v.preload="metadata";d.appendChild(v)}
+      else{const a=document.createElement("a");a.className="file";a.href=m.media;a.target="_blank";a.rel="noopener";a.textContent="📄 "+(m.fname||"file");d.appendChild(a)}
+    }
+    const t=document.createElement("div");t.className="t";t.textContent=new Date(m.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})+(m.saved?" · 💾 saved":"");d.appendChild(t);
+    if(m.user===name){row.append(d)}else{row.append(av,d)}
+    f.appendChild(row);
+  }
+  if(stick||!f.dataset.init){f.scrollTop=f.scrollHeight;f.dataset.init=1}
+}
+async function post(data){
+  try{await db.collection("messages").add({user:name,uid,ts:Date.now(),...data});$("note").textContent=""}
+  catch(e){$("note").textContent="Message didn't send."}
+}
+function sendText(){const t=$("txt").value.trim();if(!t)return;$("txt").value="";post({text:t.slice(0,2000)})}
+$("send").onclick=sendText;$("txt").onkeydown=e=>{if(e.key==="Enter")sendText()};
+
+EMOJI.forEach(e=>{const b=document.createElement("button");b.textContent=e;b.onclick=()=>{$("txt").value+=e;$("txt").focus()};$("emo").appendChild(b)});
+$("emob").onclick=()=>$("emo").classList.toggle("hide");
+$("sp").onchange=()=>{$("p").type=$("sp").checked?"text":"password"};
+document.addEventListener("click",e=>{if(!e.target.closest("#emo,#emob"))$("emo").classList.add("hide")});
+$("feed").addEventListener("click",e=>{if(e.target.tagName==="IMG"){$("lbi").src=e.target.src;$("lb").classList.remove("hide")}});
+$("lb").onclick=()=>$("lb").classList.add("hide");
+const dn=document.createElement("button");dn.id="down";dn.textContent="↓";dn.className="hide";dn.onclick=()=>{$("feed").scrollTop=$("feed").scrollHeight};$("app").appendChild(dn);
+$("feed").onscroll=()=>{const f=$("feed");dn.classList.toggle("hide",f.scrollHeight-f.scrollTop-f.clientHeight<200)};
+$("att").onclick=()=>$("file").click();
+$("file").onchange=()=>{const f=$("file").files[0];$("file").value="";upload(f)};
+document.addEventListener("paste",e=>{const f=[...(e.clipboardData?.files||[])][0];if(f)upload(f)});
+document.addEventListener("dragover",e=>e.preventDefault());
+document.addEventListener("drop",e=>{e.preventDefault();upload(e.dataTransfer.files[0])});
+async function upload(f){
+  if(!f||!assets||!name)return;
+  $("note").textContent="Uploading…";
+  try{const r=await assets.upload(f);await post({media:r.url.includes("/_blob/")?"/_blob/"+r.id:r.url,kind:f.type,fname:f.name.slice(0,80)});$("note").textContent=""}
+  catch(e){$("note").textContent="Upload failed (max 20 MB; images, video, PDF, text)."}
+};
+</script></body></html>

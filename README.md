@@ -1,51 +1,39 @@
-# Astro on Netlify Platform Starter
+# vvvaaa
 
-[Live Demo](https://astro-platform-starter.netlify.app/)
+Static deployment package for **SexyChats** (`velvet.html`): a single-page chat UI with TypeScript capability definitions under `types/` (Claude artifact platform APIs).
 
-A modern starter based on Astro.js, Tailwind, and [Netlify Core Primitives](https://docs.netlify.com/core/overview/#develop) (Edge Functions, Image CDN, Blob Store).
+## Deploy on Render
 
-## Astro Commands
+### Option A — Blueprint (recommended)
 
-All commands are run from the root of the project, from a terminal:
+1. Open [Render Dashboard](https://dashboard.render.com/) → **New** → **Blueprint**.
+2. Connect GitHub repo **`vidhu-ops/vvvaaa`** (after this repo is renamed; see below).
+3. Render reads `render.yaml` and creates a **Static Site** named `vvvaaa` with publish path `public/`.
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+### Option B — Manual static site
 
-## Deploying to Netlify
+| Setting | Value |
+|--------|--------|
+| **Root Directory** | (repo root) |
+| **Build Command** | *(leave empty)* |
+| **Publish Directory** | `public` |
 
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/netlify-templates/astro-platform-starter)
+## Custom domain on Render
 
-## Developing Locally
+1. In Render: open the **vvvaaa** service → **Settings** → **Custom Domains** → **Add Custom Domain** (e.g. `vvvaaa.com` and `www.vvvaaa.com`).
+2. Render shows DNS records. At your registrar (Cloudflare, Namecheap, etc.):
+   - **Apex / root** (`vvvaaa.com`): use Render’s **A** records, **or** ALIAS/ANAME to the target Render gives you.
+   - **WWW**: **CNAME** `www` → your service hostname (e.g. `vvvaaa.onrender.com`).
+3. Wait for **Verified** in Render, then enable **Force HTTPS**.
 
-| Prerequisites                                                                |
-| :--------------------------------------------------------------------------- |
-| [Node.js](https://nodejs.org/) v18.14+.                                      |
-| (optional) [nvm](https://github.com/nvm-sh/nvm) for Node version management. |
+## Local preview
 
-1. Clone this repository, then run `npm install` in its root directory.
-
-2. For the starter to have full functionality locally (e.g. edge functions, blob store), please ensure you have an up-to-date version of Netlify CLI. Run:
-
-```
-npm install netlify-cli@latest -g
+```bash
+npm start
 ```
 
-3. Link your local repository to the deployed Netlify site. This will ensure you're using the same runtime version for both local development and your deployed site.
+Open http://localhost:3000
 
-```
-netlify link
-```
+## Chat runtime note
 
-4. Then, run the Astro.js development server via Netlify CLI:
-
-```
-netlify dev
-```
-
-If your browser doesn't navigate to the site automatically, visit [localhost:8888](http://localhost:8888).
+The live chat uses `claude.use("db" | "assets" | "user" | "room")`, which is provided when this HTML runs as a **Claude artifact** on the Claude platform. On Render (plain static hosting), the page loads but signing in and messaging require that runtime. The `types/` folder documents those APIs for development.
