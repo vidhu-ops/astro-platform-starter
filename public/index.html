@@ -85,9 +85,21 @@ async function api(path,opts={}){
 
 async function detectBackend(){
   try{
-    const h=await fetch("/api/health").then(r=>r.json());
-    if(h.ok&&h.db){mode="api";apiToken=store.get("vvvaaa-token");return;}
-    if(h.db===false)$("err").textContent="Chat database not connected on server.";
+    const res=await fetch("/api/health");
+    const raw=await res.text();
+    let h;
+    try{h=JSON.parse(raw);}catch{
+      if(!res.ok||raw.includes("<!DOCTYPE")||raw.includes("Not Found")){
+        $("err").textContent="Server is static-only — in Render set Meow? to Web Service, Start: npm start.";
+        return;
+      }
+    }
+    if(h&&h.ok&&h.db){mode="api";apiToken=store.get("vvvaaa-token");return;}
+    if(h&&h.db===false){
+      $("err").textContent="Add DATABASE_URL (Neon) in Render → Meow? → Environment.";
+      mode="api";
+      return;
+    }
   }catch(e){}
   try{
     if(typeof claude!=="undefined"){
@@ -116,7 +128,7 @@ async function detectBackend(){
 $("go").onclick=async()=>{
   const n=$("u").value.trim().toLowerCase().replace(/[^a-z0-9_]/g,"");
   $("err").textContent="";
-  if(!mode)return $("err").textContent="Chat unavailable.";
+  if(!mode)return $("err").textContent=$("err").textContent||"Chat unavailable.";
   if(n.length<3)return $("err").textContent="Username: 3+ letters, numbers or _";
   if($("p").value!==PASS)return $("err").textContent="Wrong password.";
   try{

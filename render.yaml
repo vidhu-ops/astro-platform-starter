@@ -1,5 +1,4 @@
-# Sync with Render project Vudhu → Production (exported 2026-11-11)
-# Was static + yarn build — must be Node so /api/* and Neon work.
+# MUST be Web Service (Node). Static Site → "Chat unavailable" (no /api).
 version: "1"
 projects:
   - name: Vudhu
