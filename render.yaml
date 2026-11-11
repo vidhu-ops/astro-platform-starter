@@ -1,13 +1,16 @@
-# Render Blueprint — https://render.com/docs/blueprint-spec
-# Dashboard: New → Blueprint → connect this repo, or add a Static Site manually.
+# Render Blueprint — Web service with Neon Postgres
 services:
   - type: web
     name: vvvaaa
-    runtime: static
-    buildCommand: ""
-    staticPublishPath: ./public
-    pullRequestPreviewsEnabled: true
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL
+        sync: false
+      - key: CHAT_PASSWORD
+        sync: false

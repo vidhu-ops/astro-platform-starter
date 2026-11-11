@@ -1,39 +1,43 @@
 # vvvaaa
 
-Static deployment package for **SexyChats** (`velvet.html`): a single-page chat UI with TypeScript capability definitions under `types/` (Claude artifact platform APIs).
+**SexyChats** — single-page chat with **Neon Postgres** on Render (and optional Claude artifact mode).
+
+## Stack
+
+| Piece | Role |
+|--------|------|
+| `server.js` | Express API, uploads, static `public/` |
+| **Neon** project `vvvaaa` (`red-sky-25826530`) | Postgres messages, sessions, presence |
+| `render.yaml` | Node web service blueprint |
 
 ## Deploy on Render
 
-### Option A — Blueprint (recommended)
+1. **New → Blueprint** → connect this repo.
+2. Set environment variables:
+   - **`DATABASE_URL`** — pooled connection string from [Neon Console](https://console.neon.tech) → project **vvvaaa** → Connect.
+   - **`CHAT_PASSWORD`** — room password (default `safelife100` if unset).
+3. Deploy. Health check: `GET /api/health` → `{ "ok": true, "db": true }`.
 
-1. Open [Render Dashboard](https://dashboard.render.com/) → **New** → **Blueprint**.
-2. Connect GitHub repo **`vidhu-ops/vvvaaa`** (after this repo is renamed; see below).
-3. Render reads `render.yaml` and creates a **Static Site** named `vvvaaa` with publish path `public/`.
+### Custom domain
 
-### Option B — Manual static site
+Render → **vvvaaa** → **Settings → Custom Domains** → add your domain; point DNS (CNAME `www` to `*.onrender.com`, or apex A records per Render).
 
-| Setting | Value |
-|--------|--------|
-| **Root Directory** | (repo root) |
-| **Build Command** | *(leave empty)* |
-| **Publish Directory** | `public` |
-
-## Custom domain on Render
-
-1. In Render: open the **vvvaaa** service → **Settings** → **Custom Domains** → **Add Custom Domain** (e.g. `vvvaaa.com` and `www.vvvaaa.com`).
-2. Render shows DNS records. At your registrar (Cloudflare, Namecheap, etc.):
-   - **Apex / root** (`vvvaaa.com`): use Render’s **A** records, **or** ALIAS/ANAME to the target Render gives you.
-   - **WWW**: **CNAME** `www` → your service hostname (e.g. `vvvaaa.onrender.com`).
-3. Wait for **Verified** in Render, then enable **Force HTTPS**.
-
-## Local preview
+## Local dev
 
 ```bash
+cp .env.example .env   # add DATABASE_URL from Neon
+npm install
 npm start
 ```
 
-Open http://localhost:3000
+Open http://localhost:3000 — login badge should show **Database connected · Neon**.
 
-## Chat runtime note
+## API
 
-The live chat uses `claude.use("db" | "assets" | "user" | "room")`, which is provided when this HTML runs as a **Claude artifact** on the Claude platform. On Render (plain static hosting), the page loads but signing in and messaging require that runtime. The `types/` folder documents those APIs for development.
+- `GET /api/health` — DB status
+- `POST /api/auth/enter` — `{ username, password }` → `{ token, username, userId }`
+- Bearer token on all other `/api/*` routes
+
+## Claude artifact mode
+
+If opened on claude.ai with capabilities enabled, the app still uses `claude.use("db")` when `/api/health` is unavailable.

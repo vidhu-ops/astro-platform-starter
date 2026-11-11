@@ -1,10 +1,20 @@
 {
   "name": "vvvaaa",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "SexyChats (velvet) — static site for Render; Claude capabilities in types/",
+  "type": "module",
+  "description": "SexyChats — Express + Neon Postgres, Render-ready",
   "scripts": {
-    "start": "npx --yes serve public -l ${PORT:-3000}",
-    "build": "node -e \"console.log('static site — no build')\""
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.10",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.2",
+    "pg": "^8.13.1"
   }
 }
