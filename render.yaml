@@ -1,16 +1,27 @@
-# Render Blueprint — Web service with Neon Postgres
-services:
-  - type: web
-    name: vvvaaa
-    runtime: node
-    plan: free
-    buildCommand: npm install
-    startCommand: npm start
-    healthCheckPath: /api/health
-    envVars:
-      - key: NODE_VERSION
-        value: "20"
-      - key: DATABASE_URL
-        sync: false
-      - key: CHAT_PASSWORD
-        sync: false
+# Sync with Render project Vudhu → Production (exported 2026-11-11)
+# Was static + yarn build — must be Node so /api/* and Neon work.
+version: "1"
+projects:
+  - name: Vudhu
+    environments:
+      - name: Production
+        services:
+          - type: web
+            name: Meow?
+            runtime: node
+            repo: https://github.com/vidhu-ops/astro-platform-starter
+            branch: main
+            buildCommand: npm install
+            startCommand: npm start
+            healthCheckPath: /api/health
+            autoDeployTrigger: commit
+            domains:
+              - sexychat.fun
+              - www.sexychat.fun
+            envVars:
+              - key: NODE_VERSION
+                value: "20"
+              - key: DATABASE_URL
+                sync: false
+              - key: CHAT_PASSWORD
+                sync: false

@@ -10,10 +10,12 @@
 | **Neon** project `vvvaaa` (`red-sky-25826530`) | Postgres messages, sessions, presence |
 | `render.yaml` | Node web service blueprint |
 
-## Deploy on Render
+## Deploy on Render (Vudhu / Meow? / sexychat.fun)
 
-1. **New → Blueprint** → connect this repo.
-2. Set environment variables:
+`render.yaml` matches your **Vudhu → Production → Meow?** service (Node, not static).
+
+1. **Dashboard → Blueprint** → **Sync** from this repo (or edit **Meow?** manually).
+2. Set environment variables on **Meow?**:
    - **`DATABASE_URL`** — pooled connection string from [Neon Console](https://console.neon.tech) → project **vvvaaa** → Connect.
    - **`CHAT_PASSWORD`** — room password (default `safelife100` if unset).
 3. Deploy. Health check: `GET /api/health` → `{ "ok": true, "db": true }`.
