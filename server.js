@@ -11,6 +11,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
 const CHAT_PASSWORD = process.env.CHAT_PASSWORD || "safelife100";
 const DATABASE_URL = process.env.DATABASE_URL;
+const ON_RENDER = Boolean(process.env.RENDER);
+
+if (ON_RENDER && !DATABASE_URL) {
+  console.error(
+    "FATAL: DATABASE_URL is missing. Render → Meow? → Environment → add Neon pooled URL.",
+  );
+  process.exit(1);
+}
 const UPLOAD_DIR = path.join(__dirname, "data", "uploads");
 
 const pool = DATABASE_URL
@@ -144,6 +152,15 @@ app.post("/api/auth/enter", async (req, res) => {
   res.json({ token, username, userId });
 });
 
+app.post("/api/auth/leave", authMiddleware, async (req, res) => {
+  const token = sessionUser(req);
+  if (token) {
+    await pool.query(`DELETE FROM chat_sessions WHERE token = $1`, [token]);
+  }
+  await pool.query(`DELETE FROM chat_presence WHERE user_id = $1`, [req.user.user_id]);
+  res.json({ ok: true });
+});
+
 app.get("/api/messages", authMiddleware, async (_req, res) => {
   const { rows } = await pool.query(
     `SELECT id, user_name AS "user", user_id AS uid, ts, body_text AS text,
@@ -158,7 +175,7 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
   const ts = Date.now();
   const { rows } = await pool.query(
     `INSERT INTO chat_messages (user_name, user_id, ts, body_text, media, kind, fname, saved)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, false)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, true)
      RETURNING id, user_name AS "user", user_id AS uid, ts, body_text AS text, media, kind, fname, saved`,
     [
       req.user.username,
@@ -180,22 +197,9 @@ app.patch("/api/messages/save-all", authMiddleware, async (_req, res) => {
   res.json({ saved: rowCount });
 });
 
-app.delete("/api/messages", authMiddleware, async (req, res) => {
-  const all = req.query.all === "true";
-  const q = all
-    ? `DELETE FROM chat_messages`
-    : `DELETE FROM chat_messages WHERE saved = false`;
-  await pool.query(q);
-  await pool.query(
-    `UPDATE chat_meta SET ended_by = $1, ts = $2 WHERE id = 'chat'`,
-    [req.user.user_id, Date.now()],
-  );
+app.delete("/api/messages", authMiddleware, async (_req, res) => {
+  await pool.query(`DELETE FROM chat_messages`);
   res.json({ ok: true });
-});
-
-app.get("/api/meta", authMiddleware, async (_req, res) => {
-  const { rows } = await pool.query(`SELECT ended_by, ts FROM chat_meta WHERE id = 'chat'`);
-  res.json(rows[0] || {});
 });
 
 app.post("/api/presence", authMiddleware, async (req, res) => {

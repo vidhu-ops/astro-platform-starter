@@ -1,45 +1,30 @@
-# vvvaaa
+# SexyChats (vvvaaa)
 
-**SexyChats** — single-page chat with **Neon Postgres** on Render (and optional Claude artifact mode).
+One Node app: **Render** hosts it, **Neon** stores messages. Every send is saved; **Leave** only logs you out. **Clear** wipes the room.
 
-## Stack
+## Deploy (3 steps)
 
-| Piece | Role |
-|--------|------|
-| `server.js` | Express API, uploads, static `public/` |
-| **Neon** project `vvvaaa` (`red-sky-25826530`) | Postgres messages, sessions, presence |
-| `render.yaml` | Node web service blueprint |
+1. **Render** → service **Meow?** must be **Node** (not Static).  
+   - Build: `npm ci`  
+   - Start: `npm start`  
+   - Health: `/api/health`  
+   - Repo: `main` (this project’s `render.yaml` has the rest).
 
-## Deploy on Render (Vudhu / Meow? / sexychat.fun)
+2. **Environment** on Meow? (required):
+   - `DATABASE_URL` = Neon Console → project **vvvaaa** → Connect → **pooled** URI  
+   - `CHAT_PASSWORD` = room password (default `safelife100` if unset)
 
-`render.yaml` matches your **Vudhu → Production → Meow?** service (Node, not static).
+3. Deploy, then open **https://sexychat.fun/api/health** → must show `"ok":true,"db":true`.
 
-1. **Dashboard → Blueprint** → **Sync** from this repo (or edit **Meow?** manually).
-2. Set environment variables on **Meow?**:
-   - **`DATABASE_URL`** — pooled connection string from [Neon Console](https://console.neon.tech) → project **vvvaaa** → Connect.
-   - **`CHAT_PASSWORD`** — room password (default `safelife100` if unset).
-3. Deploy. Health check: `GET /api/health` → `{ "ok": true, "db": true }`.
+Without `DATABASE_URL`, the service **exits on Render** so the dashboard shows the error clearly.
 
-### Custom domain
-
-Render → **vvvaaa** → **Settings → Custom Domains** → add your domain; point DNS (CNAME `www` to `*.onrender.com`, or apex A records per Render).
-
-## Local dev
+## Local
 
 ```bash
-cp .env.example .env   # add DATABASE_URL from Neon
-npm install
-npm start
+cp .env.example .env   # add DATABASE_URL
+npm ci && npm start
 ```
 
-Open http://localhost:3000 — login badge should show **Database connected · Neon**.
+## Domains
 
-## API
-
-- `GET /api/health` — DB status
-- `POST /api/auth/enter` — `{ username, password }` → `{ token, username, userId }`
-- Bearer token on all other `/api/*` routes
-
-## Claude artifact mode
-
-If opened on claude.ai with capabilities enabled, the app still uses `claude.use("db")` when `/api/health` is unavailable.
+`sexychat.fun` and `www.sexychat.fun` are declared in `render.yaml` under **Vudhu → Production → Meow?**.

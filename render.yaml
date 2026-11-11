@@ -11,7 +11,7 @@ projects:
             runtime: node
             repo: https://github.com/vidhu-ops/astro-platform-starter
             branch: main
-            buildCommand: npm install
+            buildCommand: npm ci
             startCommand: npm start
             healthCheckPath: /api/health
             autoDeployTrigger: commit

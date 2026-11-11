@@ -145,8 +145,8 @@ header h2{margin:0;font-size:1.35rem;font-style:italic;
       <span id="conn-pill" class="badge live hide"><span class="dot"></span>Live</span>
     </div>
     <div class="hdr-actions">
-      <button type="button" id="sv" title="Keep this chat">Save</button>
-      <button type="button" id="del" title="Delete chat">Delete</button>
+      <button type="button" id="sv" class="hide" title="Keep this chat">Save</button>
+      <button type="button" id="del" title="Clear entire chat">Clear</button>
       <button type="button" id="out">Leave</button>
     </div>
   </header>
@@ -303,11 +303,12 @@ async function enter(n) {
     }, 5000);
     const p = await api("/api/presence");
     $("online").textContent = "● " + p.online + " online";
-    setNote("You're in. Messages sync with the database.", "ok");
+    setNote("Messages save automatically until you tap Leave.", "ok");
     chatReady = true;
     return;
   }
 
+  $("sv").classList.remove("hide");
   db = claudeDbAdapter();
   if (!assets) $("att").classList.add("hide");
   unsub = db.collection("messages").onSnapshot(() => {
@@ -329,10 +330,6 @@ async function refreshMessages() {
     const { messages } = await api("/api/messages");
     lastMsgs = messages;
     render(messages);
-    const meta = await api("/api/meta");
-    if (meta.ended_by && meta.ts > joinedAt && meta.ended_by !== uid) {
-      setNote("Someone cleared unsaved messages.");
-    }
   } catch {
     setNote("Reconnecting…", "bad");
   }
@@ -439,18 +436,30 @@ $("p").onkeydown = e => { if (e.key === "Enter") $("go").click(); };
 
 $("sv").onclick = saveChat;
 $("del").onclick = async () => {
+  if (mode === "api") {
+    const c = await ask("Clear chat?", "Deletes every message for everyone. This cannot be undone.", "Clear all", "");
+    if (c !== 1) return;
+    await api("/api/messages", { method: "DELETE" });
+    await refreshMessages();
+    setNote("Chat cleared.", "ok");
+    return;
+  }
   const c = await ask("Delete chat?", "Removes unsaved messages for everyone. Saved messages stay unless you delete everything.", "Delete session", "Delete all");
   if (!c) return;
   await wipe(c === 2);
-  if (mode === "api") await refreshMessages();
 };
 $("out").onclick = async () => {
-  const c = await ask("Leave chat?", "Unsaved messages clear when you leave unless you save first.", "Save, then leave", "Leave without saving");
-  if (!c) return;
-  if (c === 1 && !(await saveChat())) return;
-  await wipe(false);
-  store.del("velvet-name");
-  store.del("vvvaaa-token");
+  if (mode === "api") {
+    try { await api("/api/auth/leave", { method: "POST" }); } catch {}
+    store.del("velvet-name");
+    store.del("vvvaaa-token");
+  } else {
+    const c = await ask("Leave chat?", "Unsaved messages clear when you leave unless you save first.", "Save, then leave", "Leave without saving");
+    if (!c) return;
+    if (c === 1 && !(await saveChat())) return;
+    await wipe(false);
+    store.del("velvet-name");
+  }
   if (pollTimer) clearInterval(pollTimer);
   if (presenceTimer) clearInterval(presenceTimer);
   if (unsub) unsub();
@@ -500,7 +509,8 @@ function render(list) {
   }
   let prev = null, lastDay = "";
   for (const m of list) {
-    const day = new Date(m.ts).toDateString();
+    const ts = Number(m.ts);
+    const day = new Date(ts).toDateString();
     if (day !== lastDay) {
       const s = document.createElement("div");
       s.className = "day";
@@ -509,7 +519,7 @@ function render(list) {
       lastDay = day;
       prev = null;
     }
-    const first = !prev || prev.user !== m.user || m.ts - prev.ts > 300000;
+    const first = !prev || prev.user !== m.user || ts - Number(prev.ts) > 300000;
     prev = m;
     const row = document.createElement("div");
     row.className = "row" + (m.user === name ? " me" : "");
@@ -554,7 +564,7 @@ function render(list) {
   }
     const t = document.createElement("div");
     t.className = "t";
-    t.textContent = new Date(m.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + (m.saved ? " · saved" : "");
+    t.textContent = new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     d.appendChild(t);
     if (m.user === name) row.append(d);
     else row.append(av, d);
