@@ -172,7 +172,7 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
   const ts = Date.now();
   const { rows } = await pool.query(
     `INSERT INTO chat_messages (user_name, user_id, ts, body_text, media, kind, fname, saved)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, false)
      RETURNING id, user_name AS "user", user_id AS uid, ts, body_text AS text, media, kind, fname, saved`,
     [
       req.user.username,
@@ -194,9 +194,22 @@ app.patch("/api/messages/save-all", authMiddleware, async (_req, res) => {
   res.json({ saved: rowCount });
 });
 
-app.delete("/api/messages", authMiddleware, async (_req, res) => {
-  await pool.query(`DELETE FROM chat_messages`);
+app.delete("/api/messages", authMiddleware, async (req, res) => {
+  const all = req.query.all === "true";
+  if (all) await pool.query(`DELETE FROM chat_messages`);
+  else await pool.query(`DELETE FROM chat_messages WHERE saved = false`);
+  await pool.query(
+    `UPDATE chat_meta SET ended_by = $1, ts = $2 WHERE id = 'chat'`,
+    [req.user.user_id, Date.now()],
+  );
   res.json({ ok: true });
+});
+
+app.get("/api/meta", authMiddleware, async (_req, res) => {
+  const { rows } = await pool.query(
+    `SELECT ended_by AS "endedBy", ts FROM chat_meta WHERE id = 'chat'`,
+  );
+  res.json(rows[0] || {});
 });
 
 app.post("/api/presence", authMiddleware, async (req, res) => {

@@ -1,4 +1,4 @@
-# SexyChats (vvvaaa)
+# Velvet — Private Chat (vvvaaa)
 
 One Node app: **Render** hosts it, **Neon** stores messages. Every send is saved; **Leave** only logs you out. **Clear** wipes the room.
 
