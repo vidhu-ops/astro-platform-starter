@@ -187,13 +187,18 @@ header h2{
 #storyfeed{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:16px}
 .story-card{
   background:var(--panel);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:var(--shadow);
+  -webkit-user-select:none;user-select:none;
 }
+.story-card.saved{box-shadow:0 0 0 2px #c9a88e55}
+.story-card video{width:100%;display:block;max-height:420px;background:var(--ink)}
+.story-actions{display:flex;gap:8px;flex-wrap:wrap;padding:0 14px 14px}
+.story-actions .pill{font-size:11px;padding:7px 12px}
+.story-actions .pill.on{border-color:var(--gold);color:var(--gold)}
 .story-head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px 8px;gap:8px}
 .story-head strong{font-size:14px}
 .story-stamp{font-size:11px;color:var(--mute);text-align:right;line-height:1.35}
 .story-card img{width:100%;display:block;max-height:420px;object-fit:cover;background:var(--ink)}
 .story-cap{padding:10px 14px 14px;font-size:15px;line-height:1.45;color:var(--text)}
-.story-actions{padding:0 14px 12px}
 #storybar{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center;background:var(--bar-bg)}
 #storybar input[type=text]{flex:1;margin:0}
 #storyfile{display:none}
@@ -320,14 +325,14 @@ header h2{
   <div id="storyfeed"></div>
   <div id="storybar">
     <button type="button" class="ic" id="storypick" title="Choose photo">📷</button>
-    <input type="file" id="storyfile" accept="image/*">
-    <input type="text" id="storycap" placeholder="Caption for this moment…" autocomplete="off" maxlength="500">
-    <button type="button" class="send" id="storypost" title="Post to Date feed">➤</button>
+    <input type="file" id="storyfile" accept="image/*,video/*">
+    <input type="text" id="storycap" placeholder="Caption for this update…" autocomplete="off" maxlength="500">
+    <button type="button" class="send" id="storypost" title="Post to Updates board">➤</button>
   </div>
 </div>
 <nav id="maintabs" aria-label="Sections">
   <button type="button" class="on" id="tabchat">Chat</button>
-  <button type="button" id="tabdate">Date</button>
+  <button type="button" id="tabdate">Updates</button>
 </nav>
 </div>
 
@@ -360,6 +365,8 @@ let emojiList=null;
 let activeTab="chat";
 let storyPollTimer=null;
 let storyFile=null;
+let storyPosting=false;
+let lastStoriesFp="";
 let mode=null,uid=null,nativeDb=null,db=null,assets=null,room=null,name=null;
 let unsub=null,unsubMeta=null,pollTimer=null,pollMetaTimer=null,refreshInFlight=null,lastMsgs=[],lastDocs=[],joinedAt=0,sendOnce=false,mediaObjectUrls=[];
 const POLL_MS=8000;
@@ -672,7 +679,10 @@ function ask(title,text,b1,b2){
   });
 }
 
-$("sv").onclick=saveChat;
+$("sv").onclick=async()=>{
+  if(activeTab==="date"&&mode==="api")return saveAllUpdates();
+  return saveChat();
+};
 function updateSelectBar(){
   $("selcount").textContent=selectedIds.size+" selected";
 }
@@ -703,6 +713,22 @@ $("seldel").onclick=async()=>{
 };
 
 $("del").onclick=async()=>{
+  if(activeTab==="date"&&mode==="api"){
+    const c=await ask("Clear updates?","Remove unsaved posts from the Updates board (saved posts stay). Or delete all updates with the room password.","Clear unsaved","Delete all (password)");
+    if(!c)return;
+    if(c===2){
+      const pw=window.prompt("Room password to delete every update:");
+      if(!pw)return;
+      try{await wipeUpdates(true,pw);$("note").textContent="Updates board cleared.";}
+      catch(e){$("note").textContent=e.status===403?"Wrong room password.":"Couldn't clear updates.";}
+      return;
+    }
+    if(c===1){
+      await wipeUpdates(false);
+      $("note").textContent="Unsaved updates removed.";
+    }
+    return;
+  }
   const c=await ask("Clear chat?","Clear unsaved messages for everyone (saved messages stay). Or wipe the entire room with the room password.","Clear unsaved","Delete all (password)");
   if(!c)return;
   if(c===2&&mode==="api"){
@@ -717,6 +743,24 @@ $("del").onclick=async()=>{
     $("note").textContent="Unsaved messages cleared.";
   }
 };
+
+async function saveAllUpdates(){
+  try{
+    const r=await api("/api/stories/save-all",{method:"PATCH"});
+    if(!r.saved)$("note").textContent="All updates already saved.";
+    else $("note").textContent="Saved "+r.saved+" update(s) on the board.";
+    lastStoriesFp="";
+    await refreshStories();
+    return true;
+  }catch(e){$("note").textContent="Couldn't save updates.";return false;}
+}
+
+async function wipeUpdates(all,confirmPassword){
+  const body=all&&confirmPassword?{confirmPassword}:undefined;
+  await api("/api/stories?all="+(all?"true":"false"),{method:"DELETE",body});
+  lastStoriesFp="";
+  await refreshStories();
+}
 $("out").onclick=async()=>{
   const c=await ask("Leave chat?","Leaving deletes this session's unsaved messages. Anything you saved stays for next time.","Save, then leave","Leave, clear unsaved");
   if(!c)return;
@@ -1083,7 +1127,8 @@ function setMainTab(tab){
   $("chatview").classList.toggle("hide",tab!=="chat");
   $("dateview").classList.toggle("hide",tab!=="date");
   const tag=$("hdr-brand")?.querySelector(".hdr-tag");
-  if(tag)tag.textContent=tab==="date"?"date feed":"private";
+  if(tag)tag.textContent=tab==="date"?"updates board":"private";
+  $("sel").classList.toggle("hide",tab==="date"||mode!=="api");
   if(tab==="date")void refreshStories();
 }
 $("tabchat").onclick=()=>setMainTab("chat");
@@ -1106,18 +1151,23 @@ async function refreshStories(){
 
 function renderStories(list){
   const feed=$("storyfeed");
+  const fp=list.map(s=>s.id+":"+(s.saved?1:0)+":"+s.ts).join("|");
+  if(fp===lastStoriesFp&&feed.childElementCount)return;
+  lastStoriesFp=fp;
   feed.textContent="";
   if(!list.length){
     const p=document.createElement("p");p.className="sub";p.style.padding="24px 8px";
-    p.textContent="No moments yet — add a photo below. Everyone signed in can see it.";
+    p.textContent="No updates yet — share a photo or video below. Everyone signed in can see the board.";
     feed.appendChild(p);
     return;
   }
   for(const s of list){
-    const card=document.createElement("article");card.className="story-card";
+    const card=document.createElement("article");card.className="story-card"+(s.saved?" saved":"");
     const head=document.createElement("div");head.className="story-head";
     const strong=document.createElement("strong");strong.textContent="@"+s.user;head.appendChild(strong);
-    const stamp=document.createElement("div");stamp.className="story-stamp";stamp.textContent=formatStoryStamp(s.ts);head.appendChild(stamp);
+    const stamp=document.createElement("div");stamp.className="story-stamp";
+    stamp.textContent=formatStoryStamp(s.ts)+(s.saved?" · saved":"");
+    head.appendChild(stamp);
     card.appendChild(head);
     if(s.media){
       const wrap=document.createElement("div");wrap.className="media-host";wrap.dataset.mediaUrl=s.media;
@@ -1127,14 +1177,30 @@ function renderStories(list){
     if(s.caption){
       const cap=document.createElement("div");cap.className="story-cap";cap.textContent=s.caption;card.appendChild(cap);
     }
-    if(mode==="api"&&s.user===name){
+    if(mode==="api"){
       const act=document.createElement("div");act.className="story-actions";
+      const save=document.createElement("button");save.type="button";
+      save.className="pill"+(s.saved?" on":"");
+      save.textContent=s.saved?"Saved ★":"Save";
+      save.onclick=async()=>{
+        try{
+          await api("/api/stories/"+s.id+"/save",{method:"PATCH"});
+          lastStoriesFp="";
+          await refreshStories();
+        }catch(e){$("note").textContent="Couldn't save update.";}
+      };
       const del=document.createElement("button");del.type="button";del.className="pill";del.textContent="Delete";
       del.onclick=async()=>{
-        try{await api("/api/stories/"+s.id,{method:"DELETE"});await refreshStories();}
-        catch(e){$("note").textContent="Couldn't delete story.";}
+        const ok=await ask("Delete update?","Remove this post for everyone on the board.","Delete","Cancel");
+        if(ok!==1)return;
+        try{
+          await api("/api/stories/"+s.id,{method:"DELETE"});
+          lastStoriesFp="";
+          await refreshStories();
+        }catch(e){$("note").textContent="Couldn't delete update.";}
       };
-      act.appendChild(del);card.appendChild(act);
+      act.appendChild(save);act.appendChild(del);
+      card.appendChild(act);
     }
     feed.appendChild(card);
   }
@@ -1148,13 +1214,16 @@ function scheduleStoryPoll(){
 $("storypick").onclick=()=>$("storyfile").click();
 $("storyfile").onchange=()=>{
   storyFile=$("storyfile").files[0]||null;
-  $("note").textContent=storyFile?"Photo ready — add caption and tap ➤.":"";
+  const label=storyFile?(storyFile.type.startsWith("video/")?"Video":"Photo"):"";
+  $("note").textContent=storyFile?label+" ready — add caption and tap ➤.":"";
 };
 $("storypost").onclick=async()=>{
+  if(storyPosting)return;
   if(mode!=="api"||!storyFile){
-    $("note").textContent="Pick a photo first.";
+    $("note").textContent="Pick a photo or video first.";
     return $("storypick").click();
   }
+  storyPosting=true;$("storypost").disabled=true;
   $("note").textContent="Posting…";
   try{
     const fd=new FormData();
@@ -1163,9 +1232,14 @@ $("storypost").onclick=async()=>{
     await api("/api/stories",{method:"POST",body:fd});
     storyFile=null;$("storyfile").value="";
     $("storycap").value="";
-    $("note").textContent="Posted to Date.";
+    lastStoriesFp="";
+    $("note").textContent="Posted to Updates.";
     await refreshStories();
-  }catch(e){$("note").textContent=(e.data&&e.data.error)||"Story didn't post.";}
+  }catch(e){
+    $("note").textContent=(e.data&&e.data.error)||e.message||"Update didn't post.";
+  }finally{
+    storyPosting=false;$("storypost").disabled=false;
+  }
 };
 $("once").onclick=()=>{sendOnce=!sendOnce;$("once").classList.toggle("on",sendOnce);$("note").textContent=sendOnce?"View once on for next photo/video.":"";};
 $("att").onclick=()=>$("file").click();

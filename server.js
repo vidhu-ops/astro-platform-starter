@@ -124,8 +124,10 @@ async function migrate() {
       ts BIGINT NOT NULL,
       caption_text TEXT,
       media_key TEXT NOT NULL,
-      kind TEXT
+      kind TEXT,
+      saved BOOLEAN NOT NULL DEFAULT false
     );
+    ALTER TABLE chat_stories ADD COLUMN IF NOT EXISTS saved BOOLEAN NOT NULL DEFAULT false;
     CREATE INDEX IF NOT EXISTS chat_stories_ts_idx ON chat_stories (ts DESC);
   `);
 }
@@ -946,7 +948,7 @@ app.get(
   authMiddleware,
   asyncHandler(async (_req, res) => {
     const { rows } = await pool.query(
-      `SELECT id, user_name AS "user", user_id, ts, caption_text AS caption_enc, media_key, kind
+      `SELECT id, user_name AS "user", user_id, ts, caption_text AS caption_enc, media_key, kind, saved
        FROM chat_stories ORDER BY ts DESC LIMIT 120`,
     );
     res.json({
@@ -958,6 +960,7 @@ app.get(
         caption: decryptField(r.caption_enc),
         media: r.media_key ? `/api/media/${r.media_key}` : null,
         kind: r.kind,
+        saved: !!r.saved,
       })),
     });
   }),
@@ -969,10 +972,20 @@ app.post(
   storyLimiter,
   upload.single("file"),
   asyncHandler(async (req, res) => {
-    if (!req.file) return res.status(400).json({ error: "Image required" });
-    if (!req.file.mimetype?.startsWith("image/")) {
+    if (!req.file) return res.status(400).json({ error: "Photo or video required" });
+    const mime = safeContentType(req.file.mimetype);
+  if (!mime.startsWith("image/") && !mime.startsWith("video/")) {
       fs.unlink(req.file.path, () => {});
-      return res.status(400).json({ error: "Stories must be images" });
+      return res.status(400).json({ error: "Updates must be images or video" });
+    }
+    const captionRaw = String(req.body?.caption || "").trim().slice(0, 500);
+    const recent = await pool.query(
+      `SELECT ts FROM chat_stories WHERE user_id = $1 ORDER BY ts DESC LIMIT 1`,
+      [req.user.user_id],
+    );
+    if (recent.rows[0] && Date.now() - Number(recent.rows[0].ts) < 3000) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(409).json({ error: "Please wait a moment before posting again" });
     }
     try {
       const raw = fs.readFileSync(req.file.path);
@@ -986,19 +999,18 @@ app.post(
       fs.unlink(req.file.path, () => {});
       return res.status(400).json({ error: "Invalid filename" });
     }
-    const captionRaw = String(req.body?.caption || "").trim().slice(0, 500);
     const ts = Date.now();
     const { rows } = await pool.query(
-      `INSERT INTO chat_stories (user_name, user_id, ts, caption_text, media_key, kind)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, user_name AS "user", ts, media_key, kind`,
+      `INSERT INTO chat_stories (user_name, user_id, ts, caption_text, media_key, kind, saved)
+       VALUES ($1, $2, $3, $4, $5, $6, false)
+       RETURNING id, user_name AS "user", ts, media_key, kind, saved`,
       [
         req.user.username,
         req.user.user_id,
         ts,
         captionRaw ? encryptField(captionRaw) : null,
         safeName,
-        safeContentType(req.file.mimetype),
+        mime,
       ],
     );
     const row = rows[0];
@@ -1009,7 +1021,55 @@ app.post(
       caption: captionRaw,
       media: `/api/media/${row.media_key}`,
       kind: row.kind,
+      saved: !!row.saved,
     });
+  }),
+);
+
+app.patch(
+  "/api/stories/:id/save",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    if (!isUuid(req.params.id)) return res.status(400).json({ error: "Invalid id" });
+    const { rows } = await pool.query(
+      `UPDATE chat_stories SET saved = NOT saved WHERE id = $1 RETURNING id, saved`,
+      [req.params.id],
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Not found" });
+    res.json(rows[0]);
+  }),
+);
+
+app.patch(
+  "/api/stories/save-all",
+  authMiddleware,
+  asyncHandler(async (_req, res) => {
+    const { rowCount } = await pool.query(`UPDATE chat_stories SET saved = true WHERE saved = false`);
+    res.json({ saved: rowCount });
+  }),
+);
+
+app.delete(
+  "/api/stories",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    const all = req.query.all === "true";
+    if (all) {
+      const confirm = String(req.body?.confirmPassword || "");
+      if (!timingSafeEqualString(confirm, CHAT_PASSWORD)) {
+        return res.status(403).json({ error: "Room password required to delete all updates" });
+      }
+      const doomed = await pool.query(`SELECT media_key FROM chat_stories WHERE media_key IS NOT NULL`);
+      unlinkMediaKeys(doomed.rows.map((r) => r.media_key));
+      await pool.query(`DELETE FROM chat_stories`);
+    } else {
+      const doomed = await pool.query(
+        `SELECT media_key FROM chat_stories WHERE saved = false AND media_key IS NOT NULL`,
+      );
+      unlinkMediaKeys(doomed.rows.map((r) => r.media_key));
+      await pool.query(`DELETE FROM chat_stories WHERE saved = false`);
+    }
+    res.json({ ok: true });
   }),
 );
 
@@ -1024,9 +1084,6 @@ app.delete(
     );
     const row = rows[0];
     if (!row) return res.status(404).json({ error: "Not found" });
-    if (row.user_id !== req.user.user_id) {
-      return res.status(403).json({ error: "Only your story can be deleted" });
-    }
     unlinkMediaKeys([row.media_key]);
     await pool.query(`DELETE FROM chat_stories WHERE id = $1`, [req.params.id]);
     res.json({ ok: true });
