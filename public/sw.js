@@ -1,13 +1,13 @@
-/* shhh PWA — push + offline shell */
-const CACHE = "shhh-v3";
+/* shhh PWA — network-first HTML so rebrands reach mobile */
+const CACHE = "shhh-v4";
 
 self.addEventListener("install", (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE).then((c) =>
-      c.addAll(["/", "/manifest.webmanifest", "/icons/icon.svg", "/icons/maskable.svg"]),
+      c.addAll(["/manifest.webmanifest", "/icons/icon.svg", "/icons/maskable.svg"]),
     ),
   );
-  self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
@@ -17,12 +17,41 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
+});
+
+function isDocumentRequest(request, url) {
+  return (
+    request.mode === "navigate" ||
+    url.pathname === "/" ||
+    url.pathname === "/index.html"
+  );
+}
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/")) return;
+
+  if (isDocumentRequest(event.request, url)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE).then((c) => c.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((r) => r || caches.match("/"))),
+    );
+    return;
+  }
+
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request).then((r) => r || caches.match("/"))),
+    fetch(event.request).catch(() => caches.match(event.request)),
   );
 });
 
@@ -39,7 +68,7 @@ self.addEventListener("push", (event) => {
       body: data.body,
       icon: data.icon || "/icons/icon.svg",
       badge: data.badge || "/icons/heart-badge.svg",
-      tag: data.tag || "velvet",
+      tag: data.tag || "shhh",
       renotify: true,
       vibrate: isHeart ? [80, 40, 80, 40, 120] : [60, 30, 60],
       data: data.data || { url: "/" },

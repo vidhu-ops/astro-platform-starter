@@ -1,3 +1,18 @@
+# Fix “Chat unavailable” or old **Velvet** UI on sexychat.fun
+
+If the mobile site still says **Velvet** or looks old, the custom domain is not on the latest **Meow?** Node deploy (or the phone is caching an old PWA).
+
+1. **Render** → open the **Web Service** that runs `npm start` (not Static Site).
+2. Confirm latest commit on `main` is **Live** (look for `shhh` in deploy logs).
+3. **Settings → Custom Domains**: `sexychat.fun` and `www.sexychat.fun` must point to **this** service (remove them from any old Static service).
+4. **Manual Deploy** → Clear build cache & deploy.
+5. On the phone: delete the old home-screen app → Safari/Chrome → open https://sexychat.fun → hard refresh → Add to Home Screen again (name should be **shhh**).
+
+Quick check: `curl -s https://sexychat.fun/ | grep -o '<title>[^<]*'` should show `shhh — private whispers`.  
+`https://meow-k3z3.onrender.com/` on the same commit is the reference if the domain lags.
+
+---
+
 # Fix “Chat unavailable” on sexychat.fun
 
 Your domain shows **Velvet** but chat fails because **Meow? is still a Static Site** on Render.  

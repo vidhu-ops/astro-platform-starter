@@ -7,6 +7,8 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#9b6b7a">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="shhh">
+<meta name="application-name" content="shhh">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
@@ -153,6 +155,21 @@ header h2{
 #viewer p{color:var(--mute);font-size:12px;margin:14px 0 0;text-align:center;max-width:320px;line-height:1.5}
 #viewer .close{margin-top:16px;border:1px solid var(--line);background:var(--panel);padding:10px 22px;border-radius:999px;cursor:pointer;color:var(--text)}
 #app.noblur{filter:none}
+@media (max-width:520px){
+  #gate{padding:20px 16px}
+  .brand-mark{font-size:3.25rem}
+  header{padding:12px 12px 10px}
+  header h2{font-size:1.75rem}
+  .hdr-brand{flex:1;min-width:0}
+  .hdr-tag{font-size:9px;letter-spacing:.2em}
+  .hdr-actions{width:100%;justify-content:flex-start;gap:5px}
+  .hdr-actions span{order:-1;width:100%;max-width:none;margin-bottom:2px;font-size:11px}
+  #think .lbl{display:none}
+  #think::after{content:" thinking"}
+  .pill{padding:7px 10px;font-size:10px}
+  #bar{padding:10px 10px 14px;gap:6px}
+  .ic{width:40px;height:40px;font-size:16px}
+}
 </style>
 </head>
 <body>
@@ -176,7 +193,7 @@ header h2{
   <div class="hdr-actions">
     <span id="me"></span>
     <button type="button" class="pill install hide" id="install">Install</button>
-    <button type="button" class="pill heart" id="think" title="Ping everyone with a heart notification">💗 Thinking of you</button>
+    <button type="button" class="pill heart" id="think" title="Ping everyone with a heart notification">💗<span class="lbl"> Thinking of you</span></button>
     <button type="button" class="pill" id="sv">Save</button>
     <button type="button" class="pill" id="del">Delete</button>
     <button type="button" class="pill" id="out">Leave</button>
@@ -264,7 +281,17 @@ function urlBase64ToUint8Array(base64){
 
 async function setupPwa(){
   if(!("serviceWorker"in navigator))return;
-  try{await navigator.serviceWorker.register("/sw.js");}catch(e){}
+  try{
+    const reg=await navigator.serviceWorker.register("/sw.js?v=4");
+    if(reg.waiting){reg.waiting.postMessage({type:"SKIP_WAITING"});}
+    reg.addEventListener("updatefound",()=>{
+      const w=reg.installing;
+      if(!w)return;
+      w.addEventListener("statechange",()=>{
+        if(w.state==="installed"&&navigator.serviceWorker.controller)location.reload();
+      });
+    });
+  }catch(e){}
   if(mode!=="api"||!appConfig?.vapidPublicKey)return;
   try{
     const reg=await navigator.serviceWorker.ready;
