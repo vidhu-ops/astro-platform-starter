@@ -1,4 +1,4 @@
-# Velvet — Private Chat (vvvaaa)
+# shhh — private whispers (vvvaaa)
 
 One Node app: **Render** hosts it, **Neon** stores messages. Every send is saved; **Leave** only logs you out. **Clear** wipes the room.
 

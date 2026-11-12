@@ -3,7 +3,7 @@
   "version": "1.2.0",
   "private": true,
   "type": "module",
-  "description": "SexyChats — Express + Neon Postgres, Render-ready",
+  "description": "shhh — private chat, Express + Neon, Render-ready",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",

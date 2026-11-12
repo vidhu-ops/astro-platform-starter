@@ -1,5 +1,5 @@
-/* Velvet PWA — push + offline shell */
-const CACHE = "velvet-v2";
+/* shhh PWA — push + offline shell */
+const CACHE = "shhh-v3";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -27,7 +27,7 @@ self.addEventListener("fetch", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let data = { title: "Velvet", body: "New whisper", icon: "/icons/icon.svg", badge: "/icons/heart-badge.svg" };
+  let data = { title: "shhh", body: "New whisper", icon: "/icons/icon.svg", badge: "/icons/heart-badge.svg" };
   try {
     if (event.data) data = { ...data, ...event.data.json() };
   } catch {
@@ -35,7 +35,7 @@ self.addEventListener("push", (event) => {
   }
   const isHeart = data.tag === "velvet-heart" || data.data?.kind === "heart";
   event.waitUntil(
-    self.registration.showNotification(data.title || "Velvet", {
+    self.registration.showNotification(data.title || "shhh", {
       body: data.body,
       icon: data.icon || "/icons/icon.svg",
       badge: data.badge || "/icons/heart-badge.svg",

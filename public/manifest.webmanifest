@@ -1,13 +1,13 @@
 {
-  "name": "Velvet — Private Chat",
-  "short_name": "Velvet",
-  "description": "Dim the lights. Hot whispers, GIFs, and hearts.",
+  "name": "shhh — private whispers",
+  "short_name": "shhh",
+  "description": "Quiet luxury. Private chat, GIFs, and hearts.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#0d0408",
-  "theme_color": "#ff2e75",
+  "background_color": "#0b0a0e",
+  "theme_color": "#9b6b7a",
   "categories": ["social", "lifestyle"],
   "icons": [
     {

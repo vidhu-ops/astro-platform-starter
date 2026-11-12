@@ -422,7 +422,7 @@ app.post("/api/thinking-of-you", authMiddleware, async (req, res) => {
   const from = req.user.username;
   const payload = {
     title: "💗 Thinking of you",
-    body: `@${from} is thinking of you on Velvet`,
+    body: `@${from} is thinking of you on shhh`,
     icon: "/icons/icon.svg",
     badge: "/icons/heart-badge.svg",
     tag: "velvet-heart",
