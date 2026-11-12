@@ -49,7 +49,7 @@ initPush({
 });
 if (process.env.RENDER && !DATABASE_URL) {
   console.warn(
-    "WARNING: DATABASE_URL is not set. Add Neon pooled URL in Render → Meow? → Environment, then restart.",
+    "WARNING: DATABASE_URL is not set. Add Neon pooled URL in Render → astro-platform-starter → Environment, then restart.",
   );
 }
 const UPLOAD_DIR = path.join(__dirname, "data", "uploads");
@@ -129,7 +129,31 @@ async function migrate() {
     );
     ALTER TABLE chat_stories ADD COLUMN IF NOT EXISTS saved BOOLEAN NOT NULL DEFAULT false;
     CREATE INDEX IF NOT EXISTS chat_stories_ts_idx ON chat_stories (ts DESC);
+    CREATE TABLE IF NOT EXISTS chat_uploads (
+      media_key TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      created_at BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS chat_uploads_user_idx ON chat_uploads (user_id);
   `);
+}
+
+function rowOwnedByUser(row, user) {
+  if (!row || !user) return false;
+  if (row.user_id && row.user_id === user.user_id) return true;
+  if (row.user_name && row.user_name === user.username) return true;
+  return false;
+}
+
+async function assertMediaUploadOwner(userId, mediaKey) {
+  const key = normalizeMediaKey(mediaKey);
+  if (!key) return false;
+  const { rows } = await pool.query(
+    `SELECT user_id FROM chat_uploads WHERE media_key = $1`,
+    [key],
+  );
+  if (!rows[0]) return false;
+  return rows[0].user_id === userId;
 }
 
 function polishLocal(text) {
@@ -428,7 +452,7 @@ app.get(
   "/api/health",
   asyncHandler(async (_req, res) => {
   if (!pool) {
-    return res.json({ ok: false, db: false, message: "DATABASE_URL not configured" });
+    return res.status(503).json({ ok: false, db: false, message: "DATABASE_URL not configured" });
   }
   try {
     await pool.query("SELECT 1");
@@ -590,7 +614,12 @@ app.post(
     if (!filePath || !fs.existsSync(filePath)) {
       return res.status(400).json({ error: "Invalid media upload" });
     }
+    const owned = await assertMediaUploadOwner(req.user.user_id, keyFromClient);
+    if (!owned) {
+      return res.status(403).json({ error: "Upload does not belong to this session" });
+    }
     storedKey = keyFromClient;
+    await pool.query(`DELETE FROM chat_uploads WHERE media_key = $1`, [keyFromClient]);
     if (!once) mediaVal = `/api/media/${storedKey}`;
   } else if (!once) {
     mediaVal = sanitizeExternalMediaUrl(media);
@@ -648,9 +677,9 @@ app.patch(
   if (!isUuid(req.params.id)) return res.status(400).json({ error: "Invalid id" });
   const { rows } = await pool.query(
     `UPDATE chat_messages SET marked = NOT marked
-     WHERE id = $1
+     WHERE id = $1 AND (user_id = $2 OR user_name = $3)
      RETURNING id, marked`,
-    [req.params.id],
+    [req.params.id, req.user.user_id, req.user.username],
   );
   if (!rows[0]) return res.status(404).json({ error: "Not found" });
   res.json(rows[0]);
@@ -832,14 +861,24 @@ app.delete(
     const ids = [...new Set(raw.filter((id) => isUuid(id)))];
     if (!ids.length) return res.status(400).json({ error: "No valid message ids" });
     const doomed = await pool.query(
-      `SELECT id, media_key FROM chat_messages WHERE id = ANY($1::uuid[])`,
+      `SELECT id, media_key, user_id, user_name FROM chat_messages WHERE id = ANY($1::uuid[])`,
       [ids],
     );
-    unlinkMediaKeys(doomed.rows.map((r) => r.media_key));
-    const { rowCount } = await pool.query(`DELETE FROM chat_messages WHERE id = ANY($1::uuid[])`, [
-      ids,
-    ]);
-    res.json({ ok: true, deleted: rowCount });
+    const owned = doomed.rows.filter((r) => rowOwnedByUser(r, req.user));
+    if (!owned.length) {
+      return res.status(403).json({ error: "You can only delete your own messages" });
+    }
+    const ownedIds = owned.map((r) => r.id);
+    unlinkMediaKeys(owned.map((r) => r.media_key));
+    const { rowCount } = await pool.query(
+      `DELETE FROM chat_messages WHERE id = ANY($1::uuid[])`,
+      [ownedIds],
+    );
+    res.json({
+      ok: true,
+      deleted: rowCount,
+      skipped: ids.length - ownedIds.length,
+    });
   }),
 );
 
@@ -860,15 +899,25 @@ app.delete(
     await pool.query(`DELETE FROM chat_messages`);
   } else {
     const doomed = await pool.query(
-      `SELECT media_key FROM chat_messages WHERE saved = false AND media_key IS NOT NULL`,
+      `SELECT media_key FROM chat_messages
+       WHERE saved = false
+         AND (user_id = $1 OR (user_id IS NULL AND user_name = $2))
+         AND media_key IS NOT NULL`,
+      [req.user.user_id, req.user.username],
     );
     unlinkMediaKeys(doomed.rows.map((r) => r.media_key));
-    await pool.query(`DELETE FROM chat_messages WHERE saved = false`);
+    await pool.query(
+      `DELETE FROM chat_messages
+       WHERE saved = false AND (user_id = $1 OR (user_id IS NULL AND user_name = $2))`,
+      [req.user.user_id, req.user.username],
+    );
   }
-  await pool.query(
-    `UPDATE chat_meta SET ended_by = $1, ts = $2 WHERE id = 'chat'`,
-    [req.user.user_id, Date.now()],
-  );
+  if (all) {
+    await pool.query(
+      `UPDATE chat_meta SET ended_by = $1, ts = $2 WHERE id = 'chat'`,
+      [req.user.user_id, Date.now()],
+    );
+  }
   res.json({ ok: true });
   }),
 );
@@ -1064,10 +1113,14 @@ app.delete(
       await pool.query(`DELETE FROM chat_stories`);
     } else {
       const doomed = await pool.query(
-        `SELECT media_key FROM chat_stories WHERE saved = false AND media_key IS NOT NULL`,
+        `SELECT media_key FROM chat_stories
+         WHERE saved = false AND user_id = $1 AND media_key IS NOT NULL`,
+        [req.user.user_id],
       );
       unlinkMediaKeys(doomed.rows.map((r) => r.media_key));
-      await pool.query(`DELETE FROM chat_stories WHERE saved = false`);
+      await pool.query(`DELETE FROM chat_stories WHERE saved = false AND user_id = $1`, [
+        req.user.user_id,
+      ]);
     }
     res.json({ ok: true });
   }),
@@ -1084,6 +1137,9 @@ app.delete(
     );
     const row = rows[0];
     if (!row) return res.status(404).json({ error: "Not found" });
+    if (row.user_id !== req.user.user_id) {
+      return res.status(403).json({ error: "You can only delete your own updates" });
+    }
     unlinkMediaKeys([row.media_key]);
     await pool.query(`DELETE FROM chat_stories WHERE id = $1`, [req.params.id]);
     res.json({ ok: true });
@@ -1118,6 +1174,11 @@ app.post(
     fs.unlink(req.file.path, () => {});
     return res.status(400).json({ error: "Invalid filename" });
   }
+  await pool.query(
+    `INSERT INTO chat_uploads (media_key, user_id, created_at) VALUES ($1, $2, $3)
+     ON CONFLICT (media_key) DO UPDATE SET user_id = EXCLUDED.user_id, created_at = EXCLUDED.created_at`,
+    [safeName, req.user.user_id, Date.now()],
+  );
   const url = viewOnce ? null : `/api/media/${safeName}`;
   res.json({
     id: safeName,

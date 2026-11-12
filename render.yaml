@@ -16,6 +16,10 @@ projects:
             startCommand: npm start
             healthCheckPath: /api/health
             autoDeployTrigger: commit
+            disk:
+              name: shhh-uploads
+              mountPath: /opt/render/project/src/data
+              sizeGB: 1
             domains:
               - sexychat.fun
               - www.sexychat.fun

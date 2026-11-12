@@ -66,7 +66,11 @@ html[data-theme="light"]{
   --media-bg:#d8d8de;--danger:#b91c1c;--accent-ring:rgba(143,61,88,.4);
   --star-me:#fff3c4;--stamp-opacity:.72;--gate-glow:rgba(143,61,88,.08);--mark-ring:rgba(92,69,47,.55);--card-elev:rgba(0,0,0,.1);
 }
-*{box-sizing:border-box}html,body{height:100%;margin:0}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;height:100dvh}
+@supports (-webkit-touch-callout:none){
+  html,body{min-height:-webkit-fill-available;height:-webkit-fill-available}
+}
 body.boot #gate,body.boot #app{visibility:hidden}
 body.ready #gate,body.ready #app{visibility:visible}
 html[data-theme="dark"] body{
@@ -127,10 +131,10 @@ input::placeholder{color:var(--mute)}
   color:var(--btn-secondary-text);
 }
 .err{color:var(--danger);font-size:13px;min-height:18px;margin-top:12px;font-weight:500}
-#app{height:100%;display:flex;flex-direction:column;max-width:820px;margin:0 auto}
+#app{min-height:0;height:100%;display:flex;flex-direction:column;max-width:820px;margin:0 auto;width:100%}
 header{
   display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
-  padding:14px 16px;border-bottom:1px solid var(--line);
+  padding:max(12px,env(safe-area-inset-top,0px)) 16px 14px;border-bottom:1px solid var(--line);
   background:var(--header-bg);backdrop-filter:blur(16px);
 }
 .hdr-brand{display:flex;align-items:baseline;gap:8px;min-width:0}
@@ -201,7 +205,7 @@ header h2{
 #replybar strong{color:var(--rose)}
 #replybar button{margin-left:auto;background:none;border:0;color:var(--mute);cursor:pointer;font-size:20px;line-height:1}
 #bar{
-  display:flex;flex-direction:column;gap:10px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0));
+  display:flex;flex-direction:column;gap:10px;padding:10px 12px 10px;
   border-top:1px solid var(--line);background:var(--bar-bg);backdrop-filter:blur(20px);position:relative;
 }
 .bar-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -625,14 +629,14 @@ function enter(n){
     refreshApi();
     pollTimer=setInterval(()=>{if(!document.hidden)refreshApi();},POLL_MS);
     scheduleMetaPoll();
+    $("sel").classList.remove("hide");
+    scheduleStoryPoll();
     document.addEventListener("visibilitychange",onVis);
     return;
   }
   if(!assets)$("att").classList.add("hide");
   $("think").classList.add("hide");
   $("gifb").classList.add("hide");
-  if(mode==="api")$("sel").classList.remove("hide");
-  scheduleStoryPoll();
   unsub=db.collection("messages").orderBy("ts","desc").limit(200).onSnapshot(snap=>{lastDocs=snap.docs;lastMsgs=snap.docs.map(d=>d.data()).reverse();render(lastMsgs)},()=>{$("note").textContent="Couldn't load messages."});
   unsubMeta=db.collection("meta").doc("chat").onSnapshot(s=>{const m=s.exists&&s.data();if(m&&m.endedBy&&m.endedBy!==uid&&m.ts>joinedAt)$("note").textContent="Unsaved messages were cleared. Saved messages stay."},()=>{});
   beginSession();
