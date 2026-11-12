@@ -9,7 +9,7 @@ If the mobile site still says **Velvet** or looks old, the custom domain is not 
 5. On the phone: delete the old home-screen app → Safari/Chrome → open https://sexychat.fun → hard refresh → Add to Home Screen again (name should be **shhh**).
 
 Quick check: `curl -s https://sexychat.fun/ | grep -o '<title>[^<]*'` should show `shhh — private whispers`.  
-`https://meow-k3z3.onrender.com/` on the same commit is the reference if the domain lags.
+Right now **sexychat.fun** often still serves **Velvet** from an old service; the good build is **meow-k3z3.onrender.com** — see [DOMAIN-ROUTING.md](./DOMAIN-ROUTING.md).
 
 ---
 

@@ -433,10 +433,11 @@ async function beginSession(){
   }catch(e){}
 }
 
-async function wipe(all){
+async function wipe(all,confirmPassword){
   try{
     if(mode==="api"){
-      await api("/api/messages?all="+(all?"true":"false"),{method:"DELETE"});
+      const body=all&&confirmPassword?{confirmPassword}:undefined;
+      await api("/api/messages?all="+(all?"true":"false"),{method:"DELETE",body});
       await refreshApi();
       return;
     }
@@ -471,7 +472,15 @@ function ask(title,text,b1,b2){
 $("sv").onclick=saveChat;
 $("del").onclick=async()=>{
   const c=await ask("Delete chat?","Removes this session's unsaved messages for everyone. Saved messages stay unless you choose to delete them too.","Delete this session","Delete everything, saved too");
-  if(!c)return;await wipe(c===2);
+  if(!c)return;
+  if(c===2&&mode==="api"){
+    const pw=window.prompt("Room password required to delete all saved messages:");
+    if(!pw)return;
+    try{await wipe(true,pw);}
+    catch(e){$("note").textContent=e.status===403?"Wrong room password.":"Couldn't delete everything.";}
+    return;
+  }
+  await wipe(c===2);
 };
 $("out").onclick=async()=>{
   const c=await ask("Leave chat?","Leaving deletes this session's unsaved messages. Anything you saved stays for next time.","Save, then leave","Leave, clear unsaved");

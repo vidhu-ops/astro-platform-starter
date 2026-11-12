@@ -147,6 +147,25 @@ function clearSessionCookie(res) {
   res.clearCookie("velvet_session", { path: "/", httpOnly: true, secure: COOKIE_SECURE });
 }
 
+const DEVICE_COOKIE = "shhh_device";
+const MAX_UPLOADS_PER_USER = 80;
+const MAX_UPLOADS_PER_HOUR = 25;
+
+function getOrSetDeviceId(req, res) {
+  let id = req.cookies?.[DEVICE_COOKIE];
+  if (!id || !isUuid(id)) {
+    id = crypto.randomUUID();
+    res.cookie(DEVICE_COOKIE, id, {
+      httpOnly: true,
+      secure: COOKIE_SECURE,
+      sameSite: "strict",
+      maxAge: 400 * 24 * 60 * 60 * 1000,
+      path: "/",
+    });
+  }
+  return id;
+}
+
 async function authMiddleware(req, res, next) {
   if (!pool) return res.status(503).json({ error: "Database unavailable" });
   const token = sessionUser(req);
@@ -263,6 +282,14 @@ const viewOnceLimiter = rateLimit({
   message: { error: "Too many view requests." },
 });
 
+const uploadUserLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: MAX_UPLOADS_PER_HOUR,
+  standardHeaders: true,
+  message: { error: "Upload limit reached. Try again later." },
+  keyGenerator: (req) => req.user?.user_id || req.ip,
+});
+
 app.get("/api/config", (_req, res) => {
   res.json({
     vapidPublicKey: getPublicKey(),
@@ -279,7 +306,13 @@ app.get(
   }
   try {
     await pool.query("SELECT 1");
-    res.json({ ok: true, db: true, backend: "neon" });
+    res.json({
+      ok: true,
+      db: true,
+      backend: "neon",
+      app: "shhh",
+      commit: process.env.RENDER_GIT_COMMIT?.slice(0, 7) || null,
+    });
   } catch (e) {
     res.status(503).json({ ok: false, db: false, message: "Database unreachable" });
   }
@@ -301,15 +334,22 @@ app.post(
     return res.status(403).json({ error: "Wrong password" });
   }
 
+  const deviceId = getOrSetDeviceId(req, res);
   const existing = await pool.query(
-    `SELECT username FROM chat_users WHERE username = $1`,
+    `SELECT username, owner_id FROM chat_users WHERE username = $1`,
     [username],
   );
-  const userId = crypto.randomUUID();
-  if (!existing.rows[0]) {
+  let ownerId;
+  if (existing.rows[0]) {
+    ownerId = existing.rows[0].owner_id;
+    if (ownerId !== deviceId) {
+      return res.status(409).json({ error: "That username is already claimed on another device." });
+    }
+  } else {
+    ownerId = deviceId;
     await pool.query(
       `INSERT INTO chat_users (username, owner_id, created_at) VALUES ($1, $2, $3)`,
-      [username, userId, Date.now()],
+      [username, ownerId, Date.now()],
     );
   }
 
@@ -318,7 +358,7 @@ app.post(
   await pool.query(
     `INSERT INTO chat_sessions (token, username, user_id, expires_at)
      VALUES ($1, $2, $3, $4)`,
-    [token, username, userId, expires],
+    [token, username, ownerId, expires],
   );
 
   setSessionCookie(res, token);
@@ -335,6 +375,7 @@ app.post(
     await pool.query(`DELETE FROM chat_sessions WHERE token = $1`, [token]);
   }
   await pool.query(`DELETE FROM chat_presence WHERE user_id = $1`, [req.user.user_id]);
+  await pool.query(`DELETE FROM chat_push_subscriptions WHERE user_id = $1`, [req.user.user_id]);
   clearSessionCookie(res);
   res.json({ ok: true });
   }),
@@ -646,8 +687,15 @@ app.delete(
   authMiddleware,
   asyncHandler(async (req, res) => {
   const all = req.query.all === "true";
-  if (all) await pool.query(`DELETE FROM chat_messages`);
-  else await pool.query(`DELETE FROM chat_messages WHERE saved = false`);
+  if (all) {
+    const confirm = String(req.body?.confirmPassword || "");
+    if (!timingSafeEqualString(confirm, CHAT_PASSWORD)) {
+      return res.status(403).json({ error: "Room password required to delete all saved messages" });
+    }
+    await pool.query(`DELETE FROM chat_messages`);
+  } else {
+    await pool.query(`DELETE FROM chat_messages WHERE saved = false`);
+  }
   await pool.query(
     `UPDATE chat_meta SET ended_by = $1, ts = $2 WHERE id = 'chat'`,
     [req.user.user_id, Date.now()],
@@ -697,9 +745,18 @@ app.get(
 app.post(
   "/api/upload",
   authMiddleware,
+  uploadUserLimiter,
   upload.single("file"),
   asyncHandler(async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file" });
+  const { rows: quota } = await pool.query(
+    `SELECT COUNT(*)::int AS c FROM chat_messages WHERE user_id = $1 AND media_key IS NOT NULL`,
+    [req.user.user_id],
+  );
+  if ((quota[0]?.c ?? 0) >= MAX_UPLOADS_PER_USER) {
+    fs.unlink(req.file.path, () => {});
+    return res.status(429).json({ error: "Upload quota reached for this account" });
+  }
   try {
     const raw = fs.readFileSync(req.file.path);
     fs.writeFileSync(req.file.path, encryptBuffer(raw));
