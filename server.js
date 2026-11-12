@@ -133,6 +133,14 @@ function klipyPickUrl(block) {
   return block.gif?.url || block.webp?.url || block.mp4?.url || block.jpg?.url || null;
 }
 
+function unlinkMediaKeys(keys) {
+  const unique = [...new Set(keys.map((k) => normalizeMediaKey(k)).filter(Boolean))];
+  for (const k of unique) {
+    const p = resolveUploadPath(UPLOAD_DIR, k);
+    if (p && fs.existsSync(p)) fs.unlink(p, () => {});
+  }
+}
+
 function mapKlipyGif(item) {
   const file = item.file || item.files || item.media || {};
   const send =
@@ -753,6 +761,28 @@ app.patch(
 );
 
 app.delete(
+  "/api/messages/bulk",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    const raw = req.body?.ids;
+    if (!Array.isArray(raw) || !raw.length) {
+      return res.status(400).json({ error: "Provide ids array" });
+    }
+    const ids = [...new Set(raw.filter((id) => isUuid(id)))];
+    if (!ids.length) return res.status(400).json({ error: "No valid message ids" });
+    const doomed = await pool.query(
+      `SELECT id, media_key FROM chat_messages WHERE id = ANY($1::uuid[])`,
+      [ids],
+    );
+    unlinkMediaKeys(doomed.rows.map((r) => r.media_key));
+    const { rowCount } = await pool.query(`DELETE FROM chat_messages WHERE id = ANY($1::uuid[])`, [
+      ids,
+    ]);
+    res.json({ ok: true, deleted: rowCount });
+  }),
+);
+
+app.delete(
   "/api/messages",
   authMiddleware,
   asyncHandler(async (req, res) => {
@@ -762,17 +792,16 @@ app.delete(
     if (!timingSafeEqualString(confirm, CHAT_PASSWORD)) {
       return res.status(403).json({ error: "Room password required to delete all saved messages" });
     }
+    const doomed = await pool.query(
+      `SELECT media_key FROM chat_messages WHERE media_key IS NOT NULL`,
+    );
+    unlinkMediaKeys(doomed.rows.map((r) => r.media_key));
     await pool.query(`DELETE FROM chat_messages`);
   } else {
     const doomed = await pool.query(
       `SELECT media_key FROM chat_messages WHERE saved = false AND media_key IS NOT NULL`,
     );
-    for (const row of doomed.rows) {
-      const k = normalizeMediaKey(row.media_key);
-      if (!k) continue;
-      const p = resolveUploadPath(UPLOAD_DIR, k);
-      if (p && fs.existsSync(p)) fs.unlink(p, () => {});
-    }
+    unlinkMediaKeys(doomed.rows.map((r) => r.media_key));
     await pool.query(`DELETE FROM chat_messages WHERE saved = false`);
   }
   await pool.query(

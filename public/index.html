@@ -126,6 +126,14 @@ header h2{
 }
 .msg.me .msg-tools button{background:#00000028;color:#ffe8f0cc}
 .msg-tools button.on{opacity:1;font-weight:600}
+.msg.selectable{padding-left:36px;position:relative}
+.msg .msg-pick{position:absolute;left:8px;top:50%;transform:translateY(-50%);width:18px;height:18px;accent-color:var(--rose)}
+#selectbar{
+  display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--line);
+  background:rgba(28,27,34,.96);font-size:13px;
+}
+#selectbar button{margin-left:auto}
+.pill.on{border-color:var(--rose);color:var(--champagne)}
 .t{font-size:10px;opacity:.5;margin-top:4px;text-align:right;letter-spacing:.02em}
 .msg img,.msg video{max-width:100%;max-height:320px;border-radius:14px;display:block;margin-top:6px}
 .msg a{color:var(--gold);text-underline-offset:3px}
@@ -213,12 +221,17 @@ header h2{
     <button type="button" class="pill install hide" id="install">Install</button>
     <button type="button" class="pill heart" id="think" title="Ping everyone with a heart notification">💗<span class="lbl"> Thinking of you</span></button>
     <button type="button" class="pill" id="sv">Save</button>
+    <button type="button" class="pill hide" id="sel">Select</button>
     <button type="button" class="pill" id="del">Delete</button>
     <button type="button" class="pill" id="out">Leave</button>
   </div>
 </header>
 <div id="feed"></div>
 <div class="note" id="note"></div>
+<div id="selectbar" class="hide"><span id="selcount">0 selected</span>
+  <button type="button" class="pill" id="seldel">Delete selected</button>
+  <button type="button" class="pill" id="seldone">Done</button>
+</div>
 <div id="replybar" class="hide">↩ Replying to <strong id="replywho"></strong> <button type="button" id="replyx" aria-label="Cancel reply">×</button></div>
 <div id="bar">
   <div id="emo" class="hide"></div>
@@ -261,6 +274,9 @@ let mode=null,uid=null,nativeDb=null,db=null,assets=null,room=null,name=null;
 let unsub=null,unsubMeta=null,pollTimer=null,pollMetaTimer=null,refreshInFlight=null,lastMsgs=[],lastDocs=[],joinedAt=0,sendOnce=false,mediaObjectUrls=[];
 const POLL_MS=8000;
 const msgById=new Map();
+let sending=false;
+let selectMode=false;
+const selectedIds=new Set();
 let replyTo=null,replyLabel="",appConfig=null,deferredInstall=null,gifTier="spicy";
 const NAME_KEY="shhh-name";
 const store={get:k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}},del:k=>{try{sessionStorage.removeItem(k)}catch(e){}}};
@@ -440,6 +456,7 @@ function enter(n){
   if(!assets)$("att").classList.add("hide");
   $("think").classList.add("hide");
   $("gifb").classList.add("hide");
+  if(mode==="api")$("sel").classList.remove("hide");
   unsub=db.collection("messages").orderBy("ts","desc").limit(200).onSnapshot(snap=>{lastDocs=snap.docs;lastMsgs=snap.docs.map(d=>d.data()).reverse();render(lastMsgs)},()=>{$("note").textContent="Couldn't load messages."});
   unsubMeta=db.collection("meta").doc("chat").onSnapshot(s=>{const m=s.exists&&s.data();if(m&&m.endedBy&&m.endedBy!==uid&&m.ts>joinedAt)$("note").textContent="Unsaved messages were cleared. Saved messages stay."},()=>{});
   beginSession();
@@ -506,6 +523,11 @@ async function wipe(all,confirmPassword){
     if(mode==="api"){
       const body=all&&confirmPassword?{confirmPassword}:undefined;
       await api("/api/messages?all="+(all?"true":"false"),{method:"DELETE",body});
+      msgById.clear();
+      selectedIds.clear();
+      selectMode=false;
+      $("selectbar").classList.add("hide");
+      $("sel").classList.remove("on");
       await refreshApi();
       return;
     }
@@ -538,17 +560,49 @@ function ask(title,text,b1,b2){
 }
 
 $("sv").onclick=saveChat;
+function updateSelectBar(){
+  $("selcount").textContent=selectedIds.size+" selected";
+}
+
+function setSelectMode(on){
+  selectMode=on;
+  if(!on)selectedIds.clear();
+  $("selectbar").classList.toggle("hide",!selectMode);
+  $("sel").classList.toggle("on",selectMode);
+  updateSelectBar();
+  render(lastMsgs);
+}
+
+$("sel").onclick=()=>setSelectMode(!selectMode);
+$("seldone").onclick=()=>setSelectMode(false);
+$("seldel").onclick=async()=>{
+  if(!selectedIds.size||mode!=="api")return;
+  const n=selectedIds.size;
+  const c=await ask("Delete selected?","Removes "+n+" message(s) for everyone in the room.","Delete","Cancel");
+  if(c!==1)return;
+  try{
+    await api("/api/messages/bulk",{method:"DELETE",body:{ids:[...selectedIds]}});
+    setSelectMode(false);
+    msgById.clear();
+    await refreshApi();
+    $("note").textContent="Deleted "+n+" message(s).";
+  }catch(e){$("note").textContent="Couldn't delete selected messages.";}
+};
+
 $("del").onclick=async()=>{
-  const c=await ask("Delete chat?","Removes this session's unsaved messages for everyone. Saved messages stay unless you choose to delete them too.","Delete this session","Delete everything, saved too");
+  const c=await ask("Clear chat?","Clear unsaved messages for everyone (saved messages stay). Or wipe the entire room with the room password.","Clear unsaved","Delete all (password)");
   if(!c)return;
   if(c===2&&mode==="api"){
-    const pw=window.prompt("Room password required to delete all saved messages:");
+    const pw=window.prompt("Room password required to delete every message:");
     if(!pw)return;
-    try{await wipe(true,pw);}
+    try{await wipe(true,pw);$("note").textContent="Room cleared.";}
     catch(e){$("note").textContent=e.status===403?"Wrong room password.":"Couldn't delete everything.";}
     return;
   }
-  await wipe(c===2);
+  if(c===1){
+    await wipe(false);
+    $("note").textContent="Unsaved messages cleared.";
+  }
 };
 $("out").onclick=async()=>{
   const c=await ask("Leave chat?","Leaving deletes this session's unsaved messages. Anything you saved stays for next time.","Save, then leave","Leave, clear unsaved");
@@ -577,6 +631,20 @@ $("think").onclick=async()=>{
 };
 
 const IMG=/\.(png|jpe?g|gif|webp|avif)(\?|$)/i,VID=/\.(mp4|webm|mov)(\?|$)/i;
+
+function urlOnlyImage(text,kind){
+  const t=String(text||"").trim();
+  if(!/^https:\/\//i.test(t))return null;
+  if(kind?.startsWith?.("image")||IMG.test(t)||/gif|webp/i.test(kind||"")||/klipy\.com|tenor\.com|giphy\.com/i.test(t))return t;
+  return null;
+}
+
+function appendInlineImage(host,url){
+  const i=document.createElement("img");
+  i.src=url;i.loading="lazy";i.referrerPolicy="no-referrer";
+  host.appendChild(i);
+}
+
 function linkify(parent,text){
   const re=/https:\/\/[^\s<>"']+/gi;let last=0,m;
   const frag=document.createDocumentFragment();
@@ -636,7 +704,7 @@ function rowKey(m,idx,list){
 function applyMsgShell(el,m,idx,list){
   const mine=m.user===name;
   const stacked=isStacked(idx,list);
-  el.className="msg"+(mine?" me":" them")+(m.marked?" marked":"")+(stacked?" stack":"")+(m.pending?" pending":"");
+  el.className="msg"+(mine?" me":" them")+(m.marked?" marked":"")+(stacked?" stack":"")+(m.pending?" pending":"")+(selectMode?" selectable":"");
   let who=el.querySelector(":scope > .who");
   const show=showWhoAt(idx,list);
   if(show){
@@ -657,7 +725,13 @@ function createMsgEl(m,idx,list){
   const mine=m.user===name;
   const d=document.createElement("div");
   d.dataset.id=m.id;
-  d.className="msg"+(mine?" me":" them")+(m.marked?" marked":"")+(stacked?" stack":"")+(m.pending?" pending":"");
+  d.className="msg"+(mine?" me":" them")+(m.marked?" marked":"")+(stacked?" stack":"")+(m.pending?" pending":"")+(selectMode?" selectable":"");
+  if(selectMode&&mode==="api"&&!String(m.id).startsWith("pending-")){
+    const cb=document.createElement("input");
+    cb.type="checkbox";cb.className="msg-pick";cb.checked=selectedIds.has(m.id);
+    cb.onchange=()=>{if(cb.checked)selectedIds.add(m.id);else selectedIds.delete(m.id);updateSelectBar();};
+    d.appendChild(cb);
+  }
   if(showWhoAt(idx,list)){
     const w=document.createElement("div");w.className="who";w.textContent=m.user;d.appendChild(w);
   }
@@ -667,7 +741,14 @@ function createMsgEl(m,idx,list){
     rq.textContent=(m.replyQuote.user?m.replyQuote.user+": ":"")+(m.replyQuote.text||"");
     body.appendChild(rq);
   }
-  if(m.text){const p=document.createElement("div");p.className="bubble-text";linkify(p,String(m.text));body.appendChild(p);}
+  const soloImg=(!m.media||m.viewOnce)&&urlOnlyImage(m.text,m.kind);
+  const textTrim=String(m.text||"").trim();
+  if(soloImg){
+    const host=document.createElement("div");host.className="media-host";host.dataset.mediaUrl=soloImg;
+    appendInlineImage(host,soloImg);body.appendChild(host);
+  }else if(textTrim&&!(m.media&&textTrim===String(m.media))){
+    const p=document.createElement("div");p.className="bubble-text";linkify(p,String(m.text));body.appendChild(p);
+  }
   if(m.viewOnce&&(m.hasMedia||m.viewOnceState)){
     const b=document.createElement("button");b.type="button";
     b.className="view-once"+(m.viewOnceState==="opened"?" opened":m.viewOnceState==="sent"?" sent":"");
@@ -685,14 +766,16 @@ function createMsgEl(m,idx,list){
     else{const a=document.createElement("a");a.className="file";a.href=url;a.target="_blank";a.rel="noopener";a.textContent="📄 "+(m.fname||"file");host.appendChild(a);}
   }
   d.appendChild(body);
-  const tools=document.createElement("div");tools.className="msg-tools";
-  const br=document.createElement("button");br.type="button";br.textContent="Reply";br.onclick=()=>setReply(m);tools.appendChild(br);
-  if(mode==="api"){
-    const mk=document.createElement("button");mk.type="button";mk.dataset.act="mark";mk.textContent=m.marked?"★":"☆";mk.className=m.marked?"on":"";
-    mk.title=m.marked?"Marked":"Mark message";
-    mk.onclick=()=>toggleMark(m.id,mk);tools.appendChild(mk);
+  if(!selectMode){
+    const tools=document.createElement("div");tools.className="msg-tools";
+    const br=document.createElement("button");br.type="button";br.textContent="Reply";br.onclick=()=>setReply(m);tools.appendChild(br);
+    if(mode==="api"){
+      const mk=document.createElement("button");mk.type="button";mk.dataset.act="mark";mk.textContent=m.marked?"★":"☆";mk.className=m.marked?"on":"";
+      mk.title=m.marked?"Marked":"Mark message";
+      mk.onclick=()=>toggleMark(m.id,mk);tools.appendChild(mk);
+    }
+    d.appendChild(tools);
   }
-  d.appendChild(tools);
   const t=document.createElement("div");t.className="t";t.textContent=formatMsgTime(m);d.appendChild(t);
   return d;
 }
@@ -748,26 +831,28 @@ function render(list){
 async function post(data){
   try{
   if(mode==="api"){
+    if(sending)return;
+    sending=true;
     const body={...data};if(replyTo)body.replyTo=replyTo;
-    const tempId="pending-"+crypto.randomUUID();
-    const optimistic={id:tempId,user:name,ts:Date.now(),marked:false,saved:false,pending:true,...data};
-    lastMsgs=[...lastMsgs,optimistic];
-    render(lastMsgs);
-    await api("/api/messages",{method:"POST",body});
+    const created=await api("/api/messages",{method:"POST",body});
     clearReply();
-    msgById.delete(tempId);
-    await refreshApi();
+    if(!lastMsgs.some(m=>m.id===created.id)){
+      lastMsgs=[...lastMsgs,created];
+      render(lastMsgs);
+    }else{
+      await refreshApi();
+    }
+    sending=false;
   }else await db.collection("messages").add({user:name,uid,ts:Date.now(),...data});
   $("note").textContent="";
   }catch(e){
-    lastMsgs=lastMsgs.filter(m=>!m.pending);
-    render(lastMsgs);
+    sending=false;
     $("note").textContent="Message didn't send.";
   }
 }
 
-function sendText(){const t=$("txt").value.trim();if(!t)return;$("txt").value="";post({text:t.slice(0,2000)});}
-$("send").onclick=sendText;$("txt").onkeydown=e=>{if(e.key==="Enter")sendText();};
+function sendText(){const t=$("txt").value.trim();if(!t||sending)return;$("txt").value="";post({text:t.slice(0,2000)});}
+$("send").onclick=sendText;$("txt").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();sendText();}};
 
 EMOJI.forEach(e=>{const b=document.createElement("button");b.textContent=e;b.onclick=()=>{$("txt").value+=e;$("txt").focus();};$("emo").appendChild(b);});
 $("emob").onclick=()=>$("emo").classList.toggle("hide");
@@ -829,7 +914,12 @@ async function searchGifs(){
       const b=document.createElement("button");b.type="button";
       const im=document.createElement("img");im.src=g.preview||g.url;im.alt=g.title||"gif";im.loading="lazy";im.referrerPolicy="no-referrer";
       b.appendChild(im);
-      b.onclick=()=>{post({text:g.url,kind:"image/gif"});$("gifpanel").classList.add("hide");$("note").textContent="GIF sent.";};
+      b.onclick=async()=>{
+        if(sending)return;
+        $("gifpanel").classList.add("hide");
+        await post({text:g.url,kind:"image/gif"});
+        $("note").textContent="GIF sent.";
+      };
       grid.appendChild(b);
       shown++;
     }
