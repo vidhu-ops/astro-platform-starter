@@ -4,13 +4,13 @@ One Node app: **Render** hosts it, **Neon** stores messages. Every send is saved
 
 ## Deploy (3 steps)
 
-1. **Render** → **Meow?** → **Settings**: set **Language = Node** (not Static Site).  
+1. **Render** → **astro-platform-starter** (astro deploy) → **Settings**: **Language = Node**, Web Service (not Static Site).  
    - Build: `npm install` (or `yarn install && yarn build` if still on yarn — both work now)  
    - Start Command: `npm start`  
    - Health: `/api/health`  
    - Repo: `main` on service **astro-platform-starter** (astro deploy) — see `render.yaml`.
 
-2. **Environment** on Meow? (required):
+2. **Environment** on **astro-platform-starter** (required):
    - `DATABASE_URL` = Neon Console → project **vvvaaa** → Connect → **pooled** URI  
    - `CHAT_PASSWORD` = room password (**required** — set only in the host environment, never in repo)
    - `MESSAGE_ENCRYPTION_KEY` = `openssl rand -base64 32` (encrypts message text in Postgres)

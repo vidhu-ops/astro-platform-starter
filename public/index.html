@@ -339,13 +339,13 @@ async function detectBackend(){
     let h;
     try{h=JSON.parse(raw);}catch{
       if(!res.ok||raw.includes("<!DOCTYPE")||raw.includes("Not Found")){
-        $("err").textContent="Server is static-only — in Render set Meow? to Web Service, Start: npm start.";
+        $("err").textContent="Server is static-only — Render → astro-platform-starter → Web Service, Start: npm start.";
         return;
       }
     }
     if(h&&h.ok&&h.db){mode="api";return;}
     if(h&&h.db===false){
-      $("err").textContent="Add DATABASE_URL (Neon) in Render → Meow? → Environment.";
+      $("err").textContent="Add DATABASE_URL (Neon) in Render → astro-platform-starter → Environment.";
       mode="api";
       return;
     }
