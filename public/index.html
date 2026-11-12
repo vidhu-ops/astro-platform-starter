@@ -430,7 +430,7 @@ function urlBase64ToUint8Array(base64){
 async function setupPwa(){
   if(!("serviceWorker"in navigator))return;
   try{
-    const reg=await navigator.serviceWorker.register("/sw.js?v=5");
+    const reg=await navigator.serviceWorker.register("/sw.js?v=6");
     if(reg.waiting){reg.waiting.postMessage({type:"SKIP_WAITING"});}
     reg.addEventListener("updatefound",()=>{
       const w=reg.installing;
