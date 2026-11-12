@@ -48,6 +48,7 @@ Static only serves `public/index.html` — there is **no** `/api/health` or data
   (not `Not Found`)
 - https://sexychat.fun — sign in with the password you set in `CHAT_PASSWORD`
 - https://sexychat.fun/api/config → `"pushEnabled":true` when VAPID keys are set; `"gifEnabled":true` when `KLIPY_API_KEY` is set
+- After sign-in, open **GIF** → mood board should fill (Klipy `file.hd/sm` URLs). Empty grid with key set → **Manual Deploy** on latest `main`, then confirm key is the Klipy **app key** (no quotes/spaces).
 
 ## After deploy from `main` (PWA + GIF + push)
 
