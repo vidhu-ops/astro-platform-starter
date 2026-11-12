@@ -26,5 +26,13 @@ projects:
                 sync: false
               - key: MESSAGE_ENCRYPTION_KEY
                 sync: false
-              - key: MESSAGE_ENCRYPTION_KEY
+              - key: KLIPY_API_KEY
+                sync: false
+              - key: TENOR_API_KEY
+                sync: false
+              - key: VAPID_PUBLIC_KEY
+                sync: false
+              - key: VAPID_PRIVATE_KEY
+                sync: false
+              - key: VAPID_SUBJECT
                 sync: false

@@ -220,7 +220,7 @@ app.get("/api/config", (_req, res) => {
   res.json({
     vapidPublicKey: getPublicKey(),
     pushEnabled: isPushReady(),
-    gifEnabled: Boolean(process.env.TENOR_API_KEY),
+    gifEnabled: Boolean(process.env.TENOR_API_KEY || process.env.KLIPY_API_KEY),
   });
 });
 
@@ -433,29 +433,62 @@ app.post("/api/thinking-of-you", authMiddleware, async (req, res) => {
 });
 
 app.get("/api/gifs/search", authMiddleware, async (req, res) => {
-  const key = process.env.TENOR_API_KEY;
-  if (!key) return res.status(503).json({ error: "GIF search not configured (TENOR_API_KEY)" });
   const tier = String(req.query.tier || "spicy");
   const q = String(req.query.q || GIF_PRESETS[tier] || GIF_PRESETS.spicy);
-  const url = new URL("https://tenor.googleapis.com/v2/search");
-  url.searchParams.set("key", key);
-  url.searchParams.set("q", q);
-  url.searchParams.set("limit", "24");
-  url.searchParams.set("media_filter", "gif,tinygif");
-  url.searchParams.set("contentfilter", "low");
-  const r = await fetch(url);
-  const data = await r.json();
-  const results = (data.results || []).map((item) => {
-    const m = item.media_formats || {};
-    const gif = m.tinygif || m.gif || m.mediumgif;
-    return {
-      id: item.id,
-      title: item.content_description || item.title,
-      url: gif?.url,
-      preview: m.tinygif?.url || gif?.url,
-    };
+  const klipy = process.env.KLIPY_API_KEY;
+  const tenor = process.env.TENOR_API_KEY;
+
+  if (klipy) {
+    const url = new URL(`https://api.klipy.com/api/v1/${encodeURIComponent(klipy)}/gifs/search`);
+    url.searchParams.set("q", q);
+    url.searchParams.set("page", "1");
+    url.searchParams.set("per_page", "24");
+    const r = await fetch(url);
+    const data = await r.json();
+    if (!data.result) {
+      return res.status(502).json({ error: data.errors?.message?.[0] || "Klipy search failed" });
+    }
+    const list = data.data?.data || data.data?.gifs || data.data || [];
+    const results = (Array.isArray(list) ? list : []).map((item) => {
+      const files = item.files || item.media || {};
+      const gif = files.gif || files.hd?.gif || item.url;
+      const preview = files.preview?.gif?.url || files.tiny?.gif?.url || gif?.url || gif;
+      const sendUrl = gif?.url || gif || preview;
+      return {
+        id: item.id || item.slug,
+        title: item.title || item.slug || "gif",
+        url: sendUrl,
+        preview: preview?.url || preview || sendUrl,
+      };
+    });
+    return res.json({ results, provider: "klipy" });
+  }
+
+  if (tenor) {
+    const url = new URL("https://tenor.googleapis.com/v2/search");
+    url.searchParams.set("key", tenor);
+    url.searchParams.set("q", q);
+    url.searchParams.set("limit", "24");
+    url.searchParams.set("media_filter", "gif,tinygif");
+    url.searchParams.set("contentfilter", "low");
+    const r = await fetch(url);
+    const data = await r.json();
+    const results = (data.results || []).map((item) => {
+      const m = item.media_formats || {};
+      const gif = m.tinygif || m.gif || m.mediumgif;
+      return {
+        id: item.id,
+        title: item.content_description || item.title,
+        url: gif?.url,
+        preview: m.tinygif?.url || gif?.url,
+      };
+    });
+    return res.json({ results, provider: "tenor" });
+  }
+
+  return res.status(503).json({
+    error: "GIF search not configured — set KLIPY_API_KEY (recommended) or TENOR_API_KEY on Render",
   });
-  res.json({ results });
 });
 
 app.post("/api/messages/:id/view-once", authMiddleware, viewOnceLimiter, async (req, res) => {

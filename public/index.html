@@ -203,7 +203,7 @@ header h2{
     </div>
     <div id="gifsearch"><input type="search" id="gifq" placeholder="Search GIFs…"><button type="button" id="gifgo">Search</button></div>
     <div id="gifgrid"></div>
-    <p class="sub" style="margin:0;font-size:11px" id="gifhint">Powered by Tenor when TENOR_API_KEY is set on the server.</p>
+    <p class="sub" style="margin:0;font-size:11px" id="gifhint">Powered by Klipy when KLIPY_API_KEY is set on Render.</p>
   </div>
 </div>
 
@@ -573,7 +573,7 @@ $("file").onchange=async()=>{
 
 $("gifb").onclick=()=>{
   if(mode!=="api")return;
-  if(!appConfig?.gifEnabled)$("gifhint").textContent="Add TENOR_API_KEY in Render to search GIFs (you can still paste GIF URLs).";
+  if(!appConfig?.gifEnabled)$("gifhint").textContent="Add KLIPY_API_KEY on Render (partner.klipy.com) — paste GIF URLs anytime.";
   $("gifpanel").classList.remove("hide");
   searchGifs();
 };
@@ -590,7 +590,7 @@ $("gifq").onkeydown=e=>{if(e.key==="Enter")searchGifs();};
 
 async function searchGifs(){
   const grid=$("gifgrid");grid.textContent="";
-  if(!appConfig?.gifEnabled){grid.textContent="";const p=document.createElement("p");p.className="sub";p.textContent="GIF search needs TENOR_API_KEY on the server.";grid.appendChild(p);return;}
+  if(!appConfig?.gifEnabled){grid.textContent="";const p=document.createElement("p");p.className="sub";p.textContent="GIF search needs KLIPY_API_KEY on Render (see RENDER-FIX.md).";grid.appendChild(p);return;}
   try{
     const q=$("gifq").value.trim();
     const url="/api/gifs/search?tier="+encodeURIComponent(gifTier)+(q?"&q="+encodeURIComponent(q):"");
