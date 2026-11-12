@@ -342,9 +342,6 @@ app.post(
   let ownerId;
   if (existing.rows[0]) {
     ownerId = existing.rows[0].owner_id;
-    if (ownerId !== deviceId) {
-      return res.status(409).json({ error: "That username is already claimed on another device." });
-    }
   } else {
     ownerId = deviceId;
     await pool.query(
