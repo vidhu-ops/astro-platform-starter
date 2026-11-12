@@ -17,11 +17,24 @@ import {
   initMessageKey,
   timingSafeEqualString,
 } from "./server/crypto.js";
+import { asyncHandler } from "./server/express-async.js";
 import { getPublicKey, initPush, isPushReady, sendPush } from "./server/push.js";
+import {
+  isAllowedPushEndpoint,
+  isUuid,
+  normalizeMediaKey,
+  resolveUploadPath,
+  safeContentType,
+  sanitizeExternalMediaUrl,
+} from "./server/security.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
-const CHAT_PASSWORD = process.env.CHAT_PASSWORD || "safelife100";
+const CHAT_PASSWORD = process.env.CHAT_PASSWORD;
+if (!CHAT_PASSWORD) {
+  console.error("FATAL: Set CHAT_PASSWORD in the environment (no default).");
+  process.exit(1);
+}
 const DATABASE_URL = process.env.DATABASE_URL;
 const COOKIE_SECURE = Boolean(process.env.RENDER || process.env.NODE_ENV === "production");
 
@@ -154,12 +167,46 @@ const upload = multer({
     destination: UPLOAD_DIR,
     filename: (_req, file, cb) => {
       const id = crypto.randomUUID();
-      const ext = path.extname(file.originalname).slice(0, 12);
+      const rawExt = path.extname(file.originalname).toLowerCase().replace(/[^a-z0-9.]/g, "");
+      const ext = rawExt.slice(0, 12);
       cb(null, `${id}${ext}`);
     },
   }),
-  limits: { fileSize: 20 * 1024 * 1024 },
+  limits: { fileSize: 20 * 1024 * 1024, files: 1 },
 });
+
+function mimeFromFilename(filename) {
+  const ext = path.extname(filename).toLowerCase();
+  const map = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".avif": "image/avif",
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+    ".mov": "video/quicktime",
+    ".pdf": "application/pdf",
+    ".txt": "text/plain",
+  };
+  return safeContentType(map[ext] || "application/octet-stream");
+}
+
+function sendEncryptedFile(res, filePath, contentType) {
+  const kind = safeContentType(contentType);
+  res.setHeader("Cache-Control", "no-store, private");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Content-Type", kind);
+  if (kind.startsWith("image/") || kind.startsWith("video/")) {
+    res.setHeader("Content-Disposition", "inline");
+  } else {
+    res.setHeader("Content-Disposition", "attachment");
+  }
+  const enc = fs.readFileSync(filePath);
+  const plain = decryptBuffer(enc);
+  res.send(plain);
+}
 
 const app = express();
 app.set("trust proxy", 1);
@@ -224,7 +271,9 @@ app.get("/api/config", (_req, res) => {
   });
 });
 
-app.get("/api/health", async (_req, res) => {
+app.get(
+  "/api/health",
+  asyncHandler(async (_req, res) => {
   if (!pool) {
     return res.json({ ok: false, db: false, message: "DATABASE_URL not configured" });
   }
@@ -234,9 +283,13 @@ app.get("/api/health", async (_req, res) => {
   } catch (e) {
     res.status(503).json({ ok: false, db: false, message: "Database unreachable" });
   }
-});
+  }),
+);
 
-app.post("/api/auth/enter", loginLimiter, async (req, res) => {
+app.post(
+  "/api/auth/enter",
+  loginLimiter,
+  asyncHandler(async (req, res) => {
   if (!pool) return res.status(503).json({ error: "Database unavailable" });
   const username = String(req.body.username || "")
     .trim()
@@ -270,9 +323,13 @@ app.post("/api/auth/enter", loginLimiter, async (req, res) => {
 
   setSessionCookie(res, token);
   res.json({ username });
-});
+  }),
+);
 
-app.post("/api/auth/leave", authMiddleware, async (req, res) => {
+app.post(
+  "/api/auth/leave",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
   const token = sessionUser(req);
   if (token) {
     await pool.query(`DELETE FROM chat_sessions WHERE token = $1`, [token]);
@@ -280,7 +337,8 @@ app.post("/api/auth/leave", authMiddleware, async (req, res) => {
   await pool.query(`DELETE FROM chat_presence WHERE user_id = $1`, [req.user.user_id]);
   clearSessionCookie(res);
   res.json({ ok: true });
-});
+  }),
+);
 
 async function broadcastPush(excludeUserId, payload) {
   if (!pool || !isPushReady()) return 0;
@@ -333,7 +391,10 @@ function publicMessage(row, viewer) {
   return m;
 }
 
-app.get("/api/messages", authMiddleware, async (req, res) => {
+app.get(
+  "/api/messages",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
   const { rows } = await pool.query(
     `SELECT m.id, m.user_name AS "user", m.user_id AS uid, m.ts, m.body_text AS text,
             m.media, m.kind, m.fname, m.saved, m.view_once, m.media_viewed, m.media_key,
@@ -346,18 +407,39 @@ app.get("/api/messages", authMiddleware, async (req, res) => {
   res.json({
     messages: rows.reverse().map((r) => publicMessage(r, req.user.username)),
   });
-});
+  }),
+);
 
-app.post("/api/messages", authMiddleware, async (req, res) => {
+app.post(
+  "/api/messages",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
   const { text, media, kind, fname, viewOnce, mediaKey, replyTo } = req.body || {};
   const ts = Date.now();
   const once = !!viewOnce;
-  const mediaVal = once ? null : media || (mediaKey ? `/api/media/${mediaKey}` : null);
+  let mediaVal = null;
+  let storedKey = null;
+  const keyFromClient = normalizeMediaKey(mediaKey);
+  if (keyFromClient) {
+    const filePath = resolveUploadPath(UPLOAD_DIR, keyFromClient);
+    if (!filePath || !fs.existsSync(filePath)) {
+      return res.status(400).json({ error: "Invalid media upload" });
+    }
+    storedKey = keyFromClient;
+    if (!once) mediaVal = `/api/media/${storedKey}`;
+  } else if (!once) {
+    mediaVal = sanitizeExternalMediaUrl(media);
+  }
+  if (once && !storedKey) {
+    return res.status(400).json({ error: "View-once requires a valid upload" });
+  }
   let replyId = null;
-  if (replyTo) {
+  if (replyTo && isUuid(replyTo)) {
     const chk = await pool.query(`SELECT id FROM chat_messages WHERE id = $1`, [replyTo]);
     if (chk.rows[0]) replyId = replyTo;
   }
+  const safeKind = kind ? safeContentType(kind) : null;
+  const safeFname = fname ? String(fname).slice(0, 80).replace(/[^\w.\- ]/g, "") : null;
   const { rows } = await pool.query(
     `INSERT INTO chat_messages (user_name, user_id, ts, body_text, media, kind, fname, saved, view_once, media_key, reply_to)
      VALUES ($1, $2, $3, $4, $5, $6, $7, false, $8, $9, $10)
@@ -369,10 +451,10 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
       ts,
       text ? encryptField(String(text).slice(0, 2000)) : null,
       mediaVal,
-      kind || null,
-      fname || null,
+      safeKind,
+      safeFname,
       once,
-      mediaKey || null,
+      storedKey,
       replyId,
     ],
   );
@@ -391,9 +473,14 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
     tag: "velvet-msg",
     data: { url: "/", kind: "message" },
   });
-});
+  }),
+);
 
-app.patch("/api/messages/:id/mark", authMiddleware, async (req, res) => {
+app.patch(
+  "/api/messages/:id/mark",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+  if (!isUuid(req.params.id)) return res.status(400).json({ error: "Invalid id" });
   const { rows } = await pool.query(
     `UPDATE chat_messages SET marked = NOT marked
      WHERE id = $1
@@ -402,12 +489,19 @@ app.patch("/api/messages/:id/mark", authMiddleware, async (req, res) => {
   );
   if (!rows[0]) return res.status(404).json({ error: "Not found" });
   res.json(rows[0]);
-});
+  }),
+);
 
-app.post("/api/push/subscribe", authMiddleware, async (req, res) => {
+app.post(
+  "/api/push/subscribe",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
   const { endpoint, keys } = req.body || {};
   if (!endpoint || !keys?.p256dh || !keys?.auth) {
     return res.status(400).json({ error: "Invalid subscription" });
+  }
+  if (!isAllowedPushEndpoint(endpoint)) {
+    return res.status(400).json({ error: "Push endpoint not allowed" });
   }
   await pool.query(
     `INSERT INTO chat_push_subscriptions (user_id, endpoint, p256dh, auth)
@@ -416,9 +510,13 @@ app.post("/api/push/subscribe", authMiddleware, async (req, res) => {
     [req.user.user_id, endpoint, keys.p256dh, keys.auth],
   );
   res.json({ ok: true });
-});
+  }),
+);
 
-app.post("/api/thinking-of-you", authMiddleware, async (req, res) => {
+app.post(
+  "/api/thinking-of-you",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
   const from = req.user.username;
   const payload = {
     title: "💗 Thinking of you",
@@ -430,9 +528,13 @@ app.post("/api/thinking-of-you", authMiddleware, async (req, res) => {
   };
   const sent = await broadcastPush(req.user.user_id, payload);
   res.json({ sent, pushEnabled: isPushReady() });
-});
+  }),
+);
 
-app.get("/api/gifs/search", authMiddleware, async (req, res) => {
+app.get(
+  "/api/gifs/search",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
   const tier = String(req.query.tier || "spicy");
   const q = String(req.query.q || GIF_PRESETS[tier] || GIF_PRESETS.spicy);
   const klipy = process.env.KLIPY_API_KEY;
@@ -489,9 +591,15 @@ app.get("/api/gifs/search", authMiddleware, async (req, res) => {
   return res.status(503).json({
     error: "GIF search not configured — set KLIPY_API_KEY (recommended) or TENOR_API_KEY on Render",
   });
-});
+  }),
+);
 
-app.post("/api/messages/:id/view-once", authMiddleware, viewOnceLimiter, async (req, res) => {
+app.post(
+  "/api/messages/:id/view-once",
+  authMiddleware,
+  viewOnceLimiter,
+  asyncHandler(async (req, res) => {
+  if (!isUuid(req.params.id)) return res.status(400).json({ error: "Invalid id" });
   const { rows } = await pool.query(
     `SELECT id, user_name, media, kind, media_key, view_once, media_viewed
      FROM chat_messages WHERE id = $1`,
@@ -503,10 +611,10 @@ app.post("/api/messages/:id/view-once", authMiddleware, viewOnceLimiter, async (
   if (msg.user_name === req.user.username) {
     return res.status(403).json({ error: "Sender cannot open view-once" });
   }
-  const key = msg.media_key || (msg.media && path.basename(String(msg.media)));
+  const key = normalizeMediaKey(msg.media_key);
   if (!key) return res.status(404).json({ error: "Media gone" });
-  const filePath = path.join(UPLOAD_DIR, key);
-  if (!fs.existsSync(filePath)) {
+  const filePath = resolveUploadPath(UPLOAD_DIR, key);
+  if (!filePath || !fs.existsSync(filePath)) {
     await pool.query(
       `UPDATE chat_messages SET media = NULL, media_viewed = true WHERE id = $1`,
       [req.params.id],
@@ -517,23 +625,26 @@ app.post("/api/messages/:id/view-once", authMiddleware, viewOnceLimiter, async (
     `UPDATE chat_messages SET media = NULL, media_viewed = true WHERE id = $1`,
     [req.params.id],
   );
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
-  res.setHeader("Content-Type", msg.kind || "application/octet-stream");
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  const enc = fs.readFileSync(filePath);
-  const plain = decryptBuffer(enc);
-  res.send(plain);
+  sendEncryptedFile(res, filePath, msg.kind || mimeFromFilename(key));
   fs.unlink(filePath, () => {});
-});
+  }),
+);
 
-app.patch("/api/messages/save-all", authMiddleware, async (_req, res) => {
+app.patch(
+  "/api/messages/save-all",
+  authMiddleware,
+  asyncHandler(async (_req, res) => {
   const { rowCount } = await pool.query(
     `UPDATE chat_messages SET saved = true WHERE saved = false`,
   );
   res.json({ saved: rowCount });
-});
+  }),
+);
 
-app.delete("/api/messages", authMiddleware, async (req, res) => {
+app.delete(
+  "/api/messages",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
   const all = req.query.all === "true";
   if (all) await pool.query(`DELETE FROM chat_messages`);
   else await pool.query(`DELETE FROM chat_messages WHERE saved = false`);
@@ -542,16 +653,24 @@ app.delete("/api/messages", authMiddleware, async (req, res) => {
     [req.user.user_id, Date.now()],
   );
   res.json({ ok: true });
-});
+  }),
+);
 
-app.get("/api/meta", authMiddleware, async (_req, res) => {
+app.get(
+  "/api/meta",
+  authMiddleware,
+  asyncHandler(async (_req, res) => {
   const { rows } = await pool.query(
     `SELECT ended_by AS "endedBy", ts FROM chat_meta WHERE id = 'chat'`,
   );
   res.json(rows[0] || {});
-});
+  }),
+);
 
-app.post("/api/presence", authMiddleware, async (req, res) => {
+app.post(
+  "/api/presence",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
   const name = String(req.body.name || req.user.username);
   await pool.query(
     `INSERT INTO chat_presence (user_id, username, last_seen)
@@ -560,17 +679,26 @@ app.post("/api/presence", authMiddleware, async (req, res) => {
     [req.user.user_id, name],
   );
   res.json({ ok: true });
-});
+  }),
+);
 
-app.get("/api/presence", authMiddleware, async (_req, res) => {
+app.get(
+  "/api/presence",
+  authMiddleware,
+  asyncHandler(async (_req, res) => {
   const { rows } = await pool.query(
     `SELECT COUNT(*)::int AS count FROM chat_presence
      WHERE last_seen > NOW() - INTERVAL '45 seconds'`,
   );
   res.json({ online: rows[0]?.count ?? 0 });
-});
+  }),
+);
 
-app.post("/api/upload", authMiddleware, upload.single("file"), async (req, res) => {
+app.post(
+  "/api/upload",
+  authMiddleware,
+  upload.single("file"),
+  asyncHandler(async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file" });
   try {
     const raw = fs.readFileSync(req.file.path);
@@ -580,27 +708,38 @@ app.post("/api/upload", authMiddleware, upload.single("file"), async (req, res) 
     return res.status(500).json({ error: "Upload encryption failed" });
   }
   const viewOnce = req.body.viewOnce === "true" || req.body.viewOnce === true;
-  const url = viewOnce ? null : `/api/media/${req.file.filename}`;
+  const safeName = normalizeMediaKey(req.file.filename);
+  if (!safeName) {
+    fs.unlink(req.file.path, () => {});
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+  const url = viewOnce ? null : `/api/media/${safeName}`;
   res.json({
-    id: req.file.filename,
-    mediaKey: req.file.filename,
+    id: safeName,
+    mediaKey: safeName,
     url,
-    kind: req.file.mimetype,
+    kind: safeContentType(req.file.mimetype),
     viewOnce,
   });
-});
+  }),
+);
 
-app.get("/api/media/:filename", authMiddleware, (req, res) => {
-  const safe = path.basename(req.params.filename);
-  const filePath = path.join(UPLOAD_DIR, safe);
-  if (!fs.existsSync(filePath)) return res.status(404).end();
-  res.setHeader("Cache-Control", "no-store, private");
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  const enc = fs.readFileSync(filePath);
-  const plain = decryptBuffer(enc);
-  const kind = req.query.kind;
-  if (kind) res.setHeader("Content-Type", kind);
-  res.send(plain);
+app.get(
+  "/api/media/:filename",
+  authMiddleware,
+  (req, res) => {
+  const filePath = resolveUploadPath(UPLOAD_DIR, req.params.filename);
+  if (!filePath || !fs.existsSync(filePath)) return res.status(404).end();
+  sendEncryptedFile(res, filePath, mimeFromFilename(req.params.filename));
+  },
+);
+
+app.use((err, _req, res, _next) => {
+  if (err?.code === "LIMIT_FILE_SIZE") {
+    return res.status(413).json({ error: "File too large" });
+  }
+  console.error(err);
+  if (!res.headersSent) res.status(500).json({ error: "Server error" });
 });
 app.use(express.static(path.join(__dirname, "public")));
 

@@ -14,7 +14,7 @@ Static only serves `public/index.html` — there is **no** `/api/health` or data
 5. **Health check path:** `/api/health`
 6. **Environment** (Meow? → **Environment** → paste each key):
    - `DATABASE_URL` = Neon **vvvaaa** → Connect → **pooled** URL  
-   - `CHAT_PASSWORD` = `safelife100` (or your password)
+   - `CHAT_PASSWORD` = your private room password (required; not stored in this repo)
    - `MESSAGE_ENCRYPTION_KEY` = same base64 32-byte key you already use in production
    - `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` = from `npx web-push generate-vapid-keys` (PWA + **Thinking of you** + message push)
    - `VAPID_SUBJECT` = `mailto:vidhugupta1996@gmail.com`
@@ -32,7 +32,7 @@ Static only serves `public/index.html` — there is **no** `/api/health` or data
 
 - `https://meow-k3z3.onrender.com/api/health` → `{"ok":true,"db":true}`  
   (not `Not Found`)
-- https://sexychat.fun — sign in with password `safelife100`
+- https://sexychat.fun — sign in with the password you set in `CHAT_PASSWORD`
 - https://sexychat.fun/api/config → `"pushEnabled":true` when VAPID keys are set; `"gifEnabled":true` when `KLIPY_API_KEY` is set
 
 ## After deploy from `main` (PWA + GIF + push)
