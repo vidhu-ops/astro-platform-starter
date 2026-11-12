@@ -1,7 +1,7 @@
 {
   "name": "shhh — private whispers",
   "short_name": "shhh",
-  "description": "Quiet luxury. Private chat, GIFs, and hearts.",
+  "description": "Because safety comes first. Private chat, GIFs, and hearts.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
