@@ -13,6 +13,7 @@ One Node app: **Render** hosts it, **Neon** stores messages. Every send is saved
 2. **Environment** on Meow? (required):
    - `DATABASE_URL` = Neon Console → project **vvvaaa** → Connect → **pooled** URI  
    - `CHAT_PASSWORD` = room password (default `safelife100` if unset)
+   - `MESSAGE_ENCRYPTION_KEY` = `openssl rand -base64 32` (encrypts message text in Postgres)
 
 3. Deploy, then open **https://sexychat.fun/api/health** → must show `"ok":true,"db":true`.
 

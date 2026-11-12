@@ -3,14 +3,29 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import cookieParser from "cookie-parser";
 import express from "express";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
 import multer from "multer";
 import pg from "pg";
+import {
+  decryptField,
+  encryptField,
+  initMessageKey,
+  timingSafeEqualString,
+} from "./server/crypto.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
 const CHAT_PASSWORD = process.env.CHAT_PASSWORD || "safelife100";
 const DATABASE_URL = process.env.DATABASE_URL;
+const COOKIE_SECURE = Boolean(process.env.RENDER || process.env.NODE_ENV === "production");
+
+initMessageKey({
+  messageEncryptionKey: process.env.MESSAGE_ENCRYPTION_KEY,
+  chatPassword: CHAT_PASSWORD,
+});
 if (process.env.RENDER && !DATABASE_URL) {
   console.warn(
     "WARNING: DATABASE_URL is not set. Add Neon pooled URL in Render → Meow? → Environment, then restart.",
@@ -76,8 +91,22 @@ async function migrate() {
 
 function sessionUser(req) {
   const header = req.headers.authorization || "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
-  return token;
+  const bearer = header.startsWith("Bearer ") ? header.slice(7) : null;
+  return req.cookies?.velvet_session || bearer || null;
+}
+
+function setSessionCookie(res, token) {
+  res.cookie("velvet_session", token, {
+    httpOnly: true,
+    secure: COOKIE_SECURE,
+    sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: "/",
+  });
+}
+
+function clearSessionCookie(res) {
+  res.clearCookie("velvet_session", { path: "/", httpOnly: true, secure: COOKIE_SECURE });
 }
 
 async function authMiddleware(req, res, next) {
@@ -108,7 +137,46 @@ const upload = multer({
 });
 
 const app = express();
+app.set("trust proxy", 1);
+app.disable("x-powered-by");
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "blob:", "data:", "https:"],
+        mediaSrc: ["'self'", "blob:"],
+        connectSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  }),
+);
+app.use(cookieParser());
 app.use(express.json({ limit: "2mb" }));
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 25,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts. Try again later." },
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use("/api", apiLimiter);
 
 app.get("/api/health", async (_req, res) => {
   if (!pool) {
@@ -122,7 +190,7 @@ app.get("/api/health", async (_req, res) => {
   }
 });
 
-app.post("/api/auth/enter", async (req, res) => {
+app.post("/api/auth/enter", loginLimiter, async (req, res) => {
   if (!pool) return res.status(503).json({ error: "Database unavailable" });
   const username = String(req.body.username || "")
     .trim()
@@ -130,7 +198,9 @@ app.post("/api/auth/enter", async (req, res) => {
     .replace(/[^a-z0-9_]/g, "");
   const password = String(req.body.password || "");
   if (username.length < 3) return res.status(400).json({ error: "Username too short" });
-  if (password !== CHAT_PASSWORD) return res.status(403).json({ error: "Wrong password" });
+  if (!timingSafeEqualString(password, CHAT_PASSWORD)) {
+    return res.status(403).json({ error: "Wrong password" });
+  }
 
   const existing = await pool.query(
     `SELECT username FROM chat_users WHERE username = $1`,
@@ -152,7 +222,8 @@ app.post("/api/auth/enter", async (req, res) => {
     [token, username, userId, expires],
   );
 
-  res.json({ token, username, userId });
+  setSessionCookie(res, token);
+  res.json({ username, userId });
 });
 
 app.post("/api/auth/leave", authMiddleware, async (req, res) => {
@@ -161,6 +232,7 @@ app.post("/api/auth/leave", authMiddleware, async (req, res) => {
     await pool.query(`DELETE FROM chat_sessions WHERE token = $1`, [token]);
   }
   await pool.query(`DELETE FROM chat_presence WHERE user_id = $1`, [req.user.user_id]);
+  clearSessionCookie(res);
   res.json({ ok: true });
 });
 
@@ -172,7 +244,7 @@ function publicMessage(row, viewer) {
     user: row.user,
     uid: row.uid,
     ts: row.ts,
-    text: row.text,
+    text: decryptField(row.text),
     kind: row.kind,
     fname: row.fname,
     saved: row.saved,
@@ -216,7 +288,7 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
       req.user.username,
       req.user.user_id,
       ts,
-      text ? String(text).slice(0, 2000) : null,
+      text ? encryptField(String(text).slice(0, 2000)) : null,
       mediaVal,
       kind || null,
       fname || null,
@@ -324,7 +396,8 @@ app.get("/api/media/:filename", authMiddleware, (req, res) => {
   const safe = path.basename(req.params.filename);
   const filePath = path.join(UPLOAD_DIR, safe);
   if (!fs.existsSync(filePath)) return res.status(404).end();
-  res.setHeader("Cache-Control", "private, max-age=3600");
+  res.setHeader("Cache-Control", "no-store, private");
+  res.setHeader("X-Content-Type-Options", "nosniff");
   res.sendFile(filePath);
 });
 app.use(express.static(path.join(__dirname, "public")));

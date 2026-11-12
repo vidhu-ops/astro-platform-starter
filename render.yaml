@@ -24,3 +24,5 @@ projects:
                 sync: false
               - key: CHAT_PASSWORD
                 sync: false
+              - key: MESSAGE_ENCRYPTION_KEY
+                sync: false

@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow">
 <title>Velvet — Private Chat</title>
 <style>
 :root{--bg:#0d0408;--panel:#1a0810;--panel2:#26101a;--rose:#ff2e75;--wine:#8a0f3c;--gold:#f5c97a;--text:#fbe9ef;--mute:#b98a9b;--line:#3a1626;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -75,21 +77,20 @@ header button{background:none;border:1px solid var(--line);border-radius:20px;pa
 <div id="viewer" class="hide"><div class="shield" id="vshield"></div><div id="vslot"></div><p>One-time view. Closing removes it for everyone. Screenshots can’t be fully blocked on the web.</p><button type="button" class="close" id="vclose">Close</button></div>
 
 <script>
-const PASS="safelife100";
+const CLAUDE_PASS="safelife100";
 const $=id=>document.getElementById(id);
 const EMOJI="😘 😍 🥵 😏 😈 🔥 💋 ❤️ 💕 💘 😉 🥰 😜 🍑 🍒 🍷 🌹 ✨ 💃 🕺 😳 🙈 😂 🤤 💦 🖤 👀 🫦 😻 💫 🥂 🎉".split(" ");
-let mode=null,apiToken=null,nativeDb=null,db=null,assets=null,room=null,uid=null,name=null;
+let mode=null,uid=null,nativeDb=null,db=null,assets=null,room=null,name=null;
 let unsub=null,unsubMeta=null,pollTimer=null,lastMsgs=[],lastDocs=[],joinedAt=0,sendOnce=false,mediaObjectUrls=[];
 const store={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};
 
 async function api(path,opts={}){
   const headers={...(opts.headers||{})};
-  if(apiToken)headers.Authorization="Bearer "+apiToken;
   if(opts.body&&!(opts.body instanceof FormData)){
     headers["Content-Type"]="application/json";
     opts.body=JSON.stringify(opts.body);
   }
-  const res=await fetch(path,{...opts,headers});
+  const res=await fetch(path,{...opts,headers,credentials:"same-origin"});
   const data=await res.json().catch(()=>({}));
   if(!res.ok)throw Object.assign(new Error(data.error||res.statusText),{status:res.status,data});
   return data;
@@ -106,7 +107,7 @@ async function detectBackend(){
         return;
       }
     }
-    if(h&&h.ok&&h.db){mode="api";apiToken=store.get("vvvaaa-token");return;}
+    if(h&&h.ok&&h.db){mode="api";return;}
     if(h&&h.db===false){
       $("err").textContent="Add DATABASE_URL (Neon) in Render → Meow? → Environment.";
       mode="api";
@@ -127,8 +128,8 @@ async function detectBackend(){
 
 (async()=>{
   await detectBackend();
-  if(mode==="api"&&apiToken&&store.get("velvet-name")){
-    try{await api("/api/messages");enter(store.get("velvet-name"));return;}catch(e){store.del("vvvaaa-token");}
+  if(mode==="api"&&store.get("velvet-name")){
+    try{await api("/api/messages");enter(store.get("velvet-name"));return;}catch(e){store.del("velvet-name");}
   }
   if(mode==="claude"){
     const saved=store.get("velvet-name");
@@ -142,20 +143,22 @@ $("go").onclick=async()=>{
   $("err").textContent="";
   if(!mode)return $("err").textContent=$("err").textContent||"Chat unavailable.";
   if(n.length<3)return $("err").textContent="Username: 3+ letters, numbers or _";
-  if($("p").value!==PASS)return $("err").textContent="Wrong password.";
   try{
     if(mode==="api"){
       const r=await api("/api/auth/enter",{method:"POST",body:{username:n,password:$("p").value}});
-      apiToken=r.token;uid=r.userId;
-      store.set("vvvaaa-token",apiToken);store.set("velvet-name",n);
+      uid=r.userId;
+      store.set("velvet-name",n);
+      $("p").value="";
       enter(n);
     }else{
+      if($("p").value!==CLAUDE_PASS)return $("err").textContent="Wrong password.";
       const ref=db.collection("users").doc(n),s=await ref.get();
       if(s.exists&&s.data().owner!==uid)return $("err").textContent="That username is taken.";
       if(!s.exists)await ref.set({owner:uid,created:Date.now()});
       store.set("velvet-name",n);enter(n);
     }
   }catch(e){
+    if(mode==="api"&&e.status===403)return $("err").textContent="Wrong password.";
     $("err").textContent=e.status===409?"That username is taken.":"Couldn't sign up. Try again.";
   }
 };
@@ -249,7 +252,7 @@ $("out").onclick=async()=>{
   if(!c)return;
   if(c===1&&!(await saveChat()))return;
   await wipe(false);
-  if(mode==="api"){try{await api("/api/auth/leave",{method:"POST"});}catch(e){}store.del("vvvaaa-token");}
+  if(mode==="api"){try{await api("/api/auth/leave",{method:"POST"});}catch(e){}}
   store.del("velvet-name");
   if(pollTimer)clearInterval(pollTimer);
   if(unsub)unsub();
@@ -344,23 +347,23 @@ $("file").onchange=async()=>{
 async function loadAuthMedia(parent,url,kind,fname){
   const ph=document.createElement("div");ph.textContent="Loading…";ph.style.color="var(--mute)";parent.appendChild(ph);
   try{
-    const res=await fetch(url,{headers:{Authorization:"Bearer "+apiToken}});
+    const res=await fetch(url,{credentials:"same-origin"});
     if(!res.ok)throw 0;
     const blob=await res.blob();const u=URL.createObjectURL(blob);mediaObjectUrls.push(u);
     parent.removeChild(ph);
     if(kind.startsWith("image/")){const i=document.createElement("img");i.src=u;i.className="protected";drapeProtect(i);parent.appendChild(i);}
     else if(kind.startsWith("video/")){const v=document.createElement("video");v.src=u;v.controls=true;v.controlsList="nodownload noremoteplayback";v.disablePictureInPicture=true;drapeProtect(v);parent.appendChild(v);}
     else{const a=document.createElement("span");a.className="file";a.textContent="📄 "+(fname||"file");parent.appendChild(a);}
-  }catch(e){parent.textContent="Media unavailable";}
+  }catch(e){ph.textContent="Media unavailable";}
 }
 
 function drapeProtect(el){el.draggable=false;el.oncontextmenu=e=>e.preventDefault();el.style.webkitUserSelect="none";el.style.userSelect="none";}
 
 let viewerUrl=null;
 async function openViewOnce(id,kind){
-  if(!mode==="api"||!apiToken)return;
+  if(mode!=="api")return;
   try{
-    const res=await fetch("/api/messages/"+id+"/view-once",{method:"POST",headers:{Authorization:"Bearer "+apiToken}});
+    const res=await fetch("/api/messages/"+id+"/view-once",{method:"POST",credentials:"same-origin"});
     if(!res.ok)throw 0;
     const blob=await res.blob();closeViewer();
     viewerUrl=URL.createObjectURL(blob);
