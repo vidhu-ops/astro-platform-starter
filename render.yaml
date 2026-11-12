@@ -35,4 +35,4 @@ projects:
               - key: VAPID_PRIVATE_KEY
                 sync: false
               - key: VAPID_SUBJECT
-                sync: false
+                value: mailto:vidhugupta1996@gmail.com

@@ -16,7 +16,7 @@ One Node app: **Render** hosts it, **Neon** stores messages. Every send is saved
    - `MESSAGE_ENCRYPTION_KEY` = `openssl rand -base64 32` (encrypts message text in Postgres)
    - `KLIPY_API_KEY` = free test key from [partner.klipy.com](https://partner.klipy.com/) (GIF browser; Tenor no longer issues new keys)
    - `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` = generate with `npx web-push generate-vapid-keys` (installable app + push: messages & **Thinking of you** hearts)
-   - Optional: `VAPID_SUBJECT` = `mailto:you@yourdomain.com`
+   - `VAPID_SUBJECT` is preset to `mailto:vidhugupta1996@gmail.com` in `render.yaml` (override only if you change contact email)
 
 3. Deploy, then open **https://sexychat.fun/api/health** → must show `"ok":true,"db":true`.
 

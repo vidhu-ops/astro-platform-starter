@@ -32,7 +32,7 @@ initMessageKey({
 initPush({
   publicKey: process.env.VAPID_PUBLIC_KEY,
   privateKey: process.env.VAPID_PRIVATE_KEY,
-  subject: process.env.VAPID_SUBJECT || "mailto:hello@sexychat.fun",
+  subject: process.env.VAPID_SUBJECT || "mailto:vidhugupta1996@gmail.com",
 });
 if (process.env.RENDER && !DATABASE_URL) {
   console.warn(
