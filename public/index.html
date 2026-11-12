@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -18,12 +18,27 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
 <title>shhh — private whispers</title>
 <style>
-:root{
-  --bg:#0b0a0e;--panel:#14131a;--panel2:#1c1b24;--ink:#1a1822;
+:root,html[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0b0a0e;--panel:#14131a;--panel2:#1c1b24;--ink:#1c1c1e;--input-bg:#2c2c2e;
   --rose:#9b6b7a;--heat:#c4758a;--wine:#5c3d4a;--gold:#c9a88e;--champagne:#e8dcc8;
-  --text:#f4f0eb;--mute:#9a919e;--line:#2a2833;--glow:#c9a88e18;
+  --text:#f4f0eb;--mute:#9a919e;--line:#2a2833;
+  --bubble-them:#3a3a3c;--bubble-them-text:#f5f5f7;
+  --bubble-me-a:#b06b82;--bubble-me-b:#8b4d62;
+  --header-bg:rgba(11,10,14,.88);--bar-bg:rgba(22,22,24,.96);
+  --shadow:0 1px 1px #00000044;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0);
+}
+html[data-theme="light"]{
+  color-scheme:light;
+  --bg:#f2f2f7;--panel:#ffffff;--panel2:#f7f7fa;--ink:#ffffff;--input-bg:#ffffff;
+  --rose:#a85d74;--heat:#c4758a;--wine:#8b4d62;--gold:#9a7b5c;--champagne:#5c3d4a;
+  --text:#1c1c1e;--mute:#6c6c70;--line:#d1d1d6;
+  --bubble-them:#e5e5ea;--bubble-them-text:#1c1c1e;
+  --bubble-me-a:#d47894;--bubble-me-b:#b85d78;
+  --header-bg:rgba(242,242,247,.92);--bar-bg:rgba(255,255,255,.96);
+  --shadow:0 1px 2px #00000014;
 }
 *{box-sizing:border-box}html,body{height:100%;margin:0}
 body.boot #gate,body.boot #app{visibility:hidden}
@@ -59,11 +74,11 @@ button,input{font:inherit;color:inherit}
 h1{margin:0}
 .sub{color:var(--mute);margin:0 0 26px;font-size:14px;line-height:1.55;max-width:34ch}
 input[type=text],input[type=password],input[type=search]{
-  width:100%;background:#1c1c1e;border:1px solid #ffffff12;border-radius:14px;padding:14px 16px;margin-bottom:10px;outline:none;
+  width:100%;background:var(--input-bg);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px;outline:none;
   font-size:16px;transition:border-color .2s,background .2s;
 }
-input:focus{border-color:#9b6b7a66;background:#242426}
-input::placeholder{color:#8e8e93}
+input:focus{border-color:#9b6b7a66}
+input::placeholder{color:var(--mute)}
 .btn{
   width:100%;border:0;border-radius:14px;padding:15px;cursor:pointer;font-weight:600;letter-spacing:.02em;font-size:16px;
   background:linear-gradient(180deg,#b87a8f,#8f5568);box-shadow:0 4px 20px #00000044;color:#fff;
@@ -76,7 +91,7 @@ input::placeholder{color:#8e8e93}
 header{
   display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
   padding:14px 16px;border-bottom:1px solid var(--line);
-  background:rgba(11,10,14,.82);backdrop-filter:blur(16px);
+  background:var(--header-bg);backdrop-filter:blur(16px);
 }
 .hdr-brand{display:flex;align-items:baseline;gap:8px;min-width:0}
 header h2{
@@ -102,16 +117,16 @@ header h2{
   max-width:min(78%,520px);padding:9px 14px 8px;border-radius:18px;
   word-wrap:break-word;overflow-wrap:anywhere;position:relative;border:none;
   font-size:16px;line-height:1.35;letter-spacing:-.01em;
-  box-shadow:0 1px 1px #00000022;
+  box-shadow:var(--shadow);
 }
 .msg.pending{opacity:.82}
 @media (prefers-reduced-motion:no-preference){
   .msg.is-new{animation:msgIn .22s ease-out}
   @keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 }
-.msg.them{align-self:flex-start;background:#3a3a3c;color:#f5f5f7;border-bottom-left-radius:4px}
+.msg.them{align-self:flex-start;background:var(--bubble-them);color:var(--bubble-them-text);border-bottom-left-radius:4px}
 .msg.them.stack{border-top-left-radius:6px}
-.msg.me{align-self:flex-end;background:linear-gradient(180deg,#b06b82 0%,#8b4d62 100%);color:#fff;border-bottom-right-radius:4px}
+.msg.me{align-self:flex-end;background:linear-gradient(180deg,var(--bubble-me-a) 0%,var(--bubble-me-b) 100%);color:#fff;border-bottom-right-radius:4px}
 .msg.me.stack{border-top-right-radius:6px}
 .msg.marked{box-shadow:0 0 0 2px #c9a88e66}
 .reply-quote{
@@ -146,9 +161,9 @@ header h2{
 #replybar button{margin-left:auto;background:none;border:0;color:var(--mute);cursor:pointer;font-size:20px;line-height:1}
 #bar{
   display:flex;gap:8px;align-items:center;padding:10px 12px calc(12px + env(safe-area-inset-bottom,0));
-  border-top:1px solid #ffffff0d;background:rgba(22,22,24,.96);backdrop-filter:blur(20px);position:relative;
+  border-top:1px solid var(--line);background:var(--bar-bg);backdrop-filter:blur(20px);position:relative;
 }
-#bar input[type=text]{margin:0;flex:1;border-radius:22px;background:#2c2c2e;border:1px solid #ffffff10;padding:11px 16px;font-size:16px}
+#bar input[type=text]{margin:0;flex:1;border-radius:22px;background:var(--input-bg);border:1px solid var(--line);padding:11px 16px;font-size:16px}
 .ic{width:44px;height:44px;flex:none;border-radius:50%;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-size:17px}
 .send{width:48px;height:44px;flex:none;border:0;border-radius:50%;background:linear-gradient(135deg,var(--wine),var(--heat));cursor:pointer;font-size:17px;color:var(--champagne);box-shadow:0 4px 18px #c4758a40}
 #emo{position:absolute;bottom:68px;left:12px;right:12px;max-width:360px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:12px;display:grid;grid-template-columns:repeat(8,1fr);gap:6px;max-height:200px;overflow:auto;z-index:5;box-shadow:0 16px 48px #0009}
@@ -173,9 +188,31 @@ header h2{
 #modal .card{max-width:360px}#modal p{margin:0 0 16px}#modal .btn{margin-bottom:8px}#modal .btn.alt{background:var(--panel2);border:1px solid var(--line);box-shadow:none}
 .note{color:var(--mute);font-size:12px;text-align:center;padding:4px 0 10px;letter-spacing:.02em}
 .ic.on{border-color:var(--rose);background:#9b6b7a28;box-shadow:0 0 0 1px #9b6b7a44}
-.view-once{padding:11px 15px;margin-top:10px;border-radius:14px;border:1px dashed #9b6b7a88;background:var(--panel);color:var(--gold);cursor:pointer;font-size:12px;text-align:center;width:100%;letter-spacing:.02em}
-.view-once.opened{color:var(--mute);border-style:solid;cursor:default}
-.view-once.sent{color:var(--mute);font-style:italic;cursor:default;border-color:var(--line)}
+.vo-chip,.view-once{
+  display:flex;align-items:center;gap:10px;margin-top:6px;padding:10px 12px;border-radius:14px;
+  border:1px solid var(--line);background:var(--panel2);font-size:13px;color:var(--mute);width:100%;
+}
+.view-once{cursor:pointer;border-style:dashed;color:var(--gold)}
+.view-once:hover{border-color:var(--rose);color:var(--text)}
+.vo-chip.vo-done,.vo-chip.vo-sent{border-style:solid;cursor:default}
+.vo-ico{font-size:18px;line-height:1;opacity:.9}
+.msg-star{
+  position:absolute;top:2px;right:4px;border:0;background:transparent;font-size:15px;line-height:1;
+  cursor:pointer;padding:6px;opacity:.55;color:inherit;z-index:2;
+}
+.msg-star.on,.msg:hover .msg-star,.msg:focus-within .msg-star{opacity:1}
+.msg.me .msg-star.on{color:#ffe4aa}
+#actionsheet{
+  position:fixed;inset:0;background:#00000066;z-index:55;display:flex;align-items:flex-end;justify-content:center;padding:16px;
+}
+#actionsheet .sheet{
+  width:100%;max-width:400px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:8px;
+}
+#actionsheet button{
+  width:100%;text-align:left;border:0;background:transparent;padding:14px 16px;border-radius:12px;cursor:pointer;color:var(--text);
+}
+#actionsheet button:hover{background:var(--panel2)}
+#actionsheet .danger{color:#e07070}
 #viewer{position:fixed;inset:0;background:#000000f2;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;-webkit-user-select:none;user-select:none}
 #viewer .shield{position:absolute;inset:0;z-index:2}
 #viewer img,#viewer video{max-width:100%;max-height:78vh;border-radius:16px;pointer-events:none;-webkit-user-drag:none}
@@ -220,6 +257,7 @@ header h2{
     <span id="me"></span>
     <button type="button" class="pill install hide" id="install">Install</button>
     <button type="button" class="pill heart" id="think" title="Ping everyone with a heart notification">💗<span class="lbl"> Thinking of you</span></button>
+    <button type="button" class="pill" id="theme" title="Light / dark mode">◐</button>
     <button type="button" class="pill" id="sv">Save</button>
     <button type="button" class="pill hide" id="sel">Select</button>
     <button type="button" class="pill" id="del">Delete</button>
@@ -263,6 +301,7 @@ header h2{
   </div>
 </div>
 
+<div id="actionsheet" class="hide" role="dialog" aria-modal="true"><div class="sheet" id="actlist"></div></div>
 <div id="modal" class="hide"><div class="card"><h1 id="mt" style="font-size:28px"></h1><p class="sub" id="mp"></p>
 <button class="btn" id="m1"></button><button class="btn alt" id="m2"></button><button class="btn alt" id="m3">Cancel</button></div></div>
 <div id="viewer" class="hide"><div class="shield" id="vshield"></div><div id="vslot"></div><p>One-time view. Closing removes it for everyone.</p><button type="button" class="close" id="vclose">Close</button></div>
@@ -279,7 +318,29 @@ let selectMode=false;
 const selectedIds=new Set();
 let replyTo=null,replyLabel="",appConfig=null,deferredInstall=null,gifTier="spicy";
 const NAME_KEY="shhh-name";
+const THEME_KEY="shhh-theme";
 const store={get:k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}},del:k=>{try{sessionStorage.removeItem(k)}catch(e){}}};
+function applyTheme(t){
+  document.documentElement.dataset.theme=t==="light"?"light":"dark";
+  try{localStorage.setItem(THEME_KEY,t);}catch(e){}
+  const meta=document.querySelector('meta[name="theme-color"]');
+  if(meta)meta.content=t==="light"?"#f2f2f7":"#9b6b7a";
+  const btn=$("theme");
+  if(btn)btn.textContent=t==="light"?"☀":"◐";
+}
+function initTheme(){
+  let t="dark";
+  try{t=localStorage.getItem(THEME_KEY)||"";}catch(e){}
+  if(t!=="light"&&t!=="dark"){
+    t=window.matchMedia&&window.matchMedia("(prefers-color-scheme:light)").matches?"light":"dark";
+  }
+  applyTheme(t);
+}
+initTheme();
+$("theme").onclick=()=>{
+  const next=document.documentElement.dataset.theme==="light"?"dark":"light";
+  applyTheme(next);
+};
 function savedName(){return store.get(NAME_KEY)||store.get("velvet-name");}
 function setSavedName(n){store.set(NAME_KEY,n);store.del("velvet-name");}
 
@@ -664,15 +725,74 @@ function linkify(parent,text){
   add(text.slice(last));parent.appendChild(frag);
 }
 
-async function toggleMark(id,btn){
-  if(mode!=="api")return;
+async function toggleMark(id){
+  if(mode!=="api"||!id||String(id).startsWith("pending-"))return;
   try{
     const r=await api("/api/messages/"+id+"/mark",{method:"PATCH"});
-    btn.classList.toggle("on",r.marked);
     const row=lastMsgs.find(x=>x.id===id);
-    if(row)row.marked=r.marked;
+    if(row)row.marked=!!r.marked;
     render(lastMsgs);
+    $("note").textContent=r.marked?"Message marked.":"Mark removed.";
   }catch(e){$("note").textContent="Couldn't mark message.";}
+}
+
+function appendViewOnceChip(body,m){
+  const isVideo=String(m.kind||"").startsWith("video");
+  const label=isVideo?"Video":"Photo";
+  if(m.viewOnceState==="opened"){
+    const chip=document.createElement("div");chip.className="vo-chip vo-done";
+    chip.innerHTML='<span class="vo-ico">'+(isVideo?"🎬":"📷")+'</span><span>'+label+" · viewed</span>";
+    body.appendChild(chip);
+    return;
+  }
+  if(m.viewOnceState==="sent"){
+    const chip=document.createElement("div");chip.className="vo-chip vo-sent";
+    chip.innerHTML='<span class="vo-ico">👁</span><span>View once '+label.toLowerCase()+" sent</span>";
+    body.appendChild(chip);
+    return;
+  }
+  const b=document.createElement("button");b.type="button";b.className="view-once";
+  b.innerHTML='<span class="vo-ico">'+(isVideo?"🎬":"📷")+'</span><span>Tap to view once</span>';
+  b.onclick=()=>openViewOnce(m.id,m.kind);
+  body.appendChild(b);
+}
+
+function closeActionSheet(){$("actionsheet").classList.add("hide");$("actlist").textContent="";}
+function openMsgMenu(m){
+  if(selectMode||!m||String(m.id).startsWith("pending-"))return;
+  const sheet=$("actlist");sheet.textContent="";
+  const add=(label,fn,danger)=>{
+    const b=document.createElement("button");b.type="button";b.textContent=label;
+    if(danger)b.className="danger";
+    b.onclick=()=>{closeActionSheet();fn();};
+    sheet.appendChild(b);
+  };
+  add("Reply",()=>setReply(m));
+  add(m.marked?"Remove mark ★":"Mark ★",()=>toggleMark(m.id));
+  if(m.text)add("Copy text",async()=>{try{await navigator.clipboard.writeText(String(m.text));$("note").textContent="Copied.";}catch(e){$("note").textContent="Couldn't copy.";}});
+  if(mode==="api"){
+    add("Delete",async()=>{
+      try{
+        await api("/api/messages/bulk",{method:"DELETE",body:{ids:[m.id]}});
+        msgById.delete(m.id);
+        await refreshApi();
+      }catch(e){$("note").textContent="Couldn't delete.";}
+    },true);
+  }
+  const x=document.createElement("button");x.type="button";x.textContent="Cancel";x.onclick=closeActionSheet;sheet.appendChild(x);
+  $("actionsheet").classList.remove("hide");
+}
+$("actionsheet").onclick=e=>{if(e.target===$("actionsheet"))closeActionSheet();};
+
+function bindMsgGestures(el,m){
+  let press=null;
+  const open=()=>openMsgMenu(m);
+  el.addEventListener("contextmenu",e=>{e.preventDefault();open();});
+  el.addEventListener("touchstart",()=>{press=setTimeout(open,550);},{passive:true});
+  const clr=()=>{if(press)clearTimeout(press);press=null;};
+  el.addEventListener("touchend",clr);
+  el.addEventListener("touchmove",clr);
+  el.addEventListener("touchcancel",clr);
 }
 
 function msgFingerprint(m){
@@ -713,10 +833,11 @@ function applyMsgShell(el,m,idx,list){
   }else if(who)who.remove();
   const t=el.querySelector(":scope > .t");
   if(t)t.textContent=formatMsgTime(m);
-  const mk=el.querySelector(".msg-tools button[data-act='mark']");
-  if(mk){
-    mk.textContent=m.marked?"★":"☆";
-    mk.classList.toggle("on",!!m.marked);
+  const star=el.querySelector(".msg-star");
+  if(star){
+    star.textContent=m.marked?"★":"☆";
+    star.classList.toggle("on",!!m.marked);
+    star.title=m.marked?"Marked":"Mark message";
   }
 }
 
@@ -741,22 +862,17 @@ function createMsgEl(m,idx,list){
     rq.textContent=(m.replyQuote.user?m.replyQuote.user+": ":"")+(m.replyQuote.text||"");
     body.appendChild(rq);
   }
-  const soloImg=(!m.media||m.viewOnce)&&urlOnlyImage(m.text,m.kind);
+  const soloImg=!m.viewOnce&&!m.media&&urlOnlyImage(m.text,m.kind);
   const textTrim=String(m.text||"").trim();
   if(soloImg){
     const host=document.createElement("div");host.className="media-host";host.dataset.mediaUrl=soloImg;
     appendInlineImage(host,soloImg);body.appendChild(host);
-  }else if(textTrim&&!(m.media&&textTrim===String(m.media))){
+  }else if(textTrim&&!m.viewOnce&&!(m.media&&textTrim===String(m.media))){
     const p=document.createElement("div");p.className="bubble-text";linkify(p,String(m.text));body.appendChild(p);
   }
-  if(m.viewOnce&&(m.hasMedia||m.viewOnceState)){
-    const b=document.createElement("button");b.type="button";
-    b.className="view-once"+(m.viewOnceState==="opened"?" opened":m.viewOnceState==="sent"?" sent":"");
-    if(m.viewOnceState==="opened")b.textContent="Opened — media removed";
-    else if(m.viewOnceState==="sent")b.textContent="View once · waiting";
-    else{b.textContent="Tap to view once";b.onclick=()=>openViewOnce(m.id,m.kind);}
-    body.appendChild(b);
-  }else if(m.media&&String(m.media)){
+  if(m.viewOnce&&m.viewOnceState){
+    appendViewOnceChip(body,m);
+  }else if(m.media&&String(m.media)&&!m.viewOnce){
     const url=String(m.media);
     const k=m.kind||"";
   const host=document.createElement("div");host.className="media-host";host.dataset.mediaUrl=url;body.appendChild(host);
@@ -766,17 +882,24 @@ function createMsgEl(m,idx,list){
     else{const a=document.createElement("a");a.className="file";a.href=url;a.target="_blank";a.rel="noopener";a.textContent="📄 "+(m.fname||"file");host.appendChild(a);}
   }
   d.appendChild(body);
+  if(mode==="api"&&!selectMode&&!String(m.id).startsWith("pending-")){
+    const star=document.createElement("button");
+    star.type="button";star.className="msg-star"+(m.marked?" on":"");star.dataset.act="mark";
+    star.textContent=m.marked?"★":"☆";star.title=m.marked?"Marked — tap to unmark":"Mark message";
+    star.onclick=e=>{e.stopPropagation();void toggleMark(m.id);};
+    d.appendChild(star);
+  }
   if(!selectMode){
     const tools=document.createElement("div");tools.className="msg-tools";
     const br=document.createElement("button");br.type="button";br.textContent="Reply";br.onclick=()=>setReply(m);tools.appendChild(br);
     if(mode==="api"){
-      const mk=document.createElement("button");mk.type="button";mk.dataset.act="mark";mk.textContent=m.marked?"★":"☆";mk.className=m.marked?"on":"";
-      mk.title=m.marked?"Marked":"Mark message";
-      mk.onclick=()=>toggleMark(m.id,mk);tools.appendChild(mk);
+      const mk=document.createElement("button");mk.type="button";mk.textContent="Mark";mk.className=m.marked?"on":"";
+      mk.onclick=()=>toggleMark(m.id);tools.appendChild(mk);
     }
     d.appendChild(tools);
   }
   const t=document.createElement("div");t.className="t";t.textContent=formatMsgTime(m);d.appendChild(t);
+  bindMsgGestures(d,m);
   return d;
 }
 
@@ -868,7 +991,8 @@ $("file").onchange=async()=>{
       const fd=new FormData();fd.append("file",f);fd.append("viewOnce",once?"true":"false");
       const r=await api("/api/upload",{method:"POST",body:fd});
       await post({media:r.url,mediaKey:r.mediaKey,viewOnce:once,kind:f.type,fname:f.name.slice(0,80)});
-      $("note").textContent=once?"Sent as view once.":"";sendOnce=false;$("once").classList.remove("on");
+      $("note").textContent=once?"View once sent — only an icon stays in chat.":"";
+      sendOnce=false;$("once").classList.remove("on");
     }catch(e){$("note").textContent="Upload failed (max 20 MB; images, video, PDF, text).";}
     return;
   }

@@ -486,6 +486,7 @@ function publicMessage(row, viewer) {
   };
   if (row.view_once) {
     m.media = null;
+    m.hasMedia = !row.media_viewed && !isSender;
     m.viewOnceState = row.media_viewed ? "opened" : isSender ? "sent" : "ready";
   } else if (row.media_key) {
     m.media = `/api/media/${row.media_key}`;
