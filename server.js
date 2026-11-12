@@ -44,8 +44,14 @@ async function migrate() {
       media TEXT,
       kind TEXT,
       fname TEXT,
-      saved BOOLEAN NOT NULL DEFAULT false
+      saved BOOLEAN NOT NULL DEFAULT false,
+      view_once BOOLEAN NOT NULL DEFAULT false,
+      media_viewed BOOLEAN NOT NULL DEFAULT false,
+      media_key TEXT
     );
+    ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS view_once BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS media_viewed BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS media_key TEXT;
     CREATE INDEX IF NOT EXISTS chat_messages_ts_idx ON chat_messages (ts DESC);
     CREATE TABLE IF NOT EXISTS chat_meta (
       id TEXT PRIMARY KEY,
@@ -158,33 +164,103 @@ app.post("/api/auth/leave", authMiddleware, async (req, res) => {
   res.json({ ok: true });
 });
 
-app.get("/api/messages", authMiddleware, async (_req, res) => {
+function publicMessage(row, viewer) {
+  const isSender = row.user === viewer;
+  const hasMedia = !!(row.media || row.media_key);
+  const m = {
+    id: row.id,
+    user: row.user,
+    uid: row.uid,
+    ts: row.ts,
+    text: row.text,
+    kind: row.kind,
+    fname: row.fname,
+    saved: row.saved,
+    viewOnce: !!row.view_once,
+    mediaViewed: !!row.media_viewed,
+    hasMedia,
+  };
+  if (row.view_once) {
+    m.media = null;
+    m.viewOnceState = row.media_viewed ? "opened" : isSender ? "sent" : "ready";
+  } else if (row.media_key) {
+    m.media = `/api/media/${row.media_key}`;
+  } else {
+    m.media = row.media;
+  }
+  return m;
+}
+
+app.get("/api/messages", authMiddleware, async (req, res) => {
   const { rows } = await pool.query(
     `SELECT id, user_name AS "user", user_id AS uid, ts, body_text AS text,
-            media, kind, fname, saved
+            media, kind, fname, saved, view_once, media_viewed, media_key
      FROM chat_messages ORDER BY ts DESC LIMIT 200`,
   );
-  res.json({ messages: rows.reverse() });
+  res.json({
+    messages: rows.reverse().map((r) => publicMessage(r, req.user.username)),
+  });
 });
 
 app.post("/api/messages", authMiddleware, async (req, res) => {
-  const { text, media, kind, fname } = req.body || {};
+  const { text, media, kind, fname, viewOnce, mediaKey } = req.body || {};
   const ts = Date.now();
+  const once = !!viewOnce;
+  const mediaVal = once ? null : media || (mediaKey ? `/api/media/${mediaKey}` : null);
   const { rows } = await pool.query(
-    `INSERT INTO chat_messages (user_name, user_id, ts, body_text, media, kind, fname, saved)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, false)
-     RETURNING id, user_name AS "user", user_id AS uid, ts, body_text AS text, media, kind, fname, saved`,
+    `INSERT INTO chat_messages (user_name, user_id, ts, body_text, media, kind, fname, saved, view_once, media_key)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, false, $8, $9)
+     RETURNING id, user_name AS "user", user_id AS uid, ts, body_text AS text, media, kind, fname, saved,
+               view_once, media_viewed, media_key`,
     [
       req.user.username,
       req.user.user_id,
       ts,
       text ? String(text).slice(0, 2000) : null,
-      media || null,
+      mediaVal,
       kind || null,
       fname || null,
+      once,
+      mediaKey || null,
     ],
   );
-  res.status(201).json(rows[0]);
+  res.status(201).json(publicMessage(rows[0], req.user.username));
+});
+
+app.post("/api/messages/:id/view-once", authMiddleware, async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT id, user_name, media, kind, media_key, view_once, media_viewed
+     FROM chat_messages WHERE id = $1`,
+    [req.params.id],
+  );
+  const msg = rows[0];
+  if (!msg?.view_once) return res.status(400).json({ error: "Not a view-once message" });
+  if (msg.media_viewed) return res.status(410).json({ error: "Already viewed" });
+  if (msg.user_name === req.user.username) {
+    return res.status(403).json({ error: "Sender cannot open view-once" });
+  }
+  const key = msg.media_key || (msg.media && path.basename(String(msg.media)));
+  if (!key) return res.status(404).json({ error: "Media gone" });
+  const filePath = path.join(UPLOAD_DIR, key);
+  if (!fs.existsSync(filePath)) {
+    await pool.query(
+      `UPDATE chat_messages SET media = NULL, media_viewed = true WHERE id = $1`,
+      [req.params.id],
+    );
+    return res.status(410).json({ error: "Media expired" });
+  }
+  await pool.query(
+    `UPDATE chat_messages SET media = NULL, media_viewed = true WHERE id = $1`,
+    [req.params.id],
+  );
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  res.setHeader("Content-Type", msg.kind || "application/octet-stream");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  const stream = fs.createReadStream(filePath);
+  stream.on("close", () => {
+    fs.unlink(filePath, () => {});
+  });
+  stream.pipe(res);
 });
 
 app.patch("/api/messages/save-all", authMiddleware, async (_req, res) => {
@@ -233,11 +309,24 @@ app.get("/api/presence", authMiddleware, async (_req, res) => {
 
 app.post("/api/upload", authMiddleware, upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file" });
-  const url = `/uploads/${req.file.filename}`;
-  res.json({ id: req.file.filename, url, kind: req.file.mimetype });
+  const viewOnce = req.body.viewOnce === "true" || req.body.viewOnce === true;
+  const url = viewOnce ? null : `/api/media/${req.file.filename}`;
+  res.json({
+    id: req.file.filename,
+    mediaKey: req.file.filename,
+    url,
+    kind: req.file.mimetype,
+    viewOnce,
+  });
 });
 
-app.use("/uploads", express.static(UPLOAD_DIR));
+app.get("/api/media/:filename", authMiddleware, (req, res) => {
+  const safe = path.basename(req.params.filename);
+  const filePath = path.join(UPLOAD_DIR, safe);
+  if (!fs.existsSync(filePath)) return res.status(404).end();
+  res.setHeader("Cache-Control", "private, max-age=3600");
+  res.sendFile(filePath);
+});
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("*", (_req, res) => {

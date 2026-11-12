@@ -38,6 +38,16 @@ header button{background:none;border:1px solid var(--line);border-radius:20px;pa
 #modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;padding:20px;z-index:20}
 #modal .card{max-width:340px}#modal p{margin:0 0 16px}#modal .btn{margin-bottom:8px}#modal .btn.alt{background:var(--panel2);border:1px solid var(--line);box-shadow:none}
 .note{color:var(--mute);font-size:12px;text-align:center;padding:2px 0 8px}
+.ic.on{border-color:var(--rose);background:#ff2e7528;box-shadow:0 0 12px #ff2e7544}
+.view-once{padding:10px 14px;margin-top:8px;border-radius:14px;border:1px dashed var(--rose);background:#1a0810;color:var(--gold);cursor:pointer;font-size:13px;text-align:center;width:100%}
+.view-once.opened{color:var(--mute);border-style:solid;cursor:default}
+.view-once.sent{color:var(--mute);font-style:italic;cursor:default;border-color:var(--line)}
+#viewer{position:fixed;inset:0;background:#000f;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;-webkit-user-select:none;user-select:none}
+#viewer .shield{position:absolute;inset:0;z-index:2}
+#viewer img,#viewer video{max-width:100%;max-height:78vh;border-radius:12px;pointer-events:none;-webkit-user-drag:none}
+#viewer p{color:var(--mute);font-size:12px;margin:12px 0 0;text-align:center;max-width:320px}
+#viewer .close{margin-top:14px;border:1px solid var(--line);background:var(--panel);padding:10px 20px;border-radius:20px;cursor:pointer}
+#app.noblur{filter:none}
 </style></head><body>
 <div id="gate"><div class="card">
 <h1>Velvet</h1><p class="sub">Dim the lights. Say what you mean.</p>
@@ -54,6 +64,7 @@ header button{background:none;border:1px solid var(--line);border-radius:20px;pa
 <div id="bar">
 <div id="emo" class="hide"></div>
 <button class="ic" id="emob" title="Emoji">😘</button>
+<button type="button" class="ic" id="once" title="Send photo/video as view once">👁</button>
 <button class="ic" id="att" title="Attach image, video, meme or file">📎</button>
 <input type="file" id="file" class="hide" accept="image/*,video/*,.pdf,.txt,.csv,.md,.json">
 <input type="text" id="txt" placeholder="Whisper something… paste a link or GIF URL too" autocomplete="off">
@@ -61,13 +72,14 @@ header button{background:none;border:1px solid var(--line);border-radius:20px;pa
 </div></div>
 <div id="modal" class="hide"><div class="card"><h1 id="mt" style="font-size:28px"></h1><p class="sub" id="mp"></p>
 <button class="btn" id="m1"></button><button class="btn alt" id="m2"></button><button class="btn alt" id="m3">Cancel</button></div></div>
+<div id="viewer" class="hide"><div class="shield" id="vshield"></div><div id="vslot"></div><p>One-time view. Closing removes it for everyone. Screenshots can’t be fully blocked on the web.</p><button type="button" class="close" id="vclose">Close</button></div>
 
 <script>
 const PASS="safelife100";
 const $=id=>document.getElementById(id);
 const EMOJI="😘 😍 🥵 😏 😈 🔥 💋 ❤️ 💕 💘 😉 🥰 😜 🍑 🍒 🍷 🌹 ✨ 💃 🕺 😳 🙈 😂 🤤 💦 🖤 👀 🫦 😻 💫 🥂 🎉".split(" ");
 let mode=null,apiToken=null,nativeDb=null,db=null,assets=null,room=null,uid=null,name=null;
-let unsub=null,unsubMeta=null,pollTimer=null,lastMsgs=[],lastDocs=[],joinedAt=0;
+let unsub=null,unsubMeta=null,pollTimer=null,lastMsgs=[],lastDocs=[],joinedAt=0,sendOnce=false,mediaObjectUrls=[];
 const store={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};
 
 async function api(path,opts={}){
@@ -266,11 +278,18 @@ function render(list){
     const d=document.createElement("div");d.className="msg"+(m.user===name?" me":"");
     const w=document.createElement("div");w.className="who";w.textContent="@"+m.user;d.appendChild(w);
     if(m.text){const p=document.createElement("div");linkify(p,String(m.text));d.appendChild(p);}
-    const media=m.media&&String(m.media);
-    if(media){
-      const url=media.startsWith("/_blob/")||media.startsWith("/uploads/")?media:media;
+    if(m.viewOnce&&(m.hasMedia||m.viewOnceState)){
+      const b=document.createElement("button");b.type="button";
+      b.className="view-once"+(m.viewOnceState==="opened"?" opened":m.viewOnceState==="sent"?" sent":"");
+      if(m.viewOnceState==="opened")b.textContent="👁 Opened — media removed";
+      else if(m.viewOnceState==="sent")b.textContent="👁 View once · waiting";
+      else{b.textContent="👁 Tap to view once";b.onclick=()=>openViewOnce(m.id,m.kind);}
+      d.appendChild(b);
+    }else if(m.media&&String(m.media)){
+      const url=String(m.media);
       const k=m.kind||"";
-      if(k.startsWith("image/")||IMG.test(url)){const i=document.createElement("img");i.src=url;i.loading="lazy";d.appendChild(i);}
+      if(mode==="api"&&url.startsWith("/api/media/")){loadAuthMedia(d,url,k,m.fname);}
+      else if(k.startsWith("image/")||IMG.test(url)){const i=document.createElement("img");i.src=url;i.loading="lazy";d.appendChild(i);}
       else if(k.startsWith("video/")||VID.test(url)){const v=document.createElement("video");v.src=url;v.controls=true;v.preload="metadata";d.appendChild(v);}
       else{const a=document.createElement("a");a.className="file";a.href=url;a.target="_blank";a.rel="noopener";a.textContent="📄 "+(m.fname||"file");d.appendChild(a);}
     }
@@ -296,23 +315,71 @@ $("send").onclick=sendText;$("txt").onkeydown=e=>{if(e.key==="Enter")sendText();
 
 EMOJI.forEach(e=>{const b=document.createElement("button");b.textContent=e;b.onclick=()=>{$("txt").value+=e;$("txt").focus();};$("emo").appendChild(b);});
 $("emob").onclick=()=>$("emo").classList.toggle("hide");
+$("once").onclick=()=>{sendOnce=!sendOnce;$("once").classList.toggle("on",sendOnce);$("note").textContent=sendOnce?"View once on for next photo/video.":"";};
 $("att").onclick=()=>$("file").click();
 $("file").onchange=async()=>{
   const f=$("file").files[0];$("file").value="";
   if(!f)return;
+  const once=sendOnce&&/^(image|video)\//.test(f.type);
   if(mode==="api"){
     $("note").textContent="Uploading…";
     try{
-      const fd=new FormData();fd.append("file",f);
+      const fd=new FormData();fd.append("file",f);fd.append("viewOnce",once?"true":"false");
       const r=await api("/api/upload",{method:"POST",body:fd});
-      await post({media:r.url,kind:f.type,fname:f.name.slice(0,80)});
-      $("note").textContent="";
+      await post({media:r.url,mediaKey:r.mediaKey,viewOnce:once,kind:f.type,fname:f.name.slice(0,80)});
+      $("note").textContent=once?"Sent as view once.":"";sendOnce=false;$("once").classList.remove("on");
     }catch(e){$("note").textContent="Upload failed (max 20 MB; images, video, PDF, text).";}
     return;
   }
   if(!assets)return;
   $("note").textContent="Uploading…";
-  try{const r=await assets.upload(f);await post({media:r.url.includes("/_blob/")?"/_blob/"+r.id:r.url,kind:f.type,fname:f.name.slice(0,80)});$("note").textContent="";}
-  catch(e){$("note").textContent="Upload failed (max 20 MB; images, video, PDF, text).";}
+  try{
+    const r=await assets.upload(f);
+    await post({media:r.url.includes("/_blob/")?"/_blob/"+r.id:r.url,kind:f.type,fname:f.name.slice(0,80),viewOnce:once});
+    $("note").textContent=once?"View once (Claude): disappears for others on leave.":"";
+    sendOnce=false;$("once").classList.remove("on");
+  }catch(e){$("note").textContent="Upload failed (max 20 MB; images, video, PDF, text).";}
 };
+
+async function loadAuthMedia(parent,url,kind,fname){
+  const ph=document.createElement("div");ph.textContent="Loading…";ph.style.color="var(--mute)";parent.appendChild(ph);
+  try{
+    const res=await fetch(url,{headers:{Authorization:"Bearer "+apiToken}});
+    if(!res.ok)throw 0;
+    const blob=await res.blob();const u=URL.createObjectURL(blob);mediaObjectUrls.push(u);
+    parent.removeChild(ph);
+    if(kind.startsWith("image/")){const i=document.createElement("img");i.src=u;i.className="protected";drapeProtect(i);parent.appendChild(i);}
+    else if(kind.startsWith("video/")){const v=document.createElement("video");v.src=u;v.controls=true;v.controlsList="nodownload noremoteplayback";v.disablePictureInPicture=true;drapeProtect(v);parent.appendChild(v);}
+    else{const a=document.createElement("span");a.className="file";a.textContent="📄 "+(fname||"file");parent.appendChild(a);}
+  }catch(e){parent.textContent="Media unavailable";}
+}
+
+function drapeProtect(el){el.draggable=false;el.oncontextmenu=e=>e.preventDefault();el.style.webkitUserSelect="none";el.style.userSelect="none";}
+
+let viewerUrl=null;
+async function openViewOnce(id,kind){
+  if(!mode==="api"||!apiToken)return;
+  try{
+    const res=await fetch("/api/messages/"+id+"/view-once",{method:"POST",headers:{Authorization:"Bearer "+apiToken}});
+    if(!res.ok)throw 0;
+    const blob=await res.blob();closeViewer();
+    viewerUrl=URL.createObjectURL(blob);
+    const slot=$("vslot");slot.textContent="";
+    if(kind&&kind.startsWith("video/")){
+      const v=document.createElement("video");v.src=viewerUrl;v.autoplay=true;v.controls=true;v.controlsList="nodownload noremoteplayback";v.disablePictureInPicture=true;drapeProtect(v);slot.appendChild(v);
+    }else{const i=document.createElement("img");i.src=viewerUrl;drapeProtect(i);slot.appendChild(i);}
+    $("viewer").classList.remove("hide");$("app").classList.add("noblur");
+    document.addEventListener("contextmenu",blockCtx,true);
+    await refreshApi();
+  }catch(e){$("note").textContent="Could not open — already viewed or gone.";await refreshApi();}
+}
+function blockCtx(e){if(!$("viewer").classList.contains("hide"))e.preventDefault();}
+function closeViewer(){
+  $("viewer").classList.add("hide");$("vslot").textContent="";
+  document.removeEventListener("contextmenu",blockCtx,true);
+  if(viewerUrl){URL.revokeObjectURL(viewerUrl);viewerUrl=null;}
+}
+$("vclose").onclick=closeViewer;
+$("vshield").onclick=closeViewer;
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&viewerUrl)closeViewer();});
 </script></body></html>
