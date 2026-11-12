@@ -167,17 +167,21 @@ function getOrSetDeviceId(req, res) {
 }
 
 async function authMiddleware(req, res, next) {
-  if (!pool) return res.status(503).json({ error: "Database unavailable" });
-  const token = sessionUser(req);
-  if (!token) return res.status(401).json({ error: "Unauthorized" });
-  const { rows } = await pool.query(
-    `SELECT username, user_id FROM chat_sessions
-     WHERE token = $1 AND expires_at > NOW()`,
-    [token],
-  );
-  if (!rows[0]) return res.status(401).json({ error: "Session expired" });
-  req.user = rows[0];
-  next();
+  try {
+    if (!pool) return res.status(503).json({ error: "Database unavailable" });
+    const token = sessionUser(req);
+    if (!token) return res.status(401).json({ error: "Unauthorized" });
+    const { rows } = await pool.query(
+      `SELECT username, user_id FROM chat_sessions
+       WHERE token = $1 AND expires_at > NOW()`,
+      [token],
+    );
+    if (!rows[0]) return res.status(401).json({ error: "Session expired" });
+    req.user = rows[0];
+    next();
+  } catch (err) {
+    next(err);
+  }
 }
 
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -290,6 +294,14 @@ const uploadUserLimiter = rateLimit({
   keyGenerator: (req) => req.user?.user_id || req.ip,
 });
 
+const gifSearchLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 40,
+  standardHeaders: true,
+  message: { error: "GIF search rate limit — try again in a moment." },
+  keyGenerator: (req) => req.user?.user_id || req.ip,
+});
+
 app.get("/api/config", (_req, res) => {
   res.json({
     vapidPublicKey: getPublicKey(),
@@ -297,6 +309,14 @@ app.get("/api/config", (_req, res) => {
     gifEnabled: Boolean(process.env.TENOR_API_KEY || process.env.KLIPY_API_KEY),
   });
 });
+
+app.get(
+  "/api/auth/me",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    res.json({ username: req.user.username, userId: req.user.user_id });
+  }),
+);
 
 app.get(
   "/api/health",
@@ -572,6 +592,7 @@ app.post(
 app.get(
   "/api/gifs/search",
   authMiddleware,
+  gifSearchLimiter,
   asyncHandler(async (req, res) => {
   const tier = String(req.query.tier || "spicy");
   const q = String(req.query.q || GIF_PRESETS[tier] || GIF_PRESETS.spicy);
@@ -645,24 +666,22 @@ app.post(
   );
   const msg = rows[0];
   if (!msg?.view_once) return res.status(400).json({ error: "Not a view-once message" });
-  if (msg.media_viewed) return res.status(410).json({ error: "Already viewed" });
   if (msg.user_name === req.user.username) {
     return res.status(403).json({ error: "Sender cannot open view-once" });
   }
   const key = normalizeMediaKey(msg.media_key);
   if (!key) return res.status(404).json({ error: "Media gone" });
   const filePath = resolveUploadPath(UPLOAD_DIR, key);
-  if (!filePath || !fs.existsSync(filePath)) {
-    await pool.query(
-      `UPDATE chat_messages SET media = NULL, media_viewed = true WHERE id = $1`,
-      [req.params.id],
-    );
-    return res.status(410).json({ error: "Media expired" });
-  }
-  await pool.query(
-    `UPDATE chat_messages SET media = NULL, media_viewed = true WHERE id = $1`,
+  const claim = await pool.query(
+    `UPDATE chat_messages SET media = NULL, media_viewed = true
+     WHERE id = $1 AND media_viewed = false
+     RETURNING id`,
     [req.params.id],
   );
+  if (!claim.rows[0]) return res.status(410).json({ error: "Already viewed" });
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(410).json({ error: "Media expired" });
+  }
   sendEncryptedFile(res, filePath, msg.kind || mimeFromFilename(key));
   fs.unlink(filePath, () => {});
   }),
@@ -691,6 +710,15 @@ app.delete(
     }
     await pool.query(`DELETE FROM chat_messages`);
   } else {
+    const doomed = await pool.query(
+      `SELECT media_key FROM chat_messages WHERE saved = false AND media_key IS NOT NULL`,
+    );
+    for (const row of doomed.rows) {
+      const k = normalizeMediaKey(row.media_key);
+      if (!k) continue;
+      const p = resolveUploadPath(UPLOAD_DIR, k);
+      if (p && fs.existsSync(p)) fs.unlink(p, () => {});
+    }
     await pool.query(`DELETE FROM chat_messages WHERE saved = false`);
   }
   await pool.query(
@@ -795,9 +823,19 @@ app.use((err, _req, res, _next) => {
   console.error(err);
   if (!res.headersSent) res.status(500).json({ error: "Server error" });
 });
-app.use(express.static(path.join(__dirname, "public")));
+app.use(
+  express.static(path.join(__dirname, "public"), {
+    etag: true,
+    setHeaders(res, filePath) {
+      if (filePath.endsWith("index.html")) {
+        res.setHeader("Cache-Control", "no-cache");
+      }
+    },
+  }),
+);
 
 app.get("*", (_req, res) => {
+  res.setHeader("Cache-Control", "no-cache");
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
