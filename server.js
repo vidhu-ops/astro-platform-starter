@@ -17,6 +17,7 @@ import {
   initMessageKey,
   timingSafeEqualString,
 } from "./server/crypto.js";
+import { getPublicKey, initPush, isPushReady, sendPush } from "./server/push.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
@@ -27,6 +28,11 @@ const COOKIE_SECURE = Boolean(process.env.RENDER || process.env.NODE_ENV === "pr
 initMessageKey({
   messageEncryptionKey: process.env.MESSAGE_ENCRYPTION_KEY,
   chatPassword: CHAT_PASSWORD,
+});
+initPush({
+  publicKey: process.env.VAPID_PUBLIC_KEY,
+  privateKey: process.env.VAPID_PRIVATE_KEY,
+  subject: process.env.VAPID_SUBJECT || "mailto:hello@sexychat.fun",
 });
 if (process.env.RENDER && !DATABASE_URL) {
   console.warn(
@@ -88,8 +94,25 @@ async function migrate() {
       username TEXT NOT NULL,
       last_seen TIMESTAMPTZ NOT NULL
     );
+    ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS reply_to UUID;
+    ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS marked BOOLEAN NOT NULL DEFAULT false;
+    CREATE TABLE IF NOT EXISTS chat_push_subscriptions (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      endpoint TEXT NOT NULL UNIQUE,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `);
 }
+
+const GIF_PRESETS = {
+  spicy: "romantic passionate couple",
+  cute: "love cute hearts couple",
+  flirty: "flirty kiss sexy",
+  mood: "sensual mood lighting",
+};
 
 function sessionUser(req) {
   const header = req.headers.authorization || "";
@@ -149,7 +172,7 @@ app.use(
         scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
-        imgSrc: ["'self'", "blob:", "data:", "https:"],
+        imgSrc: ["'self'", "blob:", "data:", "https:", "https://media.tenor.com", "https://media1.tenor.com"],
         mediaSrc: ["'self'", "blob:"],
         connectSrc: ["'self'"],
         objectSrc: ["'none'"],
@@ -191,6 +214,14 @@ const viewOnceLimiter = rateLimit({
   max: 15,
   standardHeaders: true,
   message: { error: "Too many view requests." },
+});
+
+app.get("/api/config", (_req, res) => {
+  res.json({
+    vapidPublicKey: getPublicKey(),
+    pushEnabled: isPushReady(),
+    gifEnabled: Boolean(process.env.TENOR_API_KEY),
+  });
 });
 
 app.get("/api/health", async (_req, res) => {
@@ -251,6 +282,26 @@ app.post("/api/auth/leave", authMiddleware, async (req, res) => {
   res.json({ ok: true });
 });
 
+async function broadcastPush(excludeUserId, payload) {
+  if (!pool || !isPushReady()) return 0;
+  const { rows } = await pool.query(
+    `SELECT endpoint, p256dh, auth FROM chat_push_subscriptions WHERE user_id IS DISTINCT FROM $1`,
+    [excludeUserId],
+  );
+  let sent = 0;
+  await Promise.all(
+    rows.map(async (sub) => {
+      try {
+        await sendPush(sub, payload);
+        sent++;
+      } catch {
+        await pool.query(`DELETE FROM chat_push_subscriptions WHERE endpoint = $1`, [sub.endpoint]);
+      }
+    }),
+  );
+  return sent;
+}
+
 function publicMessage(row, viewer) {
   const isSender = row.user === viewer;
   const hasMedia = !!(row.media || row.media_key);
@@ -262,6 +313,11 @@ function publicMessage(row, viewer) {
     kind: row.kind,
     fname: row.fname,
     saved: row.saved,
+    marked: !!row.marked,
+    replyTo: row.reply_to || null,
+    replyQuote: row.reply_user
+      ? { user: row.reply_user, text: decryptField(row.reply_text)?.slice(0, 120) }
+      : null,
     viewOnce: !!row.view_once,
     mediaViewed: !!row.media_viewed,
     hasMedia,
@@ -279,9 +335,13 @@ function publicMessage(row, viewer) {
 
 app.get("/api/messages", authMiddleware, async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT id, user_name AS "user", user_id AS uid, ts, body_text AS text,
-            media, kind, fname, saved, view_once, media_viewed, media_key
-     FROM chat_messages ORDER BY ts DESC LIMIT 200`,
+    `SELECT m.id, m.user_name AS "user", m.user_id AS uid, m.ts, m.body_text AS text,
+            m.media, m.kind, m.fname, m.saved, m.view_once, m.media_viewed, m.media_key,
+            m.reply_to, m.marked,
+            p.user_name AS reply_user, p.body_text AS reply_text
+     FROM chat_messages m
+     LEFT JOIN chat_messages p ON p.id = m.reply_to
+     ORDER BY m.ts DESC LIMIT 200`,
   );
   res.json({
     messages: rows.reverse().map((r) => publicMessage(r, req.user.username)),
@@ -289,15 +349,20 @@ app.get("/api/messages", authMiddleware, async (req, res) => {
 });
 
 app.post("/api/messages", authMiddleware, async (req, res) => {
-  const { text, media, kind, fname, viewOnce, mediaKey } = req.body || {};
+  const { text, media, kind, fname, viewOnce, mediaKey, replyTo } = req.body || {};
   const ts = Date.now();
   const once = !!viewOnce;
   const mediaVal = once ? null : media || (mediaKey ? `/api/media/${mediaKey}` : null);
+  let replyId = null;
+  if (replyTo) {
+    const chk = await pool.query(`SELECT id FROM chat_messages WHERE id = $1`, [replyTo]);
+    if (chk.rows[0]) replyId = replyTo;
+  }
   const { rows } = await pool.query(
-    `INSERT INTO chat_messages (user_name, user_id, ts, body_text, media, kind, fname, saved, view_once, media_key)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, false, $8, $9)
+    `INSERT INTO chat_messages (user_name, user_id, ts, body_text, media, kind, fname, saved, view_once, media_key, reply_to)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, false, $8, $9, $10)
      RETURNING id, user_name AS "user", user_id AS uid, ts, body_text AS text, media, kind, fname, saved,
-               view_once, media_viewed, media_key`,
+               view_once, media_viewed, media_key, reply_to, marked`,
     [
       req.user.username,
       req.user.user_id,
@@ -308,9 +373,89 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
       fname || null,
       once,
       mediaKey || null,
+      replyId,
     ],
   );
-  res.status(201).json(publicMessage(rows[0], req.user.username));
+  const out = publicMessage(rows[0], req.user.username);
+  res.status(201).json(out);
+  const preview = out.text
+    ? String(out.text).slice(0, 120)
+  : out.hasMedia
+    ? "📎 Sent media"
+    : "New message";
+  void broadcastPush(req.user.user_id, {
+    title: `💋 @${req.user.username}`,
+    body: preview,
+    icon: "/icons/icon.svg",
+    badge: "/icons/heart-badge.svg",
+    tag: "velvet-msg",
+    data: { url: "/", kind: "message" },
+  });
+});
+
+app.patch("/api/messages/:id/mark", authMiddleware, async (req, res) => {
+  const { rows } = await pool.query(
+    `UPDATE chat_messages SET marked = NOT marked
+     WHERE id = $1
+     RETURNING id, marked`,
+    [req.params.id],
+  );
+  if (!rows[0]) return res.status(404).json({ error: "Not found" });
+  res.json(rows[0]);
+});
+
+app.post("/api/push/subscribe", authMiddleware, async (req, res) => {
+  const { endpoint, keys } = req.body || {};
+  if (!endpoint || !keys?.p256dh || !keys?.auth) {
+    return res.status(400).json({ error: "Invalid subscription" });
+  }
+  await pool.query(
+    `INSERT INTO chat_push_subscriptions (user_id, endpoint, p256dh, auth)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (endpoint) DO UPDATE SET user_id = $1, p256dh = $3, auth = $4`,
+    [req.user.user_id, endpoint, keys.p256dh, keys.auth],
+  );
+  res.json({ ok: true });
+});
+
+app.post("/api/thinking-of-you", authMiddleware, async (req, res) => {
+  const from = req.user.username;
+  const payload = {
+    title: "💗 Thinking of you",
+    body: `@${from} is thinking of you on Velvet`,
+    icon: "/icons/icon.svg",
+    badge: "/icons/heart-badge.svg",
+    tag: "velvet-heart",
+    data: { url: "/", kind: "heart" },
+  };
+  const sent = await broadcastPush(req.user.user_id, payload);
+  res.json({ sent, pushEnabled: isPushReady() });
+});
+
+app.get("/api/gifs/search", authMiddleware, async (req, res) => {
+  const key = process.env.TENOR_API_KEY;
+  if (!key) return res.status(503).json({ error: "GIF search not configured (TENOR_API_KEY)" });
+  const tier = String(req.query.tier || "spicy");
+  const q = String(req.query.q || GIF_PRESETS[tier] || GIF_PRESETS.spicy);
+  const url = new URL("https://tenor.googleapis.com/v2/search");
+  url.searchParams.set("key", key);
+  url.searchParams.set("q", q);
+  url.searchParams.set("limit", "24");
+  url.searchParams.set("media_filter", "gif,tinygif");
+  url.searchParams.set("contentfilter", "low");
+  const r = await fetch(url);
+  const data = await r.json();
+  const results = (data.results || []).map((item) => {
+    const m = item.media_formats || {};
+    const gif = m.tinygif || m.gif || m.mediumgif;
+    return {
+      id: item.id,
+      title: item.content_description || item.title,
+      url: gif?.url,
+      preview: m.tinygif?.url || gif?.url,
+    };
+  });
+  res.json({ results });
 });
 
 app.post("/api/messages/:id/view-once", authMiddleware, viewOnceLimiter, async (req, res) => {

@@ -1,86 +1,222 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8">
+<html lang="en">
+<head>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#ff2e75">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/maskable.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Playfair+Display:ital,wght@0,500;0,600;1,500;1,600&display=swap" rel="stylesheet">
 <title>Velvet — Private Chat</title>
 <style>
-:root{--bg:#0d0408;--panel:#1a0810;--panel2:#26101a;--rose:#ff2e75;--wine:#8a0f3c;--gold:#f5c97a;--text:#fbe9ef;--mute:#b98a9b;--line:#3a1626;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root{
+  --bg:#0a0306;--panel:#160810;--panel2:#221018;--rose:#ff2e75;--wine:#8a0f3c;--gold:#f5c97a;
+  --text:#fff0f5;--mute:#c49aaa;--line:#3a1626;--glow:#ff2e7544;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0);
+}
 *{box-sizing:border-box}html,body{height:100%;margin:0}
-body{background:radial-gradient(900px 500px at 80% -10%,#5a0f2e55,transparent),radial-gradient(700px 500px at -10% 110%,#8a0f3c44,transparent),var(--bg);color:var(--text);font-family:Georgia,"Times New Roman",serif}
+body{
+  background:
+    radial-gradient(1200px 600px at 85% -15%,#6a104055,transparent),
+    radial-gradient(900px 500px at -5% 105%,#9b1c4c33,transparent),
+    var(--bg);
+  color:var(--text);
+  font-family:"DM Sans",system-ui,sans-serif;
+  font-size:15px;
+}
 button,input{font:inherit;color:inherit}
 .hide{display:none!important}
-#gate{height:100%;display:flex;align-items:center;justify-content:center;padding:20px}
-.card{width:100%;max-width:380px;background:linear-gradient(160deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:22px;padding:32px 26px;box-shadow:0 0 60px #ff2e7522}
-h1{margin:0 0 4px;font-size:42px;font-style:italic;letter-spacing:1px;background:linear-gradient(90deg,var(--rose),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
-.sub{color:var(--mute);margin:0 0 22px;font-size:14px}
-input[type=text],input[type=password]{width:100%;background:#12050b;border:1px solid var(--line);border-radius:12px;padding:13px 14px;margin-bottom:12px;outline:none}
-input:focus{border-color:var(--rose);box-shadow:0 0 0 3px #ff2e7533}
-.btn{width:100%;border:0;border-radius:12px;padding:13px;cursor:pointer;font-weight:bold;letter-spacing:.5px;background:linear-gradient(90deg,var(--wine),var(--rose));box-shadow:0 6px 24px #ff2e7544}
-.err{color:#ff8fb0;font-size:13px;min-height:18px;margin-top:10px}
-#app{height:100%;display:flex;flex-direction:column;max-width:760px;margin:0 auto}
-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line);background:#12050bcc;backdrop-filter:blur(8px)}
-header h2{margin:0;font-size:24px;font-style:italic;background:linear-gradient(90deg,var(--rose),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
-header span{color:var(--mute);font-size:13px}
-header button{background:none;border:1px solid var(--line);border-radius:20px;padding:5px 12px;cursor:pointer;color:var(--mute);margin-left:8px}
-#feed{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
-.msg{max-width:82%;padding:10px 13px;border-radius:18px;background:var(--panel2);border:1px solid var(--line);word-wrap:break-word;overflow-wrap:anywhere}
-.msg.me{align-self:flex-end;background:linear-gradient(135deg,var(--wine),#c2185b);border-color:#ff2e7566}
-.who{font-size:12px;color:var(--gold);margin-bottom:3px;font-style:italic}.me .who{color:#ffd9e6}
-.t{font-size:10px;color:var(--mute);margin-top:4px;text-align:right}
-.msg img,.msg video{max-width:100%;max-height:340px;border-radius:12px;display:block;margin-top:6px}
+#gate{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px}
+.card{
+  width:100%;max-width:400px;
+  background:linear-gradient(165deg,#2a1018,#160810);
+  border:1px solid var(--line);border-radius:28px;padding:36px 28px;
+  box-shadow:0 0 80px var(--glow),inset 0 1px 0 #ffffff0a;
+}
+.brand{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+.brand svg{width:52px;height:52px;flex:none;filter:drop-shadow(0 0 18px #ff2e7566)}
+h1{
+  margin:0;font-family:"Playfair Display",Georgia,serif;font-size:40px;font-style:italic;font-weight:600;
+  background:linear-gradient(100deg,var(--rose),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.sub{color:var(--mute);margin:0 0 22px;font-size:14px;line-height:1.45}
+input[type=text],input[type=password],input[type=search]{
+  width:100%;background:#0f0509;border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px;outline:none;
+}
+input:focus{border-color:var(--rose);box-shadow:0 0 0 3px #ff2e7528}
+.btn{
+  width:100%;border:0;border-radius:14px;padding:14px;cursor:pointer;font-weight:600;letter-spacing:.3px;
+  background:linear-gradient(95deg,var(--wine),var(--rose));box-shadow:0 8px 28px #ff2e7540;color:#fff;
+}
+.btn.ghost{background:transparent;border:1px solid var(--line);box-shadow:none;color:var(--text)}
+.err{color:#ff9fbd;font-size:13px;min-height:18px;margin-top:10px}
+#app{height:100%;display:flex;flex-direction:column;max-width:820px;margin:0 auto}
+header{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
+  padding:12px 14px;border-bottom:1px solid var(--line);
+  background:#0f0509cc;backdrop-filter:blur(12px);
+}
+.hdr-brand{display:flex;align-items:center;gap:10px;min-width:0}
+.hdr-brand svg{width:36px;height:36px;flex:none}
+header h2{
+  margin:0;font-family:"Playfair Display",Georgia,serif;font-size:22px;font-style:italic;font-weight:600;
+  background:linear-gradient(90deg,var(--rose),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.hdr-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.hdr-actions span{color:var(--mute);font-size:12px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pill{
+  border:1px solid var(--line);border-radius:999px;padding:7px 12px;cursor:pointer;
+  background:#1a0810;color:var(--mute);font-size:12px;font-weight:500;white-space:nowrap;
+}
+.pill:hover{border-color:#ff2e7566;color:var(--text)}
+.pill.heart{background:linear-gradient(95deg,#5a0f2e,#c2185b);border-color:transparent;color:#ffe8f0}
+.pill.install{border-color:var(--gold);color:var(--gold)}
+#feed{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:12px}
+.msg{
+  max-width:85%;padding:11px 14px;border-radius:20px;
+  background:var(--panel2);border:1px solid var(--line);word-wrap:break-word;overflow-wrap:anywhere;
+  position:relative;animation:fadeIn .25s ease;
+}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.msg.me{align-self:flex-end;background:linear-gradient(135deg,#6a1040,#c2185b);border-color:#ff2e7555}
+.msg.marked{box-shadow:0 0 0 1px var(--gold),0 0 20px #f5c97a22}
+.reply-quote{
+  font-size:12px;color:var(--mute);border-left:3px solid var(--rose);padding:4px 0 6px 10px;margin-bottom:6px;opacity:.95;
+}
+.who{font-size:12px;color:var(--gold);margin-bottom:4px;font-family:"Playfair Display",Georgia,serif;font-style:italic}
+.me .who{color:#ffd9ea}
+.msg-tools{display:flex;gap:6px;margin-top:8px;opacity:.85}
+.msg-tools button{
+  background:#0a030655;border:1px solid var(--line);border-radius:12px;padding:4px 8px;font-size:11px;cursor:pointer;color:var(--mute);
+}
+.msg-tools button.on{color:var(--gold);border-color:var(--gold)}
+.t{font-size:10px;color:var(--mute);margin-top:6px;text-align:right}
+.msg img,.msg video{max-width:100%;max-height:360px;border-radius:14px;display:block;margin-top:8px}
 .msg a{color:var(--gold)}
 .file{display:inline-block;margin-top:6px;padding:8px 12px;border:1px dashed var(--rose);border-radius:10px;text-decoration:none}
-#bar{display:flex;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid var(--line);background:#12050bee;position:relative}
+#replybar{
+  display:flex;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid var(--line);
+  background:#1a0810;font-size:13px;color:var(--mute);
+}
+#replybar strong{color:var(--rose)}
+#replybar button{margin-left:auto;background:none;border:0;color:var(--mute);cursor:pointer;font-size:18px}
+#bar{display:flex;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid var(--line);background:#0f0509f0;position:relative}
 #bar input[type=text]{margin:0;flex:1;border-radius:24px}
-.ic{width:42px;height:42px;flex:none;border-radius:50%;border:1px solid var(--line);background:var(--panel2);cursor:pointer;font-size:19px}
-.send{width:46px;height:42px;flex:none;border:0;border-radius:24px;background:linear-gradient(90deg,var(--wine),var(--rose));cursor:pointer;font-size:18px}
-#emo{position:absolute;bottom:64px;left:12px;right:12px;max-width:360px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px;display:grid;grid-template-columns:repeat(8,1fr);gap:4px;max-height:200px;overflow:auto}
+.ic{width:44px;height:44px;flex:none;border-radius:50%;border:1px solid var(--line);background:var(--panel2);cursor:pointer;font-size:18px}
+.send{width:48px;height:44px;flex:none;border:0;border-radius:24px;background:linear-gradient(90deg,var(--wine),var(--rose));cursor:pointer;font-size:18px;color:#fff}
+#emo{position:absolute;bottom:64px;left:12px;right:12px;max-width:360px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px;display:grid;grid-template-columns:repeat(8,1fr);gap:4px;max-height:200px;overflow:auto;z-index:5}
 #emo button{background:none;border:0;font-size:22px;cursor:pointer;padding:4px}
-#modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;padding:20px;z-index:20}
+#gifpanel{
+  position:fixed;inset:0;background:#000c;z-index:40;display:flex;align-items:flex-end;justify-content:center;padding:0;
+}
+#gifpanel .sheet{
+  width:100%;max-width:820px;max-height:78vh;background:linear-gradient(180deg,#221018,#0f0509);
+  border:1px solid var(--line);border-radius:24px 24px 0 0;padding:14px 14px 24px;
+  display:flex;flex-direction:column;gap:10px;
+}
+#gifpanel .tabs{display:flex;gap:8px;flex-wrap:wrap}
+#gifpanel .tabs button{border-radius:999px;border:1px solid var(--line);background:#1a0810;padding:8px 14px;cursor:pointer;font-size:12px;color:var(--mute)}
+#gifpanel .tabs button.on{border-color:var(--rose);color:var(--rose);background:#ff2e7518}
+#gifsearch{display:flex;gap:8px}
+#gifsearch input{flex:1;margin:0}
+#gifsearch button{width:auto;padding:0 16px;border-radius:14px;border:0;background:var(--rose);color:#fff;cursor:pointer;font-weight:600}
+#gifgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;overflow-y:auto;flex:1}
+#gifgrid button{border:0;padding:0;border-radius:12px;overflow:hidden;cursor:pointer;aspect-ratio:1;background:#12050b}
+#gifgrid img{width:100%;height:100%;object-fit:cover;display:block}
+#modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
 #modal .card{max-width:340px}#modal p{margin:0 0 16px}#modal .btn{margin-bottom:8px}#modal .btn.alt{background:var(--panel2);border:1px solid var(--line);box-shadow:none}
 .note{color:var(--mute);font-size:12px;text-align:center;padding:2px 0 8px}
 .ic.on{border-color:var(--rose);background:#ff2e7528;box-shadow:0 0 12px #ff2e7544}
 .view-once{padding:10px 14px;margin-top:8px;border-radius:14px;border:1px dashed var(--rose);background:#1a0810;color:var(--gold);cursor:pointer;font-size:13px;text-align:center;width:100%}
 .view-once.opened{color:var(--mute);border-style:solid;cursor:default}
 .view-once.sent{color:var(--mute);font-style:italic;cursor:default;border-color:var(--line)}
-#viewer{position:fixed;inset:0;background:#000f;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;-webkit-user-select:none;user-select:none}
+#viewer{position:fixed;inset:0;background:#000f;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;-webkit-user-select:none;user-select:none}
 #viewer .shield{position:absolute;inset:0;z-index:2}
 #viewer img,#viewer video{max-width:100%;max-height:78vh;border-radius:12px;pointer-events:none;-webkit-user-drag:none}
 #viewer p{color:var(--mute);font-size:12px;margin:12px 0 0;text-align:center;max-width:320px}
 #viewer .close{margin-top:14px;border:1px solid var(--line);background:var(--panel);padding:10px 20px;border-radius:20px;cursor:pointer}
 #app.noblur{filter:none}
-</style></head><body>
+</style>
+</head>
+<body>
 <div id="gate"><div class="card">
-<h1>Velvet</h1><p class="sub">Dim the lights. Say what you mean.</p>
-<input id="u" type="text" placeholder="Username" autocomplete="off" maxlength="20">
-<input id="p" type="password" placeholder="Password">
-<button class="btn" id="go">Sign up / Enter</button>
-<div class="err" id="err"></div>
+  <div class="brand">
+    <svg viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ff2e75"/><stop offset="100%" stop-color="#f5c97a"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="#0d0408"/><path fill="url(#lg)" d="M256 396c-8 0-16-3-22-8-44-36-88-72-122-112-28-34-46-68-46-108 0-48 38-86 86-86 30 0 56 14 72 36 16-22 42-36 72-36 48 0 86 38 86 86 0 40-18 74-46 108-34 40-78 76-122 112-6 5-14 8-22 8z"/></svg>
+    <div><h1>Velvet</h1></div>
+  </div>
+  <p class="sub">Dim the lights. Say what you mean — install the app for hearts in your notification bar.</p>
+  <input id="u" type="text" placeholder="Username" autocomplete="off" maxlength="20">
+  <input id="p" type="password" placeholder="Password">
+  <button class="btn" id="go">Sign up / Enter</button>
+  <div class="err" id="err"></div>
 </div></div>
 
 <div id="app" class="hide">
-<header><h2>Velvet</h2><div><span id="me"></span><button id="sv" title="Keep this chat">Save</button><button id="del" title="Delete chat">Delete</button><button id="out">Leave</button></div></header>
+<header>
+  <div class="hdr-brand">
+    <svg viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="lg2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ff2e75"/><stop offset="100%" stop-color="#f5c97a"/></linearGradient></defs><path fill="url(#lg2)" d="M256 396c-8 0-16-3-22-8-44-36-88-72-122-112-28-34-46-68-46-108 0-48 38-86 86-86 30 0 56 14 72 36 16-22 42-36 72-36 48 0 86 38 86 86 0 40-18 74-46 108-34 40-78 76-122 112-6 5-14 8-22 8z"/></svg>
+    <h2>Velvet</h2>
+  </div>
+  <div class="hdr-actions">
+    <span id="me"></span>
+    <button type="button" class="pill install hide" id="install">Install</button>
+    <button type="button" class="pill heart" id="think" title="Ping everyone with a heart notification">💗 Thinking of you</button>
+    <button type="button" class="pill" id="sv">Save</button>
+    <button type="button" class="pill" id="del">Delete</button>
+    <button type="button" class="pill" id="out">Leave</button>
+  </div>
+</header>
 <div id="feed"></div>
 <div class="note" id="note"></div>
+<div id="replybar" class="hide">↩ Replying to <strong id="replywho"></strong> <button type="button" id="replyx" aria-label="Cancel reply">×</button></div>
 <div id="bar">
-<div id="emo" class="hide"></div>
-<button class="ic" id="emob" title="Emoji">😘</button>
-<button type="button" class="ic" id="once" title="Send photo/video as view once">👁</button>
-<button class="ic" id="att" title="Attach image, video, meme or file">📎</button>
-<input type="file" id="file" class="hide" accept="image/*,video/*,.pdf,.txt,.csv,.md,.json">
-<input type="text" id="txt" placeholder="Whisper something… paste a link or GIF URL too" autocomplete="off">
-<button class="send" id="send">➤</button>
-</div></div>
+  <div id="emo" class="hide"></div>
+  <button type="button" class="ic" id="emob" title="Emoji">😘</button>
+  <button type="button" class="ic" id="gifb" title="Browse spicy & cute GIFs">GIF</button>
+  <button type="button" class="ic" id="once" title="View once">👁</button>
+  <button type="button" class="ic" id="att" title="Attach">📎</button>
+  <input type="file" id="file" class="hide" accept="image/*,video/*,.pdf,.txt,.csv,.md,.json">
+  <input type="text" id="txt" placeholder="Whisper something hot… or paste a link" autocomplete="off">
+  <button type="button" class="send" id="send" title="Send">➤</button>
+</div>
+</div>
+
+<div id="gifpanel" class="hide">
+  <div class="sheet">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <strong style="font-family:'Playfair Display',serif;font-style:italic;color:var(--gold)">Pick a vibe</strong>
+      <button type="button" class="pill" id="gifclose">Close</button>
+    </div>
+    <div class="tabs" id="giftabs">
+      <button type="button" data-tier="spicy" class="on">🔥 Spicy</button>
+      <button type="button" data-tier="flirty">😏 Flirty</button>
+      <button type="button" data-tier="cute">💕 Cute</button>
+      <button type="button" data-tier="mood">✨ Mood</button>
+    </div>
+    <div id="gifsearch"><input type="search" id="gifq" placeholder="Search GIFs…"><button type="button" id="gifgo">Search</button></div>
+    <div id="gifgrid"></div>
+    <p class="sub" style="margin:0;font-size:11px" id="gifhint">Powered by Tenor when TENOR_API_KEY is set on the server.</p>
+  </div>
+</div>
+
 <div id="modal" class="hide"><div class="card"><h1 id="mt" style="font-size:28px"></h1><p class="sub" id="mp"></p>
 <button class="btn" id="m1"></button><button class="btn alt" id="m2"></button><button class="btn alt" id="m3">Cancel</button></div></div>
-<div id="viewer" class="hide"><div class="shield" id="vshield"></div><div id="vslot"></div><p>One-time view. Closing removes it for everyone. Screenshots can’t be fully blocked on the web.</p><button type="button" class="close" id="vclose">Close</button></div>
+<div id="viewer" class="hide"><div class="shield" id="vshield"></div><div id="vslot"></div><p>One-time view. Closing removes it for everyone.</p><button type="button" class="close" id="vclose">Close</button></div>
 
 <script>
 const $=id=>document.getElementById(id);
 const EMOJI="😘 😍 🥵 😏 😈 🔥 💋 ❤️ 💕 💘 😉 🥰 😜 🍑 🍒 🍷 🌹 ✨ 💃 🕺 😳 🙈 😂 🤤 💦 🖤 👀 🫦 😻 💫 🥂 🎉".split(" ");
 let mode=null,uid=null,nativeDb=null,db=null,assets=null,room=null,name=null;
 let unsub=null,unsubMeta=null,pollTimer=null,lastMsgs=[],lastDocs=[],joinedAt=0,sendOnce=false,mediaObjectUrls=[];
+let replyTo=null,replyLabel="",appConfig=null,deferredInstall=null,gifTier="spicy";
 const store={get:k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}},del:k=>{try{sessionStorage.removeItem(k)}catch(e){}}};
 
 async function api(path,opts={}){
@@ -95,7 +231,48 @@ async function api(path,opts={}){
   return data;
 }
 
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;$("install").classList.remove("hide");});
+$("install").onclick=async()=>{
+  if(!deferredInstall)return;
+  deferredInstall.prompt();
+  await deferredInstall.userChoice;
+  deferredInstall=null;$("install").classList.add("hide");
+};
+
+async function loadConfig(){
+  try{appConfig=await api("/api/config");}catch(e){appConfig={};}
+}
+
+function urlBase64ToUint8Array(base64){
+  const pad="=".repeat((4-base64.length%4)%4);
+  const raw=atob((base64+pad).replace(/-/g,"+").replace(/_/g,"/"));
+  const out=new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);
+  return out;
+}
+
+async function setupPwa(){
+  if(!("serviceWorker"in navigator))return;
+  try{await navigator.serviceWorker.register("/sw.js");}catch(e){}
+  if(mode!=="api"||!appConfig?.vapidPublicKey)return;
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub){
+      const perm=await Notification.requestPermission();
+      if(perm!=="granted")return;
+      sub=await reg.pushManager.subscribe({
+        userVisibleOnly:true,
+        applicationServerKey:urlBase64ToUint8Array(appConfig.vapidPublicKey),
+      });
+    }
+    const json=sub.toJSON();
+    await api("/api/push/subscribe",{method:"POST",body:{endpoint:json.endpoint,keys:json.keys}});
+  }catch(e){}
+}
+
 async function detectBackend(){
+  await loadConfig();
   try{
     const res=await fetch("/api/health");
     const raw=await res.text();
@@ -161,9 +338,21 @@ $("go").onclick=async()=>{
 };
 $("p").onkeydown=e=>{if(e.key==="Enter")$("go").click()};
 
+function setReply(m){
+  replyTo=m.id;
+  const snippet=(m.text||"").slice(0,80)||(m.hasMedia?"media":"")||"…";
+  replyLabel="@"+m.user+": "+snippet;
+  $("replywho").textContent=replyLabel;
+  $("replybar").classList.remove("hide");
+  $("txt").focus();
+}
+function clearReply(){replyTo=null;replyLabel="";$("replybar").classList.add("hide");}
+$("replyx").onclick=clearReply;
+
 function enter(n){
   name=n;$("gate").classList.add("hide");$("app").classList.remove("hide");$("me").textContent="@"+n;
   joinedAt=Date.now();
+  void setupPwa();
   if(mode==="api"){
     if(pollTimer)clearInterval(pollTimer);
     refreshApi();
@@ -172,6 +361,8 @@ function enter(n){
     return;
   }
   if(!assets)$("att").classList.add("hide");
+  $("think").classList.add("hide");
+  $("gifb").classList.add("hide");
   unsub=db.collection("messages").orderBy("ts","desc").limit(200).onSnapshot(snap=>{lastDocs=snap.docs;lastMsgs=snap.docs.map(d=>d.data()).reverse();render(lastMsgs)},()=>{$("note").textContent="Couldn't load messages."});
   unsubMeta=db.collection("meta").doc("chat").onSnapshot(s=>{const m=s.exists&&s.data();if(m&&m.endedBy&&m.endedBy!==uid&&m.ts>joinedAt)$("note").textContent="Unsaved messages were cleared. Saved messages stay."},()=>{});
   beginSession();
@@ -257,6 +448,16 @@ $("out").onclick=async()=>{
   location.reload();
 };
 
+$("think").onclick=async()=>{
+  $("note").textContent="Sending love…";
+  try{
+    const r=await api("/api/thinking-of-you",{method:"POST"});
+    if(!r.pushEnabled)$("note").textContent="Add VAPID keys on Render for heart notifications.";
+    else if(!r.sent)$("note").textContent="No one else subscribed yet — they need to open Velvet and allow alerts.";
+    else $("note").textContent="💗 Hearts sent.";
+  }catch(e){$("note").textContent="Couldn't send heart ping.";}
+};
+
 const IMG=/\.(png|jpe?g|gif|webp|avif)(\?|$)/i,VID=/\.(mp4|webm|mov)(\?|$)/i;
 function linkify(parent,text){
   const re=/https?:\/\/[^\s<]+/g;let last=0,m;
@@ -264,19 +465,39 @@ function linkify(parent,text){
   const add=s=>{if(s)frag.appendChild(document.createTextNode(s))};
   while((m=re.exec(text))){
     add(text.slice(last,m.index));const url=m[0];
-    if(IMG.test(url)||/tenor\.com|giphy\.com\/media/i.test(url)&&IMG.test(url)){const i=document.createElement("img");i.src=url;i.loading="lazy";i.referrerPolicy="no-referrer";frag.appendChild(i);}
-    else if(VID.test(url)){const v=document.createElement("video");v.src=url;v.controls=true;v.preload="metadata";frag.appendChild(v);}
-    else{const a=document.createElement("a");a.href=url;a.target="_blank";a.rel="noopener noreferrer";a.textContent=url;frag.appendChild(a);}
+    if(IMG.test(url)||/tenor\.com|giphy\.com/i.test(url)){
+      const i=document.createElement("img");i.src=url;i.loading="lazy";i.referrerPolicy="no-referrer";frag.appendChild(i);
+    }else if(VID.test(url)){
+      const v=document.createElement("video");v.src=url;v.controls=true;v.preload="metadata";frag.appendChild(v);
+    }else{
+      const a=document.createElement("a");a.href=url;a.target="_blank";a.rel="noopener noreferrer";a.textContent=url;frag.appendChild(a);
+    }
     last=m.index+url.length;
   }
   add(text.slice(last));parent.appendChild(frag);
 }
+
+async function toggleMark(id,btn){
+  if(mode!=="api")return;
+  try{
+    const r=await api("/api/messages/"+id+"/mark",{method:"PATCH"});
+    btn.classList.toggle("on",r.marked);
+    await refreshApi();
+  }catch(e){$("note").textContent="Couldn't mark message.";}
+}
+
 function render(list){
   const f=$("feed"),stick=f.scrollHeight-f.scrollTop-f.clientHeight<120;
   f.textContent="";
   for(const m of list){
-    const d=document.createElement("div");d.className="msg"+(m.user===name?" me":"");
+    const d=document.createElement("div");
+    d.className="msg"+(m.user===name?" me":"")+(m.marked?" marked":"");
     const w=document.createElement("div");w.className="who";w.textContent="@"+m.user;d.appendChild(w);
+    if(m.replyQuote){
+      const rq=document.createElement("div");rq.className="reply-quote";
+      rq.textContent=(m.replyQuote.user?"@"+m.replyQuote.user+": ":"")+(m.replyQuote.text||"");
+      d.appendChild(rq);
+    }
     if(m.text){const p=document.createElement("div");linkify(p,String(m.text));d.appendChild(p);}
     if(m.viewOnce&&(m.hasMedia||m.viewOnceState)){
       const b=document.createElement("button");b.type="button";
@@ -289,12 +510,19 @@ function render(list){
       const url=String(m.media);
       const k=m.kind||"";
       if(mode==="api"&&url.startsWith("/api/media/")){loadAuthMedia(d,url,k,m.fname);}
-      else if(k.startsWith("image/")||IMG.test(url)){const i=document.createElement("img");i.src=url;i.loading="lazy";d.appendChild(i);}
+      else if(k.startsWith("image/")||k.startsWith("image")||IMG.test(url)||/gif/i.test(k)){const i=document.createElement("img");i.src=url;i.loading="lazy";d.appendChild(i);}
       else if(k.startsWith("video/")||VID.test(url)){const v=document.createElement("video");v.src=url;v.controls=true;v.preload="metadata";d.appendChild(v);}
       else{const a=document.createElement("a");a.className="file";a.href=url;a.target="_blank";a.rel="noopener";a.textContent="📄 "+(m.fname||"file");d.appendChild(a);}
     }
+    const tools=document.createElement("div");tools.className="msg-tools";
+    const br=document.createElement("button");br.type="button";br.textContent="Reply";br.onclick=()=>setReply(m);tools.appendChild(br);
+    if(mode==="api"){
+      const mk=document.createElement("button");mk.type="button";mk.textContent=m.marked?"★ Marked":"☆ Mark";mk.className=m.marked?"on":"";
+      mk.onclick=()=>toggleMark(m.id,mk);tools.appendChild(mk);
+    }
+    d.appendChild(tools);
     const t=document.createElement("div");t.className="t";
-    t.textContent=new Date(Number(m.ts)).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})+(m.saved?" · 💾 saved":"");
+    t.textContent=new Date(Number(m.ts)).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})+(m.saved?" · 💾 saved":"")+(m.marked?" · ★":"");
     d.appendChild(t);f.appendChild(d);
   }
   if(stick||!f.dataset.init){f.scrollTop=f.scrollHeight;f.dataset.init=1;}
@@ -302,11 +530,13 @@ function render(list){
 
 async function post(data){
   try{
-    if(mode==="api"){
-      await api("/api/messages",{method:"POST",body:data});
-      await refreshApi();
-    }else await db.collection("messages").add({user:name,uid,ts:Date.now(),...data});
-    $("note").textContent="";
+  if(mode==="api"){
+    const body={...data};if(replyTo)body.replyTo=replyTo;
+    await api("/api/messages",{method:"POST",body});
+    clearReply();
+    await refreshApi();
+  }else await db.collection("messages").add({user:name,uid,ts:Date.now(),...data});
+  $("note").textContent="";
   }catch(e){$("note").textContent="Message didn't send.";}
 }
 
@@ -340,6 +570,42 @@ $("file").onchange=async()=>{
     sendOnce=false;$("once").classList.remove("on");
   }catch(e){$("note").textContent="Upload failed (max 20 MB; images, video, PDF, text).";}
 };
+
+$("gifb").onclick=()=>{
+  if(mode!=="api")return;
+  if(!appConfig?.gifEnabled)$("gifhint").textContent="Add TENOR_API_KEY in Render to search GIFs (you can still paste GIF URLs).";
+  $("gifpanel").classList.remove("hide");
+  searchGifs();
+};
+$("gifclose").onclick=()=>$("gifpanel").classList.add("hide");
+$("giftabs").onclick=e=>{
+  const btn=e.target.closest("button[data-tier]");
+  if(!btn)return;
+  gifTier=btn.dataset.tier;
+  $("giftabs").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b===btn));
+  searchGifs();
+};
+$("gifgo").onclick=searchGifs;
+$("gifq").onkeydown=e=>{if(e.key==="Enter")searchGifs();};
+
+async function searchGifs(){
+  const grid=$("gifgrid");grid.textContent="";
+  if(!appConfig?.gifEnabled){grid.textContent="";const p=document.createElement("p");p.className="sub";p.textContent="GIF search needs TENOR_API_KEY on the server.";grid.appendChild(p);return;}
+  try{
+    const q=$("gifq").value.trim();
+    const url="/api/gifs/search?tier="+encodeURIComponent(gifTier)+(q?"&q="+encodeURIComponent(q):"");
+    const {results}=await api(url);
+    for(const g of results){
+      if(!g.url)continue;
+      const b=document.createElement("button");b.type="button";
+      const im=document.createElement("img");im.src=g.preview||g.url;im.alt=g.title||"gif";im.loading="lazy";
+      b.appendChild(im);
+      b.onclick=()=>{post({text:g.url,kind:"image/gif"});$("gifpanel").classList.add("hide");$("note").textContent="GIF sent 🔥";};
+      grid.appendChild(b);
+    }
+    if(!results.length){grid.textContent="No results — try another search.";}
+  }catch(e){grid.textContent="Couldn't load GIFs.";}
+}
 
 async function loadAuthMedia(parent,url,kind,fname){
   const ph=document.createElement("div");ph.textContent="Loading…";ph.style.color="var(--mute)";parent.appendChild(ph);
@@ -383,4 +649,6 @@ function closeViewer(){
 $("vclose").onclick=closeViewer;
 $("vshield").onclick=closeViewer;
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&viewerUrl)closeViewer();});
-</script></body></html>
+</script>
+</body>
+</html>
