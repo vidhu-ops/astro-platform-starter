@@ -16,4 +16,20 @@
    `curl -s https://sexychat.fun/ | grep '<title>'` → must contain **shhh**.  
    `curl -s https://sexychat.fun/api/health` → `"app":"shhh"`.
 
-GoDaddy DNS should stay: apex **A** `216.24.57.1`, **www** **CNAME** → `meow-k3z3.onrender.com` (or the hostname Render shows for Meow?).
+## DNS (measured)
+
+| Record | Current value | Should be |
+|--------|----------------|-----------|
+| `@` A | `216.24.57.1` | unchanged |
+| `www` CNAME | **astro-platform-starter-yjkk.onrender.com** ← wrong | **meow-k3z3.onrender.com** |
+
+`www.sexychat.fun` will keep serving **Velvet** until the www CNAME changes and Render has both domains on **Meow?**.
+
+## Automate Render (optional)
+
+With a Render API key in `RENDER_API_KEY`:
+
+```bash
+node scripts/render-domains.mjs          # dry run
+node scripts/render-domains.mjs --apply  # move domains to Meow?
+```

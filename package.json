@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "build": "node -e \"console.log('build ok')\""
+    "build": "node -e \"console.log('build ok')\"",
+    "render:domains": "node scripts/render-domains.mjs",
+    "render:domains:apply": "node scripts/render-domains.mjs --apply"
   },
   "engines": {
     "node": ">=20"
