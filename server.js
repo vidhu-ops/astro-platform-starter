@@ -37,6 +37,7 @@ if (!CHAT_PASSWORD) {
 }
 const DATABASE_URL = process.env.DATABASE_URL;
 const COOKIE_SECURE = Boolean(process.env.RENDER || process.env.NODE_ENV === "production");
+const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 
 initMessageKey({
   messageEncryptionKey: process.env.MESSAGE_ENCRYPTION_KEY,
@@ -256,7 +257,7 @@ function setSessionCookie(res, token) {
     httpOnly: true,
     secure: COOKIE_SECURE,
     sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    maxAge: SESSION_MS,
     path: "/",
   });
 }
@@ -444,6 +445,12 @@ app.get(
   "/api/auth/me",
   authMiddleware,
   asyncHandler(async (req, res) => {
+    const token = sessionUser(req);
+    if (token) {
+      const expires = new Date(Date.now() + SESSION_MS);
+      await pool.query(`UPDATE chat_sessions SET expires_at = $1 WHERE token = $2`, [expires, token]);
+      setSessionCookie(res, token);
+    }
     res.json({ username: req.user.username, userId: req.user.user_id });
   }),
 );
@@ -501,7 +508,7 @@ app.post(
   }
 
   const token = crypto.randomUUID();
-  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const expires = new Date(Date.now() + SESSION_MS);
   await pool.query(
     `INSERT INTO chat_sessions (token, username, user_id, expires_at)
      VALUES ($1, $2, $3, $4)`,

@@ -436,8 +436,31 @@ let selectMode=false;
 const selectedIds=new Set();
 let replyTo=null,replyLabel="",appConfig=null,deferredInstall=null,gifTier="spicy";
 const NAME_KEY="shhh-name";
+const TAB_KEY="shhh-tab";
 const THEME_KEY="shhh-theme";
 const store={get:k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}},del:k=>{try{sessionStorage.removeItem(k)}catch(e){}}};
+function savedName(){
+  try{
+    return localStorage.getItem(NAME_KEY)||store.get(NAME_KEY)||store.get("velvet-name")||localStorage.getItem("velvet-name");
+  }catch(e){return store.get(NAME_KEY)||store.get("velvet-name");}
+}
+function setSavedName(n){
+  try{localStorage.setItem(NAME_KEY,n);}catch(e){}
+  store.set(NAME_KEY,n);
+  try{localStorage.removeItem("velvet-name");}catch(e){}
+  store.del("velvet-name");
+}
+function clearSavedName(){
+  try{localStorage.removeItem(NAME_KEY);localStorage.removeItem("velvet-name");}catch(e){}
+  store.del(NAME_KEY);
+  store.del("velvet-name");
+}
+function savedTab(){
+  try{
+    const t=localStorage.getItem(TAB_KEY);
+    return t==="date"||t==="chat"?t:null;
+  }catch(e){return null;}
+}
 function applyTheme(t){
   document.documentElement.dataset.theme=t==="light"?"light":"dark";
   try{localStorage.setItem(THEME_KEY,t);}catch(e){}
@@ -459,9 +482,6 @@ $("theme").onclick=()=>{
   const next=document.documentElement.dataset.theme==="light"?"dark":"light";
   applyTheme(next);
 };
-function savedName(){return store.get(NAME_KEY)||store.get("velvet-name");}
-function setSavedName(n){store.set(NAME_KEY,n);store.del("velvet-name");}
-
 async function api(path,opts={}){
   const headers={...(opts.headers||{})};
   if(opts.body&&!(opts.body instanceof FormData)){
@@ -560,22 +580,29 @@ async function detectBackend(){
 (async()=>{
   try{
     await detectBackend();
-    if(mode==="api"&&savedName()){
-      const n=savedName();
-      $("u").value=n;
+    const remembered=savedName();
+    if(remembered)$("u").value=remembered;
+    if(mode==="api"){
       try{
         const me=await api("/api/auth/me");
-        if(me.username)enter(me.username);
-        else enter(n);
-        return;
+        if(me.username){
+          setSavedName(me.username);
+          resumeApp(me.username);
+          return;
+        }
       }catch(e){
-        if(e.status!==401)store.del(NAME_KEY);
-        store.del("velvet-name");
+        if(e.status===401){
+          if(remembered){
+            $("err").textContent="";
+            $("p").focus();
+          }
+        }else{
+          clearSavedName();
+        }
       }
     }
     if(mode==="claude"){
-      const saved=savedName();
-      if(saved&&db&&uid)enter(saved);
+      if(remembered&&db&&uid)resumeApp(remembered);
       else if(!db||!uid)$("err").textContent="Sign in to claude.ai to use this chat.";
     }
   }finally{
@@ -594,7 +621,7 @@ $("go").onclick=async()=>{
       await api("/api/auth/enter",{method:"POST",body:{username:n,password:$("p").value}});
       setSavedName(n);
       $("p").value="";
-      enter(n);
+      resumeApp(n);
     }else{
       const ref=db.collection("users").doc(n),s=await ref.get();
       if(s.exists&&s.data().owner!==uid)return $("err").textContent="That username is taken.";
@@ -619,9 +646,15 @@ function setReply(m){
 function clearReply(){replyTo=null;replyLabel="";$("replybar").classList.add("hide");}
 $("replyx").onclick=clearReply;
 
-function enter(n){
+function resumeApp(n,opts={}){
+  enter(n,opts);
+  const tab=opts.tab!=null?opts.tab:savedTab();
+  if(tab)setMainTab(tab);
+}
+
+function enter(n,opts={}){
   name=n;$("gate").classList.add("hide");$("app").classList.remove("hide");$("me").textContent="@"+n;
-  joinedAt=Date.now();
+  joinedAt=opts.joinedAt!=null?opts.joinedAt:Date.now();
   window.setTimeout(()=>{void setupPwa();},2000);
   if(mode==="api"){
     if(pollTimer)clearInterval(pollTimer);
@@ -660,11 +693,16 @@ async function refreshApi(){
     }catch(e){
       if(e.status===401){
         if(pollTimer)clearInterval(pollTimer);
+        if(pollMetaTimer)clearTimeout(pollMetaTimer);
+        if(storyPollTimer)clearInterval(storyPollTimer);
         msgById.clear();
         $("feed").textContent="";
         $("gate").classList.remove("hide");
         $("app").classList.add("hide");
-        $("err").textContent="Session expired — enter your password to continue.";
+        if(name)setSavedName(name);
+        if(name)$("u").value=name;
+        $("err").textContent="Session expired — enter the room password to continue.";
+        $("p").focus();
       }else $("note").textContent="Couldn't load messages.";
     }finally{
       refreshInFlight=null;
@@ -827,7 +865,7 @@ $("out").onclick=async()=>{
   if(c===1&&!(await saveChat()))return;
   await wipe(false);
   if(mode==="api"){try{await api("/api/auth/leave",{method:"POST"});}catch(e){}}
-  store.del(NAME_KEY);store.del("velvet-name");
+  clearSavedName();
   if(pollTimer)clearInterval(pollTimer);
   if(pollMetaTimer)clearTimeout(pollMetaTimer);
   if(storyPollTimer)clearInterval(storyPollTimer);
@@ -1198,6 +1236,7 @@ $("polish").onclick=async()=>{
 
 function setMainTab(tab){
   activeTab=tab;
+  try{localStorage.setItem(TAB_KEY,tab);}catch(e){}
   $("tabchat").classList.toggle("on",tab==="chat");
   $("tabdate").classList.toggle("on",tab==="date");
   $("chatview").classList.toggle("hide",tab!=="chat");
