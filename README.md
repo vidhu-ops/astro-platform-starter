@@ -20,6 +20,11 @@ One Node app: **Render** hosts it, **Neon** stores messages. Every send is saved
 
 3. Deploy, then open **https://sexychat.fun/api/health** → must show `"ok":true,"db":true`.
 
+## Deploy status
+
+- **Render (production):** push to `main` → **Meow?** auto-deploys → https://sexychat.fun  
+- **Cursor Publish:** optional hosted copy with bound secrets (`KLIPY_API_KEY`, VAPID keys; add `TENOR_API_KEY` when ready).
+
 ## Install as an app (PWA)
 
 On **https://sexychat.fun**, use **Install** in the header (Chrome/Edge/Android) or **Add to Home Screen** (iOS Safari). Allow notifications when prompted so **💗 Thinking of you** and new messages can appear in the system tray. iOS limits background push; keep the installed app for the best experience.
