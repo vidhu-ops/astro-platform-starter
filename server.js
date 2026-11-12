@@ -127,6 +127,34 @@ const GIF_PRESETS = {
   mood: "sensual mood lighting",
 };
 
+/** Klipy returns media under `file` → { hd|md|sm|xs } → { gif|webp|... } → { url } */
+function klipyPickUrl(block) {
+  if (!block || typeof block !== "object") return null;
+  return block.gif?.url || block.webp?.url || block.mp4?.url || block.jpg?.url || null;
+}
+
+function mapKlipyGif(item) {
+  const file = item.file || item.files || item.media || {};
+  const send =
+    klipyPickUrl(file.hd) ||
+    klipyPickUrl(file.md) ||
+    klipyPickUrl(file.sm) ||
+    klipyPickUrl(file) ||
+    (typeof item.url === "string" ? item.url : null);
+  const preview =
+    klipyPickUrl(file.sm) ||
+    klipyPickUrl(file.xs) ||
+    klipyPickUrl(file.md) ||
+    send;
+  if (!send) return null;
+  return {
+    id: String(item.id ?? item.slug ?? ""),
+    title: item.title || item.slug || "gif",
+    url: send,
+    preview: preview || send,
+  };
+}
+
 function sessionUser(req) {
   const header = req.headers.authorization || "";
   const bearer = header.startsWith("Bearer ") ? header.slice(7) : null;
@@ -242,7 +270,17 @@ app.use(
         scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
-        imgSrc: ["'self'", "blob:", "data:", "https:", "https://media.tenor.com", "https://media1.tenor.com"],
+        imgSrc: [
+          "'self'",
+          "blob:",
+          "data:",
+          "https:",
+          "https://static.klipy.com",
+          "https://static1.klipy.com",
+          "https://static2.klipy.com",
+          "https://media.tenor.com",
+          "https://media1.tenor.com",
+        ],
         mediaSrc: ["'self'", "blob:"],
         connectSrc: ["'self'"],
         objectSrc: ["'none'"],
@@ -596,33 +634,49 @@ app.get(
   asyncHandler(async (req, res) => {
   const tier = String(req.query.tier || "spicy");
   const q = String(req.query.q || GIF_PRESETS[tier] || GIF_PRESETS.spicy);
-  const klipy = process.env.KLIPY_API_KEY;
-  const tenor = process.env.TENOR_API_KEY;
+  const klipy = process.env.KLIPY_API_KEY?.trim();
+  const tenor = process.env.TENOR_API_KEY?.trim();
+
+  async function fetchKlipy(path, params) {
+    const url = new URL(`https://api.klipy.com/api/v1/${encodeURIComponent(klipy)}${path}`);
+    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
+    const r = await fetch(url);
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || data.result === false) {
+      const msg =
+        data.errors?.message?.[0] ||
+        data.message ||
+        (typeof data.errors === "string" ? data.errors : null) ||
+        `Klipy HTTP ${r.status}`;
+      throw Object.assign(new Error(msg), { status: 502 });
+    }
+    const list = data.data?.data || data.data?.gifs || (Array.isArray(data.data) ? data.data : []);
+    return (Array.isArray(list) ? list : []).map(mapKlipyGif).filter(Boolean);
+  }
 
   if (klipy) {
-    const url = new URL(`https://api.klipy.com/api/v1/${encodeURIComponent(klipy)}/gifs/search`);
-    url.searchParams.set("q", q);
-    url.searchParams.set("page", "1");
-    url.searchParams.set("per_page", "24");
-    const r = await fetch(url);
-    const data = await r.json();
-    if (!data.result) {
-      return res.status(502).json({ error: data.errors?.message?.[0] || "Klipy search failed" });
-    }
-    const list = data.data?.data || data.data?.gifs || data.data || [];
-    const results = (Array.isArray(list) ? list : []).map((item) => {
-      const files = item.files || item.media || {};
-      const gif = files.gif || files.hd?.gif || item.url;
-      const preview = files.preview?.gif?.url || files.tiny?.gif?.url || gif?.url || gif;
-      const sendUrl = gif?.url || gif || preview;
-      return {
-        id: item.id || item.slug,
-        title: item.title || item.slug || "gif",
-        url: sendUrl,
-        preview: preview?.url || preview || sendUrl,
+    try {
+      const params = {
+        q,
+        page: "1",
+        per_page: "24",
+        locale: "us",
+        content_filter: "low",
+        format_filter: "gif,webp",
       };
-    });
-    return res.json({ results, provider: "klipy" });
+      let results = await fetchKlipy("/gifs/search", params);
+      if (!results.length && !req.query.q) {
+        results = await fetchKlipy("/gifs/trending", {
+          page: "1",
+          per_page: "24",
+          locale: "us",
+          content_filter: "low",
+        });
+      }
+      return res.json({ results, provider: "klipy" });
+    } catch (e) {
+      return res.status(e.status || 502).json({ error: e.message || "Klipy search failed" });
+    }
   }
 
   if (tenor) {

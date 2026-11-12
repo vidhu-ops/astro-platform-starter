@@ -817,20 +817,29 @@ $("gifq").onkeydown=e=>{if(e.key==="Enter")searchGifs();};
 async function searchGifs(){
   const grid=$("gifgrid");grid.textContent="";
   if(!appConfig?.gifEnabled){grid.textContent="";const p=document.createElement("p");p.className="sub";p.textContent="GIF search needs KLIPY_API_KEY on Render (see RENDER-FIX.md).";grid.appendChild(p);return;}
+  const loading=document.createElement("p");loading.className="sub";loading.textContent="Loading…";grid.appendChild(loading);
   try{
     const q=$("gifq").value.trim();
     const url="/api/gifs/search?tier="+encodeURIComponent(gifTier)+(q?"&q="+encodeURIComponent(q):"");
     const {results}=await api(url);
+    grid.textContent="";
+    let shown=0;
     for(const g of results){
       if(!g.url)continue;
       const b=document.createElement("button");b.type="button";
-      const im=document.createElement("img");im.src=g.preview||g.url;im.alt=g.title||"gif";im.loading="lazy";
+      const im=document.createElement("img");im.src=g.preview||g.url;im.alt=g.title||"gif";im.loading="lazy";im.referrerPolicy="no-referrer";
       b.appendChild(im);
-      b.onclick=()=>{post({text:g.url,kind:"image/gif"});$("gifpanel").classList.add("hide");$("note").textContent="GIF sent 🔥";};
+      b.onclick=()=>{post({text:g.url,kind:"image/gif"});$("gifpanel").classList.add("hide");$("note").textContent="GIF sent.";};
       grid.appendChild(b);
+      shown++;
     }
-    if(!results.length){grid.textContent="No results — try another search.";}
-  }catch(e){grid.textContent="Couldn't load GIFs.";}
+    if(!shown){grid.textContent="No results — try another search.";}
+  }catch(e){
+    grid.textContent="";
+    const p=document.createElement("p");p.className="sub";
+    p.textContent=(e.data&&e.data.error)||e.message||"Couldn't load GIFs.";
+    grid.appendChild(p);
+  }
 }
 
 async function loadAuthMedia(host,url,kind,fname){
