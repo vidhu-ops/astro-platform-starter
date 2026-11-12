@@ -15,7 +15,7 @@
 <link rel="apple-touch-icon" href="/icons/maskable.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Libre+Baskerville:ital@0;1&family=Outfit:wght@400;500;600&family=Special+Elite&display=swap" rel="stylesheet">
 <title>shhh — private whispers</title>
 <style>
 :root,html[data-theme="dark"]{
@@ -309,6 +309,106 @@ header h2{
 #viewer p{color:#c8c8ce;font-size:12px;margin:14px 0 0;text-align:center;max-width:320px;line-height:1.5}
 #viewer .close{margin-top:16px;border:1px solid var(--line);background:var(--panel);padding:10px 22px;border-radius:999px;cursor:pointer;color:var(--text)}
 #app.noblur{filter:none}
+.online-pill{
+  display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;
+  border:1px solid var(--line);background:var(--panel2);font-size:11px;font-weight:500;color:var(--text);
+  max-width:min(240px,42vw);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.online-pill::before{content:"";width:7px;height:7px;border-radius:50%;background:#5ec469;flex:none;box-shadow:0 0 0 2px #5ec46944}
+.online-pill.empty{opacity:.65}
+.online-pill.empty::before{background:var(--mute)}
+#scrapview{
+  flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;
+  background:
+    radial-gradient(900px 420px at 0% 0%,var(--gate-glow),transparent),
+    linear-gradient(180deg,var(--panel2) 0%,var(--bg) 48%);
+}
+#scrapscroll{flex:1;overflow-y:auto;padding:14px 16px 12px;display:flex;flex-direction:column;gap:18px}
+.scrap-intro{font-family:"Cormorant Garamond",Georgia,serif;font-size:22px;font-style:italic;color:var(--brand-b);margin:0 0 4px}
+.scrap-sub{font-size:12px;color:var(--mute);margin:0 0 12px;letter-spacing:.04em}
+.scrap-cal{
+  background:var(--card-bg);border:1px solid var(--card-border);border-radius:22px;padding:14px 14px 12px;
+  box-shadow:var(--shadow),inset 0 1px 0 #ffffff0a;
+}
+.scrap-cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.scrap-cal-head strong{font-family:"Cormorant Garamond",Georgia,serif;font-size:20px;font-style:italic}
+.cal-nav{border:1px solid var(--line);background:var(--panel);border-radius:999px;width:36px;height:36px;cursor:pointer;color:var(--text)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.cal-dow{font-size:10px;text-align:center;color:var(--mute);font-weight:600;letter-spacing:.06em;padding:4px 0}
+.cal-day{
+  aspect-ratio:1;border-radius:12px;border:1px solid transparent;background:var(--panel);
+  font-size:12px;font-weight:500;color:var(--text);cursor:pointer;position:relative;
+  display:flex;align-items:center;justify-content:center;padding:0;
+}
+.cal-day.off{color:var(--mute);opacity:.45;background:transparent;cursor:default}
+.cal-day.has-event{border-color:var(--rose);box-shadow:inset 0 0 0 1px var(--accent-ring)}
+.cal-day.has-event::after{
+  content:"";position:absolute;bottom:5px;left:50%;transform:translateX(-50%);
+  width:5px;height:5px;border-radius:50%;background:var(--rose);
+}
+.cal-day.today{outline:2px solid var(--gold);outline-offset:1px}
+.cal-day.sel{background:var(--tab-on-bg);border-color:var(--rose)}
+.cal-events{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.cal-chip{
+  display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:14px;
+  border:1px solid var(--line);background:var(--panel);font-size:13px;
+}
+.cal-chip.unmarked{opacity:.55;border-style:dashed}
+.cal-chip strong{display:block;font-size:14px;margin-bottom:2px}
+.cal-chip .meta{font-size:11px;color:var(--mute)}
+.cal-chip .acts{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+.cal-chip .acts button{font-size:10px;padding:5px 9px}
+#scrapfeed{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,168px),1fr));gap:14px}
+.scrap-item{
+  position:relative;border-radius:4px;padding:10px 10px 14px;
+  background:linear-gradient(145deg,#fdf8ef,#efe6d6);
+  border:1px solid #c9b89a88;box-shadow:0 8px 22px #0000001f,0 2px 0 #fff8 inset;
+  color:#2a2118;transform:rotate(var(--rot,0deg));
+}
+html[data-theme="dark"] .scrap-item{
+  background:linear-gradient(145deg,#3a342c,#2a2520);border-color:#6d5e4a;color:#f2ebe0;
+}
+.scrap-item.quote{
+  padding:16px 14px 18px;border-radius:6px;
+  background:linear-gradient(165deg,var(--panel),var(--panel2));
+  border:1px solid var(--line);color:var(--text);box-shadow:var(--shadow);
+  transform:none;font-family:"Special Elite",Georgia,serif;font-size:14px;line-height:1.55;
+}
+.scrap-item.quote blockquote{margin:0;font-style:italic}
+.scrap-item.note{
+  transform:none;border-radius:16px;background:var(--panel);border:1px solid var(--line);
+  color:var(--text);box-shadow:var(--shadow);
+}
+.scrap-type{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin-bottom:6px}
+.scrap-title{font-family:"Cormorant Garamond",Georgia,serif;font-size:17px;font-style:italic;margin:0 0 6px}
+.vintage-frame{
+  margin:6px auto 8px;padding:8px 8px 20px;background:#faf6ee;
+  border:1px solid #d8cfc0;box-shadow:0 3px 12px #00000026,inset 0 0 0 1px #fff;
+  max-width:100%;
+}
+html[data-theme="dark"] .vintage-frame{background:#1c1a16;border-color:#5a5048}
+.vintage-frame img,.vintage-frame video{
+  display:block;width:100%;max-height:200px;object-fit:cover;
+  filter:sepia(.12) contrast(1.02) saturate(.92);
+  border:1px solid #b8aa9677;
+}
+.scrap-cap{font-size:13px;line-height:1.45;margin:0;color:inherit;opacity:.92}
+.scrap-del{
+  position:absolute;top:8px;right:8px;border:0;border-radius:999px;width:28px;height:28px;
+  background:#00000033;color:#fff;cursor:pointer;font-size:14px;line-height:1;
+}
+#scrapbar{
+  padding:10px 12px;border-top:1px solid var(--line);background:var(--bar-bg);
+  display:flex;flex-direction:column;gap:8px;
+}
+#scrapbar .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#scrapbar input[type=text],#scrapbody{
+  flex:1;min-width:120px;border-radius:14px;background:var(--input-bg);border:1px solid var(--line);
+  padding:10px 12px;font-size:14px;color:var(--text);
+}
+#scrapbody{min-height:54px;max-height:100px;resize:none;width:100%}
+.scrap-types{display:flex;gap:6px;flex-wrap:wrap}
+.scrap-types button.on{border-color:var(--rose);color:var(--rose);background:var(--tab-on-bg)}
 @media (max-width:520px){
   #gate{padding:20px 16px}
   .brand-mark{font-size:3.25rem}
@@ -344,6 +444,7 @@ header h2{
     <h2>shhh</h2><span class="hdr-tag">private</span>
   </div>
   <div class="hdr-actions">
+    <span id="online" class="online-pill hide" title="Recently active in the room"></span>
     <span id="me"></span>
     <button type="button" class="pill install hide" id="install">Install</button>
     <button type="button" class="pill heart" id="think" title="Ping everyone with a heart notification">💗<span class="lbl"> Thinking of you</span></button>
@@ -390,9 +491,48 @@ header h2{
     <button type="button" class="send" id="storypost" title="Post to Updates board">➤</button>
   </div>
 </div>
+<div id="scrapview" class="hide">
+  <div id="scrapscroll">
+    <p class="scrap-intro">Our scrapbook</p>
+    <p class="scrap-sub">Important dates, little memories, and lines worth keeping — in vintage frames.</p>
+    <section class="scrap-cal" aria-label="Calendar">
+      <div class="scrap-cal-head">
+        <button type="button" class="cal-nav" id="calprev" title="Previous month">‹</button>
+        <strong id="caltitle">—</strong>
+        <button type="button" class="cal-nav" id="calnext" title="Next month">›</button>
+      </div>
+      <div class="cal-grid" id="caldow"></div>
+      <div class="cal-grid" id="calgrid"></div>
+      <div class="cal-events" id="calevents"></div>
+    </section>
+    <section aria-label="Memories and quotes">
+      <p class="scrap-sub" style="margin:4px 0 10px">Pins &amp; quotes</p>
+      <div id="scrapfeed"></div>
+    </section>
+  </div>
+  <div id="scrapbar">
+    <div class="scrap-types" id="scraptypes">
+      <button type="button" class="pill on" data-type="memory">Memory</button>
+      <button type="button" class="pill" data-type="quote">Quote</button>
+      <button type="button" class="pill" data-type="note">Note</button>
+    </div>
+    <div class="row">
+      <input type="text" id="scraptitle" placeholder="Title (optional)" maxlength="120" autocomplete="off">
+      <button type="button" class="ic" id="scrappick" title="Vintage photo">📷</button>
+      <input type="file" id="scrapfile" class="hide" accept="image/*,video/*">
+    </div>
+    <textarea id="scrapbody" placeholder="Write a memory, quote, or note…" maxlength="2000"></textarea>
+    <div class="row">
+      <input type="date" id="scrapdate" title="Important date (optional)">
+      <input type="text" id="scrapdatelabel" placeholder="Date label (e.g. First trip)" maxlength="120" autocomplete="off">
+      <button type="button" class="send" id="scrapsave" title="Save to scrapbook">➤</button>
+    </div>
+  </div>
+</div>
 <nav id="maintabs" aria-label="Sections">
   <button type="button" class="on" id="tabchat">Chat</button>
   <button type="button" id="tabdate">Updates</button>
+  <button type="button" class="hide" id="tabscrap">Scrapbook</button>
 </nav>
 </div>
 
@@ -424,6 +564,16 @@ const $=id=>document.getElementById(id);
 let emojiList=null;
 let activeTab="chat";
 let storyPollTimer=null;
+let scrapPollTimer=null;
+let presenceTimer=null;
+let scrapItems=[];
+let scrapDates=[];
+let scrapCalYear=new Date().getFullYear();
+let scrapCalMonth=new Date().getMonth();
+let scrapCalSel=null;
+let scrapPickFile=null;
+let scrapItemType="memory";
+let scrapSaving=false;
 let storyFile=null;
 let storyPosting=false;
 let lastStoriesFp="";
@@ -458,7 +608,7 @@ function clearSavedName(){
 function savedTab(){
   try{
     const t=localStorage.getItem(TAB_KEY);
-    return t==="date"||t==="chat"?t:null;
+    return t==="date"||t==="chat"||t==="scrap"?t:null;
   }catch(e){return null;}
 }
 function applyTheme(t){
@@ -517,7 +667,7 @@ function urlBase64ToUint8Array(base64){
 async function setupPwa(){
   if(!("serviceWorker"in navigator))return;
   try{
-    const reg=await navigator.serviceWorker.register("/sw.js?v=6");
+    const reg=await navigator.serviceWorker.register("/sw.js?v=10");
     if(reg.waiting){reg.waiting.postMessage({type:"SKIP_WAITING"});}
     reg.addEventListener("updatefound",()=>{
       const w=reg.installing;
@@ -558,7 +708,7 @@ async function detectBackend(){
         return;
       }
     }
-    if(h&&h.ok&&h.db){mode="api";return;}
+    if(h&&h.ok&&h.db){mode="api";$("tabscrap")?.classList.remove("hide");return;}
     if(h&&h.db===false){
       $("err").textContent="Add DATABASE_URL (Neon) in Render → astro-platform-starter → Environment.";
       mode="api";
@@ -664,6 +814,8 @@ function enter(n,opts={}){
     scheduleMetaPoll();
     $("sel").classList.remove("hide");
     scheduleStoryPoll();
+    scheduleScrapPoll();
+    schedulePresence();
     document.addEventListener("visibilitychange",onVis);
     return;
   }
@@ -679,7 +831,7 @@ let visKick=null;
 function onVis(){
   if(document.hidden||mode!=="api")return;
   clearTimeout(visKick);
-  visKick=setTimeout(()=>refreshApi(),500);
+  visKick=setTimeout(()=>{void refreshApi();void pingPresence();},500);
 }
 
 async function refreshApi(){
@@ -869,6 +1021,8 @@ $("out").onclick=async()=>{
   if(pollTimer)clearInterval(pollTimer);
   if(pollMetaTimer)clearTimeout(pollMetaTimer);
   if(storyPollTimer)clearInterval(storyPollTimer);
+  if(scrapPollTimer)clearInterval(scrapPollTimer);
+  if(presenceTimer)clearInterval(presenceTimer);
   document.removeEventListener("visibilitychange",onVis);
   msgById.clear();
   if(unsub)unsub();
@@ -928,7 +1082,9 @@ async function toggleMark(id){
     if(row)row.marked=!!r.marked;
     render(lastMsgs);
     $("note").textContent=r.marked?"Message marked.":"Mark removed.";
-  }catch(e){$("note").textContent="Couldn't mark message.";}
+  }catch(e){
+    $("note").textContent=e.status===404?"Message not found.":(e.data&&e.data.error)||"Couldn't mark message.";
+  }
 }
 
 function appendViewOnceChip(body,m){
@@ -1239,15 +1395,281 @@ function setMainTab(tab){
   try{localStorage.setItem(TAB_KEY,tab);}catch(e){}
   $("tabchat").classList.toggle("on",tab==="chat");
   $("tabdate").classList.toggle("on",tab==="date");
+  $("tabscrap").classList.toggle("on",tab==="scrap");
   $("chatview").classList.toggle("hide",tab!=="chat");
   $("dateview").classList.toggle("hide",tab!=="date");
+  $("scrapview").classList.toggle("hide",tab!=="scrap");
   const tag=$("hdr-brand")?.querySelector(".hdr-tag");
-  if(tag)tag.textContent=tab==="date"?"updates board":"private";
-  $("sel").classList.toggle("hide",tab==="date"||mode!=="api");
+  if(tag){
+    tag.textContent=tab==="date"?"updates board":tab==="scrap"?"scrapbook":"private";
+  }
+  $("sel").classList.toggle("hide",tab!=="chat"||mode!=="api");
+  $("sv").classList.toggle("hide",tab==="scrap");
   if(tab==="date")void refreshStories();
+  if(tab==="scrap")void refreshScrapbook();
 }
 $("tabchat").onclick=()=>setMainTab("chat");
 $("tabdate").onclick=()=>setMainTab("date");
+$("tabscrap").onclick=()=>setMainTab("scrap");
+
+async function pingPresence(){
+  if(mode!=="api"||!name)return;
+  try{
+    await api("/api/presence",{method:"POST",body:{name}});
+    const p=await api("/api/presence");
+    const el=$("online");
+    const users=(p.users||[]).map(u=>u.username||u);
+    const others=users.filter(u=>u!==name);
+    const n=p.online??users.length;
+    if(n<=1&&!others.length){
+      el.textContent="Just you";
+      el.classList.add("empty");
+    }else{
+      const labels=others.length?others.map(u=>"@"+u).join(" · "):"";
+      el.textContent=(others.length?"Online: "+labels:`${n} online`);
+      el.classList.remove("empty");
+    }
+    el.classList.remove("hide");
+  }catch(e){$("online").classList.add("hide");}
+}
+function schedulePresence(){
+  if(presenceTimer)clearInterval(presenceTimer);
+  if(mode!=="api")return;
+  void pingPresence();
+  presenceTimer=setInterval(()=>{if(!document.hidden)void pingPresence();},22000);
+}
+
+function datesOnDay(y,m,day){
+  const pad=n=>String(n).padStart(2,"0");
+  const iso=`${y}-${pad(m+1)}-${pad(day)}`;
+  return scrapDates.filter(d=>{
+    if(d.date===iso)return true;
+    if(!d.yearly)return false;
+    const p=d.date.split("-");
+    return Number(p[1])===m+1&&Number(p[2])===day;
+  });
+}
+
+function renderCalendar(){
+  const dow=$("caldow"),grid=$("calgrid"),title=$("caltitle");
+  if(!dow||!grid)return;
+  dow.textContent="";
+  ["Su","Mo","Tu","We","Th","Fr","Sa"].forEach(l=>{
+    const s=document.createElement("div");s.className="cal-dow";s.textContent=l;dow.appendChild(s);
+  });
+  grid.textContent="";
+  const first=new Date(scrapCalYear,scrapCalMonth,1);
+  const startDay=first.getDay();
+  const daysInMonth=new Date(scrapCalYear,scrapCalMonth+1,0).getDate();
+  const monthName=first.toLocaleString([],{month:"long",year:"numeric"});
+  title.textContent=monthName;
+  const today=new Date();
+  for(let i=0;i<startDay;i++){
+    const b=document.createElement("div");b.className="cal-day off";grid.appendChild(b);
+  }
+  for(let day=1;day<=daysInMonth;day++){
+    const b=document.createElement("button");
+    b.type="button";
+    const ev=datesOnDay(scrapCalYear,scrapCalMonth,day);
+    b.className="cal-day"+(ev.length?" has-event":"")+
+      (scrapCalSel===day?" sel":"")+
+      (today.getFullYear()===scrapCalYear&&today.getMonth()===scrapCalMonth&&today.getDate()===day?" today":"");
+    b.textContent=String(day);
+    b.onclick=()=>{scrapCalSel=day;renderCalendar();renderCalEvents(day);};
+    grid.appendChild(b);
+  }
+  if(scrapCalSel)renderCalEvents(scrapCalSel);
+  else renderCalEvents(null);
+}
+
+function renderCalEvents(day){
+  const host=$("calevents");
+  if(!host)return;
+  host.textContent="";
+  if(day==null){
+    const hint=document.createElement("p");
+    hint.className="scrap-sub";
+    hint.style.margin="0";
+    hint.textContent="Tap a day to see important dates — or add one below.";
+    host.appendChild(hint);
+    return;
+  }
+  const list=datesOnDay(scrapCalYear,scrapCalMonth,day);
+  if(!list.length){
+    const hint=document.createElement("p");
+    hint.className="scrap-sub";
+    hint.style.margin="0";
+    hint.textContent="No dates on this day yet — set label + date in the bar, then save.";
+    host.appendChild(hint);
+    return;
+  }
+  const pad=n=>String(n).padStart(2,"0");
+  list.forEach(d=>{
+    const row=document.createElement("div");
+    row.className="cal-chip"+(d.marked?"":" unmarked");
+    const body=document.createElement("div");
+    const st=document.createElement("strong");st.textContent=d.label;body.appendChild(st);
+    const meta=document.createElement("div");meta.className="meta";
+    meta.textContent=(d.yearly?"Repeats yearly · ":"")+d.date+(d.user?" · @"+d.user:"");
+    body.appendChild(meta);
+    if(d.note){const n=document.createElement("div");n.className="scrap-cap";n.textContent=d.note;body.appendChild(n);}
+    row.appendChild(body);
+    if(d.media){
+      const fr=document.createElement("div");fr.className="vintage-frame";
+      if(String(d.kind||"").startsWith("video/")||/\.mp4/i.test(d.media)){
+        const v=document.createElement("video");v.src=d.media;v.controls=true;v.preload="metadata";
+        if(mode==="api"&&d.media.startsWith("/api/media/"))void loadAuthMedia(fr,d.media,d.kind,null);
+        else fr.appendChild(v);
+      }else{
+        if(mode==="api"&&d.media.startsWith("/api/media/"))void loadAuthMedia(fr,d.media,d.kind||"image/jpeg",null);
+        else{const i=document.createElement("img");i.src=d.media;i.loading="lazy";fr.appendChild(i);}
+      }
+      row.appendChild(fr);
+    }
+    const acts=document.createElement("div");acts.className="acts";
+    const mk=document.createElement("button");mk.type="button";mk.className="pill";
+    mk.textContent=d.marked?"Unmark":"Mark ★";
+    mk.onclick=async()=>{
+      try{await api("/api/scrapbook/dates/"+d.id+"/mark",{method:"PATCH"});await refreshScrapbook();}
+      catch(e){$("note").textContent="Couldn't update date.";}
+    };
+    const rm=document.createElement("button");rm.type="button";rm.className="pill";
+    rm.textContent="Remove";
+    rm.onclick=async()=>{
+      const ok=await ask("Remove date?","Deletes this important date for everyone.","Remove","Cancel");
+      if(ok!==1)return;
+      try{await api("/api/scrapbook/dates/"+d.id,{method:"DELETE"});await refreshScrapbook();}
+      catch(e){$("note").textContent="Couldn't remove date.";}
+    };
+    acts.appendChild(mk);acts.appendChild(rm);row.appendChild(acts);host.appendChild(row);
+  });
+  $("scrapdate").value=`${scrapCalYear}-${String(scrapCalMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+}
+
+function renderScrapItems(){
+  const feed=$("scrapfeed");
+  if(!feed)return;
+  feed.textContent="";
+  if(!scrapItems.length){
+    const p=document.createElement("p");p.className="scrap-sub";p.textContent="Add a memory in a retro frame, a quote, or a note.";
+    feed.appendChild(p);return;
+  }
+  scrapItems.forEach((it,idx)=>{
+    const card=document.createElement("article");
+    const rot=(idx%5)-2;
+    card.className="scrap-item "+(it.type||"note");
+    card.style.setProperty("--rot",rot*0.6+"deg");
+    const tag=document.createElement("div");tag.className="scrap-type";tag.textContent=it.type||"note";
+    card.appendChild(tag);
+    if(it.title){const h=document.createElement("h3");h.className="scrap-title";h.textContent=it.title;card.appendChild(h);}
+    if(it.type==="quote"&&it.body){
+      const q=document.createElement("blockquote");q.textContent="“"+it.body+"”";card.appendChild(q);
+    }else if(it.body){
+      const p=document.createElement("p");p.className="scrap-cap";p.textContent=it.body;card.appendChild(p);
+    }
+    if(it.media){
+      const fr=document.createElement("div");fr.className="vintage-frame";
+      if(mode==="api"&&it.media.startsWith("/api/media/"))void loadAuthMedia(fr,it.media,it.kind||"image/jpeg",null);
+      else if(String(it.kind||"").startsWith("video/")){
+        const v=document.createElement("video");v.src=it.media;v.controls=true;fr.appendChild(v);
+      }else{const i=document.createElement("img");i.src=it.media;i.loading="lazy";fr.appendChild(i);}
+      card.appendChild(fr);
+    }
+  if(mode==="api"&&it.user===name){
+      const del=document.createElement("button");
+      del.type="button";del.className="scrap-del";del.title="Remove";del.textContent="×";
+      del.onclick=async()=>{
+        const ok=await ask("Remove from scrapbook?","This memory will be deleted.","Remove","Cancel");
+        if(ok!==1)return;
+        try{await api("/api/scrapbook/items/"+it.id,{method:"DELETE"});await refreshScrapbook();}
+        catch(e){$("note").textContent="Couldn't delete entry.";}
+      };
+      card.appendChild(del);
+    }
+    feed.appendChild(card);
+  });
+}
+
+async function refreshScrapbook(){
+  if(mode!=="api")return;
+  try{
+    const [itemsRes,datesRes]=await Promise.all([
+      api("/api/scrapbook/items"),
+      api("/api/scrapbook/dates"),
+    ]);
+    scrapItems=itemsRes.items||[];
+    scrapDates=datesRes.dates||[];
+    renderScrapItems();
+    renderCalendar();
+  }catch(e){$("note").textContent="Couldn't load scrapbook.";}
+}
+
+function scheduleScrapPoll(){
+  if(scrapPollTimer)clearInterval(scrapPollTimer);
+  scrapPollTimer=setInterval(()=>{if(activeTab==="scrap"&&!document.hidden)void refreshScrapbook();},20000);
+}
+
+$("calprev").onclick=()=>{
+  scrapCalMonth--;
+  if(scrapCalMonth<0){scrapCalMonth=11;scrapCalYear--;}
+  scrapCalSel=null;
+  renderCalendar();
+};
+$("calnext").onclick=()=>{
+  scrapCalMonth++;
+  if(scrapCalMonth>11){scrapCalMonth=0;scrapCalYear++;}
+  scrapCalSel=null;
+  renderCalendar();
+};
+$("scraptypes").onclick=e=>{
+  const b=e.target.closest("button[data-type]");
+  if(!b)return;
+  scrapItemType=b.dataset.type;
+  $("scraptypes").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
+};
+$("scrappick").onclick=()=>$("scrapfile").click();
+$("scrapfile").onchange=()=>{
+  scrapPickFile=$("scrapfile").files[0]||null;
+  $("note").textContent=scrapPickFile?(scrapPickFile.type.startsWith("video/")?"Video ready for scrapbook.":"Photo ready — vintage frame on save."):"";
+};
+$("scrapsave").onclick=async()=>{
+  if(mode!=="api"||scrapSaving)return;
+  const body=$("scrapbody").value.trim();
+  const title=$("scraptitle").value.trim();
+  const dateLabel=$("scrapdatelabel").value.trim();
+  const dateVal=$("scrapdate").value;
+  if(!body&&!scrapPickFile&&!dateLabel)return $("note").textContent="Write something, pick a photo, or add a date.";
+  scrapSaving=true;$("scrapsave").disabled=true;
+  $("note").textContent="Saving…";
+  try{
+    let mediaKey=null,kind=null;
+    if(scrapPickFile){
+      const fd=new FormData();fd.append("file",scrapPickFile);
+      const up=await api("/api/upload",{method:"POST",body:fd});
+      mediaKey=up.mediaKey;kind=scrapPickFile.type;
+    }
+    const addItem=!!(body||scrapPickFile);
+    const addDate=!!(dateLabel&&dateVal);
+    if(addItem){
+      await api("/api/scrapbook/items",{method:"POST",body:{
+        type:scrapItemType,title,body,mediaKey,kind,
+      }});
+    }
+    if(addDate){
+      await api("/api/scrapbook/dates",{method:"POST",body:{
+        label:dateLabel,date:dateVal,note:body||title,
+        mediaKey:addItem?null:mediaKey,kind:addItem?null:kind,yearly:true,
+      }});
+    }
+    $("scrapbody").value="";$("scraptitle").value="";$("scrapdatelabel").value="";
+    scrapPickFile=null;$("scrapfile").value="";
+    $("note").textContent="Saved to scrapbook.";
+    await refreshScrapbook();
+  }catch(e){
+    const mb=appConfig?.maxUploadMb||100;
+    $("note").textContent=(e.status===413?`File too large (max ${mb} MB).`:(e.data&&e.data.error))||e.message||"Couldn't save.";
+  }finally{scrapSaving=false;$("scrapsave").disabled=false;}
+};
 
 function formatStoryStamp(ts){
   const d=new Date(Number(ts));
@@ -1370,7 +1792,10 @@ $("file").onchange=async()=>{
       await post({media:r.url,mediaKey:r.mediaKey,viewOnce:once,kind:f.type,fname:f.name.slice(0,80)});
       $("note").textContent=once?"View once sent — only an icon stays in chat.":"";
       sendOnce=false;$("once").classList.remove("on");
-    }catch(e){$("note").textContent="Upload failed (max 20 MB; images, video, PDF, text).";}
+    }catch(e){
+      const mb=appConfig?.maxUploadMb||100;
+      $("note").textContent=e.status===413?`Upload too large (max ${mb} MB).`:"Upload failed — images, video, PDF, text.";
+    }
     return;
   }
   if(!assets)return;
@@ -1380,7 +1805,10 @@ $("file").onchange=async()=>{
     await post({media:r.url.includes("/_blob/")?"/_blob/"+r.id:r.url,kind:f.type,fname:f.name.slice(0,80),viewOnce:once});
     $("note").textContent=once?"View once (Claude): disappears for others on leave.":"";
     sendOnce=false;$("once").classList.remove("on");
-  }catch(e){$("note").textContent="Upload failed (max 20 MB; images, video, PDF, text).";}
+  }catch(e){
+    const mb=appConfig?.maxUploadMb||100;
+    $("note").textContent=e.status===413?`Upload too large (max ${mb} MB).`:"Upload failed.";
+  }
 };
 
 $("gifb").onclick=()=>{

@@ -136,8 +136,36 @@ async function migrate() {
       created_at BIGINT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS chat_uploads_user_idx ON chat_uploads (user_id);
+    CREATE TABLE IF NOT EXISTS chat_scrapbook_items (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_name TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      item_type TEXT NOT NULL,
+      title_text TEXT,
+      body_text TEXT,
+      media_key TEXT,
+      kind TEXT,
+      ts BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS chat_scrapbook_ts_idx ON chat_scrapbook_items (ts DESC);
+    CREATE TABLE IF NOT EXISTS chat_scrapbook_dates (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_name TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      label_text TEXT NOT NULL,
+      event_date DATE NOT NULL,
+      yearly_repeat BOOLEAN NOT NULL DEFAULT true,
+      marked BOOLEAN NOT NULL DEFAULT true,
+      note_text TEXT,
+      media_key TEXT,
+      kind TEXT,
+      ts BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS chat_scrapbook_dates_day_idx ON chat_scrapbook_dates (event_date);
   `);
 }
+
+const SCRAP_TYPES = new Set(["memory", "quote", "note"]);
 
 function rowOwnedByUser(row, user) {
   if (!row || !user) return false;
@@ -269,6 +297,7 @@ function clearSessionCookie(res) {
 const DEVICE_COOKIE = "shhh_device";
 const MAX_UPLOADS_PER_USER = 80;
 const MAX_UPLOADS_PER_HOUR = 25;
+const MAX_FILE_BYTES = 100 * 1024 * 1024;
 
 function getOrSetDeviceId(req, res) {
   let id = req.cookies?.[DEVICE_COOKIE];
@@ -314,7 +343,7 @@ const upload = multer({
       cb(null, `${id}${ext}`);
     },
   }),
-  limits: { fileSize: 20 * 1024 * 1024, files: 1 },
+  limits: { fileSize: MAX_FILE_BYTES, files: 1 },
 });
 
 function mimeFromFilename(filename) {
@@ -438,6 +467,8 @@ app.get("/api/config", (_req, res) => {
     gifEnabled: Boolean(process.env.TENOR_API_KEY || process.env.KLIPY_API_KEY),
     enhanceAi: Boolean(process.env.OPENAI_API_KEY?.trim()),
     storiesEnabled: Boolean(pool),
+    scrapbookEnabled: Boolean(pool),
+    maxUploadMb: Math.round(MAX_FILE_BYTES / (1024 * 1024)),
   });
 });
 
@@ -684,9 +715,9 @@ app.patch(
   if (!isUuid(req.params.id)) return res.status(400).json({ error: "Invalid id" });
   const { rows } = await pool.query(
     `UPDATE chat_messages SET marked = NOT marked
-     WHERE id = $1 AND (user_id = $2 OR user_name = $3)
+     WHERE id = $1
      RETURNING id, marked`,
-    [req.params.id, req.user.user_id, req.user.username],
+    [req.params.id],
   );
   if (!rows[0]) return res.status(404).json({ error: "Not found" });
   res.json(rows[0]);
@@ -960,10 +991,11 @@ app.get(
   authMiddleware,
   asyncHandler(async (_req, res) => {
   const { rows } = await pool.query(
-    `SELECT COUNT(*)::int AS count FROM chat_presence
-     WHERE last_seen > NOW() - INTERVAL '45 seconds'`,
+    `SELECT username FROM chat_presence
+     WHERE last_seen > NOW() - INTERVAL '90 seconds'
+     ORDER BY username`,
   );
-  res.json({ online: rows[0]?.count ?? 0 });
+  res.json({ online: rows.length, users: rows });
   }),
 );
 
@@ -1149,6 +1181,218 @@ app.delete(
     }
     unlinkMediaKeys([row.media_key]);
     await pool.query(`DELETE FROM chat_stories WHERE id = $1`, [req.params.id]);
+    res.json({ ok: true });
+  }),
+);
+
+const scrapbookLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  message: { error: "Scrapbook save limit — try later." },
+  keyGenerator: (req) => req.user?.user_id || req.ip,
+});
+
+function mapScrapItem(row) {
+  return {
+    id: row.id,
+    user: row.user_name,
+    userId: row.user_id,
+    type: row.item_type,
+    title: row.title_text ? decryptField(row.title_text) : "",
+    body: decryptField(row.body_text),
+    media: row.media_key ? `/api/media/${row.media_key}` : null,
+    kind: row.kind,
+    ts: row.ts,
+  };
+}
+
+function mapScrapDate(row) {
+  const d = row.event_date;
+  const iso = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+  return {
+    id: row.id,
+    user: row.user_name,
+    userId: row.user_id,
+    label: decryptField(row.label_text),
+    date: iso,
+    yearly: !!row.yearly_repeat,
+    marked: !!row.marked,
+    note: row.note_text ? decryptField(row.note_text) : "",
+    media: row.media_key ? `/api/media/${row.media_key}` : null,
+    kind: row.kind,
+    ts: row.ts,
+  };
+}
+
+app.get(
+  "/api/scrapbook/items",
+  authMiddleware,
+  asyncHandler(async (_req, res) => {
+    const { rows } = await pool.query(
+      `SELECT id, user_name, user_id, item_type, title_text, body_text, media_key, kind, ts
+       FROM chat_scrapbook_items ORDER BY ts DESC LIMIT 200`,
+    );
+    res.json({ items: rows.map(mapScrapItem) });
+  }),
+);
+
+app.post(
+  "/api/scrapbook/items",
+  authMiddleware,
+  scrapbookLimiter,
+  asyncHandler(async (req, res) => {
+    const type = String(req.body?.type || "note").toLowerCase();
+    if (!SCRAP_TYPES.has(type)) return res.status(400).json({ error: "Invalid type" });
+    const title = String(req.body?.title || "").trim().slice(0, 120);
+    const body = String(req.body?.body || "").trim().slice(0, 2000);
+    if (!body && !req.body?.mediaKey) {
+      return res.status(400).json({ error: "Add text or a photo" });
+    }
+    let mediaKey = null;
+    let kind = null;
+    const keyFromClient = normalizeMediaKey(req.body?.mediaKey);
+    if (keyFromClient) {
+      const owned = await assertMediaUploadOwner(req.user.user_id, keyFromClient);
+      if (!owned) return res.status(403).json({ error: "Upload does not belong to this session" });
+      const filePath = resolveUploadPath(UPLOAD_DIR, keyFromClient);
+      if (!filePath || !fs.existsSync(filePath)) {
+        return res.status(400).json({ error: "Invalid media upload" });
+      }
+      mediaKey = keyFromClient;
+      kind = safeContentType(req.body?.kind);
+      await pool.query(`DELETE FROM chat_uploads WHERE media_key = $1`, [keyFromClient]);
+    }
+    const ts = Date.now();
+    const { rows } = await pool.query(
+      `INSERT INTO chat_scrapbook_items (user_name, user_id, item_type, title_text, body_text, media_key, kind, ts)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       RETURNING id, user_name, user_id, item_type, title_text, body_text, media_key, kind, ts`,
+      [
+        req.user.username,
+        req.user.user_id,
+        type,
+        title ? encryptField(title) : null,
+        body ? encryptField(body) : null,
+        mediaKey,
+        kind,
+        ts,
+      ],
+    );
+    res.status(201).json(mapScrapItem(rows[0]));
+  }),
+);
+
+app.delete(
+  "/api/scrapbook/items/:id",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    if (!isUuid(req.params.id)) return res.status(400).json({ error: "Invalid id" });
+    const { rows } = await pool.query(
+      `SELECT user_id, media_key FROM chat_scrapbook_items WHERE id = $1`,
+      [req.params.id],
+    );
+    const row = rows[0];
+    if (!row) return res.status(404).json({ error: "Not found" });
+    if (row.user_id !== req.user.user_id) {
+      return res.status(403).json({ error: "You can only delete your own scrapbook entries" });
+    }
+    unlinkMediaKeys([row.media_key]);
+    await pool.query(`DELETE FROM chat_scrapbook_items WHERE id = $1`, [req.params.id]);
+    res.json({ ok: true });
+  }),
+);
+
+app.get(
+  "/api/scrapbook/dates",
+  authMiddleware,
+  asyncHandler(async (_req, res) => {
+    const { rows } = await pool.query(
+      `SELECT id, user_name, user_id, label_text, event_date, yearly_repeat, marked,
+              note_text, media_key, kind, ts
+       FROM chat_scrapbook_dates
+       ORDER BY event_date ASC, ts DESC LIMIT 300`,
+    );
+    res.json({ dates: rows.map(mapScrapDate) });
+  }),
+);
+
+app.post(
+  "/api/scrapbook/dates",
+  authMiddleware,
+  scrapbookLimiter,
+  asyncHandler(async (req, res) => {
+    const label = String(req.body?.label || "").trim().slice(0, 120);
+    const dateStr = String(req.body?.date || "").slice(0, 10);
+    if (!label) return res.status(400).json({ error: "Label required" });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return res.status(400).json({ error: "Use date YYYY-MM-DD" });
+    }
+    const yearly = req.body?.yearly !== false;
+    const note = String(req.body?.note || "").trim().slice(0, 500);
+    let mediaKey = null;
+    let kind = null;
+    const keyFromClient = normalizeMediaKey(req.body?.mediaKey);
+    if (keyFromClient) {
+      const owned = await assertMediaUploadOwner(req.user.user_id, keyFromClient);
+      if (!owned) return res.status(403).json({ error: "Upload does not belong to this session" });
+      mediaKey = keyFromClient;
+      kind = safeContentType(req.body?.kind);
+      await pool.query(`DELETE FROM chat_uploads WHERE media_key = $1`, [keyFromClient]);
+    }
+    const ts = Date.now();
+    const { rows } = await pool.query(
+      `INSERT INTO chat_scrapbook_dates
+       (user_name, user_id, label_text, event_date, yearly_repeat, marked, note_text, media_key, kind, ts)
+       VALUES ($1,$2,$3,$4::date,$5,true,$6,$7,$8,$9)
+       RETURNING id, user_name, user_id, label_text, event_date, yearly_repeat, marked, note_text, media_key, kind, ts`,
+      [
+        req.user.username,
+        req.user.user_id,
+        encryptField(label),
+        dateStr,
+        yearly,
+        note ? encryptField(note) : null,
+        mediaKey,
+        kind,
+        ts,
+      ],
+    );
+    res.status(201).json(mapScrapDate(rows[0]));
+  }),
+);
+
+app.patch(
+  "/api/scrapbook/dates/:id/mark",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    if (!isUuid(req.params.id)) return res.status(400).json({ error: "Invalid id" });
+    const { rows } = await pool.query(
+      `UPDATE chat_scrapbook_dates SET marked = NOT marked
+       WHERE id = $1 RETURNING id, marked`,
+      [req.params.id],
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Not found" });
+    res.json(rows[0]);
+  }),
+);
+
+app.delete(
+  "/api/scrapbook/dates/:id",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    if (!isUuid(req.params.id)) return res.status(400).json({ error: "Invalid id" });
+    const { rows } = await pool.query(
+      `SELECT user_id, media_key FROM chat_scrapbook_dates WHERE id = $1`,
+      [req.params.id],
+    );
+    const row = rows[0];
+    if (!row) return res.status(404).json({ error: "Not found" });
+    if (row.user_id !== req.user.user_id) {
+      return res.status(403).json({ error: "You can only remove your own dates" });
+    }
+    unlinkMediaKeys([row.media_key]);
+    await pool.query(`DELETE FROM chat_scrapbook_dates WHERE id = $1`, [req.params.id]);
     res.json({ ok: true });
   }),
 );
