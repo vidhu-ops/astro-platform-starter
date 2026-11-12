@@ -32,6 +32,10 @@ projects:
                 sync: false
               - key: TENOR_API_KEY
                 sync: false
+              - key: OPENAI_API_KEY
+                sync: false
+              - key: OPENAI_MODEL
+                sync: false
               - key: VAPID_PUBLIC_KEY
                 sync: false
               - key: VAPID_PRIVATE_KEY

@@ -117,7 +117,63 @@ async function migrate() {
       auth TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS chat_stories (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_name TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      ts BIGINT NOT NULL,
+      caption_text TEXT,
+      media_key TEXT NOT NULL,
+      kind TEXT
+    );
+    CREATE INDEX IF NOT EXISTS chat_stories_ts_idx ON chat_stories (ts DESC);
   `);
+}
+
+function polishLocal(text) {
+  let s = String(text || "")
+    .trim()
+    .replace(/\s+/g, " ");
+  if (!s) return s;
+  s = s.replace(/\bi\b/g, "I");
+  s = s.charAt(0).toUpperCase() + s.slice(1);
+  if (!/[.!?…]$/.test(s)) s += ".";
+  return s.slice(0, 2000);
+}
+
+async function enhanceWithAi(text) {
+  const key = process.env.OPENAI_API_KEY?.trim();
+  if (!key) return { text: polishLocal(text), provider: "local" };
+  const base = process.env.OPENAI_BASE_URL?.trim() || "https://api.openai.com/v1";
+  const model = process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini";
+  const r = await fetch(`${base.replace(/\/$/, "")}/chat/completions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.7,
+      max_tokens: 400,
+      messages: [
+        {
+          role: "system",
+          content:
+            "Rewrite the user's chat message in clear, natural English. Keep the same meaning, warmth, and flirtiness. Fix grammar and flow. Output only the rewritten message—no quotes or commentary.",
+        },
+        { role: "user", content: String(text).slice(0, 2000) },
+      ],
+    }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const msg = data.error?.message || `AI HTTP ${r.status}`;
+    throw Object.assign(new Error(msg), { status: 502 });
+  }
+  const out = data.choices?.[0]?.message?.content?.trim();
+  if (!out) throw Object.assign(new Error("Empty AI response"), { status: 502 });
+  return { text: out.slice(0, 2000), provider: "openai" };
 }
 
 const GIF_PRESETS = {
@@ -353,6 +409,8 @@ app.get("/api/config", (_req, res) => {
     vapidPublicKey: getPublicKey(),
     pushEnabled: isPushReady(),
     gifEnabled: Boolean(process.env.TENOR_API_KEY || process.env.KLIPY_API_KEY),
+    enhanceAi: Boolean(process.env.OPENAI_API_KEY?.trim()),
+    storiesEnabled: Boolean(pool),
   });
 });
 
@@ -848,6 +906,130 @@ app.get(
      WHERE last_seen > NOW() - INTERVAL '45 seconds'`,
   );
   res.json({ online: rows[0]?.count ?? 0 });
+  }),
+);
+
+const enhanceLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  message: { error: "Too many enhance requests." },
+  keyGenerator: (req) => req.user?.user_id || req.ip,
+});
+
+const storyLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 40,
+  standardHeaders: true,
+  message: { error: "Story upload limit — try later." },
+  keyGenerator: (req) => req.user?.user_id || req.ip,
+});
+
+app.post(
+  "/api/enhance-text",
+  authMiddleware,
+  enhanceLimiter,
+  asyncHandler(async (req, res) => {
+    const raw = String(req.body?.text || "").trim();
+    if (raw.length < 2) return res.status(400).json({ error: "Type something first" });
+    try {
+      const result = await enhanceWithAi(raw);
+      res.json(result);
+    } catch (e) {
+      res.status(e.status || 502).json({ error: e.message || "Enhance failed" });
+    }
+  }),
+);
+
+app.get(
+  "/api/stories",
+  authMiddleware,
+  asyncHandler(async (_req, res) => {
+    const { rows } = await pool.query(
+      `SELECT id, user_name AS "user", user_id, ts, caption_text AS caption_enc, media_key, kind
+       FROM chat_stories ORDER BY ts DESC LIMIT 120`,
+    );
+    res.json({
+      stories: rows.map((r) => ({
+        id: r.id,
+        user: r.user,
+        userId: r.user_id,
+        ts: r.ts,
+        caption: decryptField(r.caption_enc),
+        media: r.media_key ? `/api/media/${r.media_key}` : null,
+        kind: r.kind,
+      })),
+    });
+  }),
+);
+
+app.post(
+  "/api/stories",
+  authMiddleware,
+  storyLimiter,
+  upload.single("file"),
+  asyncHandler(async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: "Image required" });
+    if (!req.file.mimetype?.startsWith("image/")) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(400).json({ error: "Stories must be images" });
+    }
+    try {
+      const raw = fs.readFileSync(req.file.path);
+      fs.writeFileSync(req.file.path, encryptBuffer(raw));
+    } catch {
+      fs.unlink(req.file.path, () => {});
+      return res.status(500).json({ error: "Upload encryption failed" });
+    }
+    const safeName = normalizeMediaKey(req.file.filename);
+    if (!safeName) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(400).json({ error: "Invalid filename" });
+    }
+    const captionRaw = String(req.body?.caption || "").trim().slice(0, 500);
+    const ts = Date.now();
+    const { rows } = await pool.query(
+      `INSERT INTO chat_stories (user_name, user_id, ts, caption_text, media_key, kind)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, user_name AS "user", ts, media_key, kind`,
+      [
+        req.user.username,
+        req.user.user_id,
+        ts,
+        captionRaw ? encryptField(captionRaw) : null,
+        safeName,
+        safeContentType(req.file.mimetype),
+      ],
+    );
+    const row = rows[0];
+    res.status(201).json({
+      id: row.id,
+      user: row.user,
+      ts: row.ts,
+      caption: captionRaw,
+      media: `/api/media/${row.media_key}`,
+      kind: row.kind,
+    });
+  }),
+);
+
+app.delete(
+  "/api/stories/:id",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    if (!isUuid(req.params.id)) return res.status(400).json({ error: "Invalid id" });
+    const { rows } = await pool.query(
+      `SELECT id, user_id, media_key FROM chat_stories WHERE id = $1`,
+      [req.params.id],
+    );
+    const row = rows[0];
+    if (!row) return res.status(404).json({ error: "Not found" });
+    if (row.user_id !== req.user.user_id) {
+      return res.status(403).json({ error: "Only your story can be deleted" });
+    }
+    unlinkMediaKeys([row.media_key]);
+    await pool.query(`DELETE FROM chat_stories WHERE id = $1`, [req.params.id]);
+    res.json({ ok: true });
   }),
 );
 

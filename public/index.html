@@ -166,9 +166,38 @@ header h2{
 #bar input[type=text]{margin:0;flex:1;border-radius:22px;background:var(--input-bg);border:1px solid var(--line);padding:11px 16px;font-size:16px}
 .ic{width:44px;height:44px;flex:none;border-radius:50%;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-size:17px}
 .send{width:48px;height:44px;flex:none;border:0;border-radius:50%;background:linear-gradient(135deg,var(--wine),var(--heat));cursor:pointer;font-size:17px;color:var(--champagne);box-shadow:0 4px 18px #c4758a40}
-#emo{position:absolute;bottom:68px;left:12px;right:12px;max-width:360px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:12px;display:grid;grid-template-columns:repeat(8,1fr);gap:6px;max-height:200px;overflow:auto;z-index:5;box-shadow:0 16px 48px #0009}
+#emo{
+  position:absolute;bottom:68px;left:12px;right:12px;max-width:420px;background:var(--panel);border:1px solid var(--line);
+  border-radius:20px;padding:10px 12px 12px;z-index:5;box-shadow:0 16px 48px #0009;display:flex;flex-direction:column;gap:8px;
+}
+#emo input{margin:0;font-size:14px;padding:10px 12px}
+#emogrid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;max-height:min(240px,42vh);overflow:auto}
 #emo button{background:none;border:0;font-size:22px;cursor:pointer;padding:4px;border-radius:8px}
-#emo button:hover{background:#ffffff08}
+#emo button:hover{background:var(--panel2)}
+#maintabs{
+  display:flex;border-top:1px solid var(--line);background:var(--bar-bg);padding-bottom:env(safe-area-inset-bottom,0);
+}
+#maintabs button{
+  flex:1;border:0;background:transparent;padding:14px 8px 12px;font-weight:600;font-size:13px;letter-spacing:.04em;
+  color:var(--mute);cursor:pointer;border-top:2px solid transparent;
+}
+#maintabs button.on{color:var(--rose);border-top-color:var(--rose)}
+#chatview{flex:1;display:flex;flex-direction:column;min-height:0}
+#dateview{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#storyfeed{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:16px}
+.story-card{
+  background:var(--panel);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:var(--shadow);
+}
+.story-head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px 8px;gap:8px}
+.story-head strong{font-size:14px}
+.story-stamp{font-size:11px;color:var(--mute);text-align:right;line-height:1.35}
+.story-card img{width:100%;display:block;max-height:420px;object-fit:cover;background:var(--ink)}
+.story-cap{padding:10px 14px 14px;font-size:15px;line-height:1.45;color:var(--text)}
+.story-actions{padding:0 14px 12px}
+#storybar{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center;background:var(--bar-bg)}
+#storybar input[type=text]{flex:1;margin:0}
+#storyfile{display:none}
+.ic.polish{font-size:13px;font-weight:700;letter-spacing:-.02em;color:var(--gold)}
 #gifpanel{position:fixed;inset:0;background:#000000bb;backdrop-filter:blur(6px);z-index:40;display:flex;align-items:flex-end;justify-content:center}
 #gifpanel .sheet{
   width:100%;max-width:820px;max-height:78vh;background:linear-gradient(180deg,#1c1b24,#0b0a0e);
@@ -264,6 +293,7 @@ header h2{
     <button type="button" class="pill" id="out">Leave</button>
   </div>
 </header>
+<div id="chatview">
 <div id="feed"></div>
 <div class="note" id="note"></div>
 <div id="selectbar" class="hide"><span id="selcount">0 selected</span>
@@ -272,8 +302,12 @@ header h2{
 </div>
 <div id="replybar" class="hide">↩ Replying to <strong id="replywho"></strong> <button type="button" id="replyx" aria-label="Cancel reply">×</button></div>
 <div id="bar">
-  <div id="emo" class="hide"></div>
+  <div id="emo" class="hide">
+    <input type="search" id="emoq" placeholder="Search emoji…" autocomplete="off">
+    <div id="emogrid"></div>
+  </div>
   <button type="button" class="ic" id="emob" title="Emoji">😘</button>
+  <button type="button" class="ic polish" id="polish" title="Make wording better">✦</button>
   <button type="button" class="ic" id="gifb" title="Browse spicy & cute GIFs">GIF</button>
   <button type="button" class="ic" id="once" title="View once">👁</button>
   <button type="button" class="ic" id="att" title="Attach">📎</button>
@@ -281,6 +315,20 @@ header h2{
   <input type="text" id="txt" placeholder="Message" autocomplete="off">
   <button type="button" class="send" id="send" title="Send">➤</button>
 </div>
+</div>
+<div id="dateview" class="hide">
+  <div id="storyfeed"></div>
+  <div id="storybar">
+    <button type="button" class="ic" id="storypick" title="Choose photo">📷</button>
+    <input type="file" id="storyfile" accept="image/*">
+    <input type="text" id="storycap" placeholder="Caption for this moment…" autocomplete="off" maxlength="500">
+    <button type="button" class="send" id="storypost" title="Post to Date feed">➤</button>
+  </div>
+</div>
+<nav id="maintabs" aria-label="Sections">
+  <button type="button" class="on" id="tabchat">Chat</button>
+  <button type="button" id="tabdate">Date</button>
+</nav>
 </div>
 
 <div id="gifpanel" class="hide">
@@ -308,7 +356,10 @@ header h2{
 
 <script>
 const $=id=>document.getElementById(id);
-const EMOJI="😘 😍 🥵 😏 😈 🔥 💋 ❤️ 💕 💘 😉 🥰 😜 🍑 🍒 🍷 🌹 ✨ 💃 🕺 😳 🙈 😂 🤤 💦 🖤 👀 🫦 😻 💫 🥂 🎉".split(" ");
+let emojiList=null;
+let activeTab="chat";
+let storyPollTimer=null;
+let storyFile=null;
 let mode=null,uid=null,nativeDb=null,db=null,assets=null,room=null,name=null;
 let unsub=null,unsubMeta=null,pollTimer=null,pollMetaTimer=null,refreshInFlight=null,lastMsgs=[],lastDocs=[],joinedAt=0,sendOnce=false,mediaObjectUrls=[];
 const POLL_MS=8000;
@@ -518,6 +569,7 @@ function enter(n){
   $("think").classList.add("hide");
   $("gifb").classList.add("hide");
   if(mode==="api")$("sel").classList.remove("hide");
+  scheduleStoryPoll();
   unsub=db.collection("messages").orderBy("ts","desc").limit(200).onSnapshot(snap=>{lastDocs=snap.docs;lastMsgs=snap.docs.map(d=>d.data()).reverse();render(lastMsgs)},()=>{$("note").textContent="Couldn't load messages."});
   unsubMeta=db.collection("meta").doc("chat").onSnapshot(s=>{const m=s.exists&&s.data();if(m&&m.endedBy&&m.endedBy!==uid&&m.ts>joinedAt)$("note").textContent="Unsaved messages were cleared. Saved messages stay."},()=>{});
   beginSession();
@@ -674,6 +726,7 @@ $("out").onclick=async()=>{
   store.del(NAME_KEY);store.del("velvet-name");
   if(pollTimer)clearInterval(pollTimer);
   if(pollMetaTimer)clearTimeout(pollMetaTimer);
+  if(storyPollTimer)clearInterval(storyPollTimer);
   document.removeEventListener("visibilitychange",onVis);
   msgById.clear();
   if(unsub)unsub();
@@ -977,8 +1030,143 @@ async function post(data){
 function sendText(){const t=$("txt").value.trim();if(!t||sending)return;$("txt").value="";post({text:t.slice(0,2000)});}
 $("send").onclick=sendText;$("txt").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();sendText();}};
 
-EMOJI.forEach(e=>{const b=document.createElement("button");b.textContent=e;b.onclick=()=>{$("txt").value+=e;$("txt").focus();};$("emo").appendChild(b);});
-$("emob").onclick=()=>$("emo").classList.toggle("hide");
+async function loadEmojiList(){
+  if(emojiList)return emojiList;
+  try{
+    const res=await fetch("/emoji-list.json");
+    emojiList=await res.json();
+  }catch(e){
+    emojiList="😀😃😄😁😆😅🤣😂🙂😉😊😇🥰😍🤩😘😗😚😙🥲😋😛😜🤪😝🤑🤗🤭🫢🤫🤔🤐🤨😐😑😶🫥😏😒🙄😬🤥😌😔😪🤤😴😷🤒🤕🤢🤮🥵🥶🥴😵🤯🤠🥳🥸😎🤓🧐😕🫤😟🙁☹️😮😯😲😳🥺🥹😦😧😨😰😥😢😭😱😖😣😞😓😩😫🥱😤😡😠🤬👿💀☠️💩🤡👹👺👻👽👾🤖❤️🧡💛💚💙💜🖤🤍🤎💔❣️💕💞💓💗💖💘💝🔥✨💋🍑🍒🌹".split("");
+  }
+  return emojiList;
+}
+function renderEmojiGrid(filter){
+  const grid=$("emogrid");grid.textContent="";
+  const q=String(filter||"").trim().toLowerCase();
+  const list=emojiList||[];
+  let n=0;
+  for(const e of list){
+    if(q&&!e.includes(q)&&!e.toLowerCase().includes(q))continue;
+    const b=document.createElement("button");b.type="button";b.textContent=e;
+    b.onclick=()=>{$("txt").value+=e;$("txt").focus();};
+    grid.appendChild(b);
+    if(++n>600)break;
+  }
+  if(!n){grid.textContent="No emoji match.";}
+}
+$("emob").onclick=async()=>{
+  $("emo").classList.toggle("hide");
+  if(!$("emo").classList.contains("hide")){
+    await loadEmojiList();
+    renderEmojiGrid($("emoq").value);
+  }
+};
+$("emoq").oninput=()=>renderEmojiGrid($("emoq").value);
+$("polish").onclick=async()=>{
+  const t=$("txt").value.trim();
+  if(!t||mode!=="api")return $("note").textContent=t?"":"Type something to polish.";
+  $("note").textContent="Polishing…";
+  $("polish").disabled=true;
+  try{
+    const r=await api("/api/enhance-text",{method:"POST",body:{text:t}});
+    $("txt").value=r.text||t;
+    $("note").textContent=r.provider==="openai"?"✦ Polished with AI.":"✦ Polished.";
+  }catch(e){
+    $("note").textContent=(e.data&&e.data.error)||"Couldn't polish — try again.";
+  }finally{$("polish").disabled=false;}
+};
+
+function setMainTab(tab){
+  activeTab=tab;
+  $("tabchat").classList.toggle("on",tab==="chat");
+  $("tabdate").classList.toggle("on",tab==="date");
+  $("chatview").classList.toggle("hide",tab!=="chat");
+  $("dateview").classList.toggle("hide",tab!=="date");
+  const tag=$("hdr-brand")?.querySelector(".hdr-tag");
+  if(tag)tag.textContent=tab==="date"?"date feed":"private";
+  if(tab==="date")void refreshStories();
+}
+$("tabchat").onclick=()=>setMainTab("chat");
+$("tabdate").onclick=()=>setMainTab("date");
+
+function formatStoryStamp(ts){
+  const d=new Date(Number(ts));
+  return d.toLocaleString([],{weekday:"short",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
+}
+
+async function refreshStories(){
+  if(mode!=="api")return;
+  try{
+    const {stories}=await api("/api/stories");
+    renderStories(stories||[]);
+  }catch(e){
+    $("storyfeed").textContent="Couldn't load Date feed.";
+  }
+}
+
+function renderStories(list){
+  const feed=$("storyfeed");
+  feed.textContent="";
+  if(!list.length){
+    const p=document.createElement("p");p.className="sub";p.style.padding="24px 8px";
+    p.textContent="No moments yet — add a photo below. Everyone signed in can see it.";
+    feed.appendChild(p);
+    return;
+  }
+  for(const s of list){
+    const card=document.createElement("article");card.className="story-card";
+    const head=document.createElement("div");head.className="story-head";
+    const strong=document.createElement("strong");strong.textContent="@"+s.user;head.appendChild(strong);
+    const stamp=document.createElement("div");stamp.className="story-stamp";stamp.textContent=formatStoryStamp(s.ts);head.appendChild(stamp);
+    card.appendChild(head);
+    if(s.media){
+      const wrap=document.createElement("div");wrap.className="media-host";wrap.dataset.mediaUrl=s.media;
+      void loadAuthMedia(wrap,s.media,s.kind||"image/jpeg",null);
+      card.appendChild(wrap);
+    }
+    if(s.caption){
+      const cap=document.createElement("div");cap.className="story-cap";cap.textContent=s.caption;card.appendChild(cap);
+    }
+    if(mode==="api"&&s.user===name){
+      const act=document.createElement("div");act.className="story-actions";
+      const del=document.createElement("button");del.type="button";del.className="pill";del.textContent="Delete";
+      del.onclick=async()=>{
+        try{await api("/api/stories/"+s.id,{method:"DELETE"});await refreshStories();}
+        catch(e){$("note").textContent="Couldn't delete story.";}
+      };
+      act.appendChild(del);card.appendChild(act);
+    }
+    feed.appendChild(card);
+  }
+}
+
+function scheduleStoryPoll(){
+  if(storyPollTimer)clearInterval(storyPollTimer);
+  storyPollTimer=setInterval(()=>{if(activeTab==="date"&&!document.hidden)refreshStories();},12000);
+}
+
+$("storypick").onclick=()=>$("storyfile").click();
+$("storyfile").onchange=()=>{
+  storyFile=$("storyfile").files[0]||null;
+  $("note").textContent=storyFile?"Photo ready — add caption and tap ➤.":"";
+};
+$("storypost").onclick=async()=>{
+  if(mode!=="api"||!storyFile){
+    $("note").textContent="Pick a photo first.";
+    return $("storypick").click();
+  }
+  $("note").textContent="Posting…";
+  try{
+    const fd=new FormData();
+    fd.append("file",storyFile);
+    fd.append("caption",$("storycap").value.trim());
+    await api("/api/stories",{method:"POST",body:fd});
+    storyFile=null;$("storyfile").value="";
+    $("storycap").value="";
+    $("note").textContent="Posted to Date.";
+    await refreshStories();
+  }catch(e){$("note").textContent=(e.data&&e.data.error)||"Story didn't post.";}
+};
 $("once").onclick=()=>{sendOnce=!sendOnce;$("once").classList.toggle("on",sendOnce);$("note").textContent=sendOnce?"View once on for next photo/video.":"";};
 $("att").onclick=()=>$("file").click();
 $("file").onchange=async()=>{
