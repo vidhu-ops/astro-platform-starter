@@ -1,35 +1,42 @@
-# Domain routing check (Nov 2026)
+# sexychat.fun → astro deploy (Render)
 
-| URL | Page title | Should use? |
-|-----|------------|-------------|
-| https://meow-k3z3.onrender.com/ | **shhh — private whispers** | **Yes** — current Meow? Web Service |
-| https://sexychat.fun/ | Velvet — Private Chat | **No** — still on an old deploy |
-| https://astro-platform-starter-yjkk.onrender.com/ | Velvet — Private Chat | **No** — retire / remove domains |
+**Production service:** `astro-platform-starter` on Render  
+**URL:** `https://astro-platform-starter-yjkk.onrender.com`  
+**Custom domains:** `sexychat.fun`, `www.sexychat.fun` (already on this service)
 
-## Fix GoDaddy / Render
+## DNS (GoDaddy)
 
-1. **Render** → service **Meow?** (hostname `meow-k3z3.onrender.com`) → **Settings → Custom Domains**.
-2. Add **sexychat.fun** and **www.sexychat.fun** here if missing.
-3. Open the **old** services (`yjkk`, or any showing Velvet in the browser) → **remove** both custom domains from them.
-4. **Manual Deploy** on Meow? with **Clear build cache & deploy**.
-5. Verify:  
-   `curl -s https://sexychat.fun/ | grep '<title>'` → must contain **shhh**.  
-   `curl -s https://sexychat.fun/api/health` → `"app":"shhh"`.
+| Record | Value |
+|--------|--------|
+| `@` A | `216.24.57.1` |
+| `www` CNAME | `astro-platform-starter-yjkk.onrender.com` |
 
-## DNS (measured)
+Do **not** point www at `meow-k3z3` — that was a separate experimental service.
 
-| Record | Current value | Should be |
-|--------|----------------|-----------|
-| `@` A | `216.24.57.1` | unchanged |
-| `www` CNAME | **astro-platform-starter-yjkk.onrender.com** ← wrong | **meow-k3z3.onrender.com** |
+## After every push to `main`
 
-`www.sexychat.fun` will keep serving **Velvet** until the www CNAME changes and Render has both domains on **Meow?**.
-
-## Automate Render (optional)
-
-With a Render API key in `RENDER_API_KEY`:
+1. Render → **astro deploy** / **astro-platform-starter** → confirm **Auto-Deploy** on `main`.
+2. Wait for **Live** (or **Manual Deploy** → clear cache).
+3. Verify:
 
 ```bash
-node scripts/render-domains.mjs          # dry run
-node scripts/render-domains.mjs --apply  # move domains to Meow?
+curl -s https://sexychat.fun/ | grep '<title>'
+# shhh — private whispers
+
+curl -s https://sexychat.fun/api/health
+# "app":"shhh" and "ok":true
+```
+
+If you still see **Velvet**, the running deploy is an **old build** — trigger a fresh deploy on this service (not Meow?).
+
+## Blueprint sync
+
+Repo `render.yaml` is aligned to **astro-platform-starter**. In Render → **Blueprints** → sync so domains and start command stay `npm start` / Web Service.
+
+## Optional API automation
+
+```bash
+export RENDER_API_KEY=...
+RENDER_TARGET_HOST=astro-platform-starter-yjkk.onrender.com \
+  node scripts/render-domains.mjs --apply --deploy
 ```

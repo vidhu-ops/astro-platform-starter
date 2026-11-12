@@ -1,15 +1,14 @@
 # Fix “Chat unavailable” or old **Velvet** UI on sexychat.fun
 
-If the mobile site still says **Velvet** or looks old, the custom domain is not on the latest **Meow?** Node deploy (or the phone is caching an old PWA).
+If the site still says **Velvet**, **astro deploy** (`astro-platform-starter-yjkk`) has not picked up the latest `main` build.
 
-1. **Render** → open the **Web Service** that runs `npm start` (not Static Site).
-2. Confirm latest commit on `main` is **Live** (look for `shhh` in deploy logs).
-3. **Settings → Custom Domains**: `sexychat.fun` and `www.sexychat.fun` must point to **this** service (remove them from any old Static service).
-4. **Manual Deploy** → Clear build cache & deploy.
-5. On the phone: delete the old home-screen app → Safari/Chrome → open https://sexychat.fun → hard refresh → Add to Home Screen again (name should be **shhh**).
+1. **Render** → **astro deploy** / **astro-platform-starter** (not Static Site, not Meow?).
+2. **Settings**: Start `npm start`, branch `main`, auto-deploy on.
+3. **Manual Deploy** → **Clear build cache & deploy**.
+4. **Blueprint sync** from repo `render.yaml` (service name `astro-platform-starter`).
+5. Phone: remove old PWA icon, reopen https://sexychat.fun, add to home screen (**shhh**).
 
-Quick check: `curl -s https://sexychat.fun/ | grep -o '<title>[^<]*'` should show `shhh — private whispers`.  
-Right now **sexychat.fun** often still serves **Velvet** from an old service; the good build is **meow-k3z3.onrender.com** — see [DOMAIN-ROUTING.md](./DOMAIN-ROUTING.md).
+Check: `curl -s https://sexychat.fun/api/health` → `"app":"shhh"`. See [DOMAIN-ROUTING.md](./DOMAIN-ROUTING.md).
 
 ---
 

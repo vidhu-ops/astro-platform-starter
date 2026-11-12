@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Moves sexychat.fun custom domains onto the Meow? web service.
+ * Attach sexychat.fun to astro deploy and optional trigger deploy.
  * Requires: RENDER_API_KEY in the environment (Account Settings → API Keys).
  *
  * Usage:
@@ -8,9 +8,11 @@
  *   RENDER_API_KEY=... node scripts/render-domains.mjs --apply
  */
 const API = "https://api.render.com/v1";
-const TARGET_HOST = process.env.RENDER_TARGET_HOST || "meow-k3z3.onrender.com";
+const TARGET_HOST =
+  process.env.RENDER_TARGET_HOST || "astro-platform-starter-yjkk.onrender.com";
 const DOMAINS = ["sexychat.fun", "www.sexychat.fun"];
 const apply = process.argv.includes("--apply");
+const deploy = process.argv.includes("--deploy");
 
 const key = process.env.RENDER_API_KEY;
 if (!key) {
@@ -65,7 +67,12 @@ async function listDomains(serviceId) {
 
 async function main() {
   const services = await listAllServices();
-  const target = services.find((s) => serviceHost(s) === TARGET_HOST || s.service?.name === "Meow?");
+  const target = services.find(
+    (s) =>
+      serviceHost(s) === TARGET_HOST ||
+      s.service?.name === "astro-platform-starter" ||
+      s.service?.name === "astro deploy",
+  );
   if (!target) {
     console.error(`No service with host ${TARGET_HOST}. Services:`);
     for (const s of services) {
@@ -119,9 +126,17 @@ async function main() {
     ).catch(() => {});
   }
 
+  if (deploy && apply) {
+    await api(`/services/${targetId}/deploys`, {
+      method: "POST",
+      body: JSON.stringify({ clearCache: "clear" }),
+    });
+    console.log("Triggered deploy on astro-platform-starter (clear cache).");
+  }
+
   if (!apply) {
-    console.log("\nDry run only. Re-run with --apply to change Render.");
-    console.log("\nGoDaddy DNS (www): CNAME www → meow-k3z3.onrender.com (not yjkk).");
+    console.log("\nDry run only. Re-run with --apply [--deploy] to change Render.");
+    console.log("\nGoDaddy DNS (www): CNAME www → astro-platform-starter-yjkk.onrender.com");
     console.log("Apex @ → A 216.24.57.1 (unchanged).");
   }
 }

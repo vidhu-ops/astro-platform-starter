@@ -1,4 +1,6 @@
-# MUST be Web Service (Node). Static Site → "Chat unavailable" (no /api).
+# Production: Render service "astro deploy" → astro-platform-starter-yjkk.onrender.com
+# sexychat.fun + www must live on THIS service (not Meow? / meow-k3z3).
+# MUST be Web Service (Node). Static Site → no /api, old Velvet UI.
 version: "1"
 projects:
   - name: Vudhu
@@ -6,7 +8,7 @@ projects:
       - name: Production
         services:
           - type: web
-            name: Meow?
+            name: astro-platform-starter
             runtime: node
             repo: https://github.com/vidhu-ops/astro-platform-starter
             branch: main

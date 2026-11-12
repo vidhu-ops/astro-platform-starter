@@ -8,7 +8,7 @@ One Node app: **Render** hosts it, **Neon** stores messages. Every send is saved
    - Build: `npm install` (or `yarn install && yarn build` if still on yarn — both work now)  
    - Start Command: `npm start`  
    - Health: `/api/health`  
-   - Repo: `main` (this project’s `render.yaml` has the rest).
+   - Repo: `main` on service **astro-platform-starter** (astro deploy) — see `render.yaml`.
 
 2. **Environment** on Meow? (required):
    - `DATABASE_URL` = Neon Console → project **vvvaaa** → Connect → **pooled** URI  
@@ -22,7 +22,7 @@ One Node app: **Render** hosts it, **Neon** stores messages. Every send is saved
 
 ## Deploy status
 
-- **Render (production):** push to `main` → **Meow?** auto-deploys → https://sexychat.fun  
+- **Render (production):** push to `main` → **astro deploy** (`astro-platform-starter-yjkk`) auto-deploys → https://sexychat.fun  
 - **Cursor Publish:** optional hosted copy with bound secrets (`KLIPY_API_KEY`, VAPID keys; add `TENOR_API_KEY` when ready).
 
 ## Install as an app (PWA)
@@ -40,4 +40,6 @@ npm ci && npm start
 
 ## Domains
 
-`sexychat.fun` and `www.sexychat.fun` are declared in `render.yaml` under **Vudhu → Production → Meow?**.
+`sexychat.fun` and `www.sexychat.fun` are on **astro-platform-starter** in `render.yaml` (Vudhu → Production).
+
+To force a deploy without the API: set `RENDER_DEPLOY_HOOK` from Render → astro deploy → Deploy Hook, then `bash scripts/trigger-astro-deploy.sh`.

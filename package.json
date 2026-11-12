@@ -9,7 +9,9 @@
     "dev": "node --watch server.js",
     "build": "node -e \"console.log('build ok')\"",
     "render:domains": "node scripts/render-domains.mjs",
-    "render:domains:apply": "node scripts/render-domains.mjs --apply"
+    "render:domains:apply": "node scripts/render-domains.mjs --apply",
+    "render:deploy": "node scripts/render-domains.mjs --apply --deploy",
+    "render:hook": "bash scripts/trigger-astro-deploy.sh"
   },
   "engines": {
     "node": ">=20"
