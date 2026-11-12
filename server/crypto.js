@@ -52,3 +52,25 @@ export function timingSafeEqualString(a, b) {
   if (aa.length !== bb.length) return false;
   return crypto.timingSafeEqual(aa, bb);
 }
+
+const FILE_MAGIC = Buffer.from("VELVETBINv1");
+
+export function encryptBuffer(buf) {
+  const iv = crypto.randomBytes(12);
+  const c = crypto.createCipheriv("aes-256-gcm", key(), iv);
+  const enc = Buffer.concat([c.update(buf), c.final()]);
+  const tag = c.getAuthTag();
+  return Buffer.concat([FILE_MAGIC, iv, tag, enc]);
+}
+
+export function decryptBuffer(buf) {
+  if (!Buffer.isBuffer(buf) || buf.length < FILE_MAGIC.length + 28) return buf;
+  if (!buf.subarray(0, FILE_MAGIC.length).equals(FILE_MAGIC)) return buf;
+  const body = buf.subarray(FILE_MAGIC.length);
+  const iv = body.subarray(0, 12);
+  const tag = body.subarray(12, 28);
+  const data = body.subarray(28);
+  const d = crypto.createDecipheriv("aes-256-gcm", key(), iv);
+  d.setAuthTag(tag);
+  return Buffer.concat([d.update(data), d.final()]);
+}

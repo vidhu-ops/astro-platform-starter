@@ -77,12 +77,11 @@ header button{background:none;border:1px solid var(--line);border-radius:20px;pa
 <div id="viewer" class="hide"><div class="shield" id="vshield"></div><div id="vslot"></div><p>One-time view. Closing removes it for everyone. Screenshots can’t be fully blocked on the web.</p><button type="button" class="close" id="vclose">Close</button></div>
 
 <script>
-const CLAUDE_PASS="safelife100";
 const $=id=>document.getElementById(id);
 const EMOJI="😘 😍 🥵 😏 😈 🔥 💋 ❤️ 💕 💘 😉 🥰 😜 🍑 🍒 🍷 🌹 ✨ 💃 🕺 😳 🙈 😂 🤤 💦 🖤 👀 🫦 😻 💫 🥂 🎉".split(" ");
 let mode=null,uid=null,nativeDb=null,db=null,assets=null,room=null,name=null;
 let unsub=null,unsubMeta=null,pollTimer=null,lastMsgs=[],lastDocs=[],joinedAt=0,sendOnce=false,mediaObjectUrls=[];
-const store={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};
+const store={get:k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}},del:k=>{try{sessionStorage.removeItem(k)}catch(e){}}};
 
 async function api(path,opts={}){
   const headers={...(opts.headers||{})};
@@ -145,13 +144,11 @@ $("go").onclick=async()=>{
   if(n.length<3)return $("err").textContent="Username: 3+ letters, numbers or _";
   try{
     if(mode==="api"){
-      const r=await api("/api/auth/enter",{method:"POST",body:{username:n,password:$("p").value}});
-      uid=r.userId;
+      await api("/api/auth/enter",{method:"POST",body:{username:n,password:$("p").value}});
       store.set("velvet-name",n);
       $("p").value="";
       enter(n);
     }else{
-      if($("p").value!==CLAUDE_PASS)return $("err").textContent="Wrong password.";
       const ref=db.collection("users").doc(n),s=await ref.get();
       if(s.exists&&s.data().owner!==uid)return $("err").textContent="That username is taken.";
       if(!s.exists)await ref.set({owner:uid,created:Date.now()});
@@ -347,7 +344,8 @@ $("file").onchange=async()=>{
 async function loadAuthMedia(parent,url,kind,fname){
   const ph=document.createElement("div");ph.textContent="Loading…";ph.style.color="var(--mute)";parent.appendChild(ph);
   try{
-    const res=await fetch(url,{credentials:"same-origin"});
+    const q=kind?`?kind=${encodeURIComponent(kind)}`:"";
+    const res=await fetch(url+q,{credentials:"same-origin"});
     if(!res.ok)throw 0;
     const blob=await res.blob();const u=URL.createObjectURL(blob);mediaObjectUrls.push(u);
     parent.removeChild(ph);

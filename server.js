@@ -10,7 +10,9 @@ import helmet from "helmet";
 import multer from "multer";
 import pg from "pg";
 import {
+  decryptBuffer,
   decryptField,
+  encryptBuffer,
   encryptField,
   initMessageKey,
   timingSafeEqualString,
@@ -145,7 +147,8 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
         imgSrc: ["'self'", "blob:", "data:", "https:"],
         mediaSrc: ["'self'", "blob:"],
         connectSrc: ["'self'"],
@@ -177,6 +180,18 @@ const apiLimiter = rateLimit({
 });
 
 app.use("/api", apiLimiter);
+app.use("/api", (_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  res.setHeader("Pragma", "no-cache");
+  next();
+});
+
+const viewOnceLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  message: { error: "Too many view requests." },
+});
 
 app.get("/api/health", async (_req, res) => {
   if (!pool) {
@@ -223,7 +238,7 @@ app.post("/api/auth/enter", loginLimiter, async (req, res) => {
   );
 
   setSessionCookie(res, token);
-  res.json({ username, userId });
+  res.json({ username });
 });
 
 app.post("/api/auth/leave", authMiddleware, async (req, res) => {
@@ -242,7 +257,6 @@ function publicMessage(row, viewer) {
   const m = {
     id: row.id,
     user: row.user,
-    uid: row.uid,
     ts: row.ts,
     text: decryptField(row.text),
     kind: row.kind,
@@ -299,7 +313,7 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
   res.status(201).json(publicMessage(rows[0], req.user.username));
 });
 
-app.post("/api/messages/:id/view-once", authMiddleware, async (req, res) => {
+app.post("/api/messages/:id/view-once", authMiddleware, viewOnceLimiter, async (req, res) => {
   const { rows } = await pool.query(
     `SELECT id, user_name, media, kind, media_key, view_once, media_viewed
      FROM chat_messages WHERE id = $1`,
@@ -328,11 +342,10 @@ app.post("/api/messages/:id/view-once", authMiddleware, async (req, res) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
   res.setHeader("Content-Type", msg.kind || "application/octet-stream");
   res.setHeader("X-Content-Type-Options", "nosniff");
-  const stream = fs.createReadStream(filePath);
-  stream.on("close", () => {
-    fs.unlink(filePath, () => {});
-  });
-  stream.pipe(res);
+  const enc = fs.readFileSync(filePath);
+  const plain = decryptBuffer(enc);
+  res.send(plain);
+  fs.unlink(filePath, () => {});
 });
 
 app.patch("/api/messages/save-all", authMiddleware, async (_req, res) => {
@@ -381,6 +394,13 @@ app.get("/api/presence", authMiddleware, async (_req, res) => {
 
 app.post("/api/upload", authMiddleware, upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file" });
+  try {
+    const raw = fs.readFileSync(req.file.path);
+    fs.writeFileSync(req.file.path, encryptBuffer(raw));
+  } catch {
+    fs.unlink(req.file.path, () => {});
+    return res.status(500).json({ error: "Upload encryption failed" });
+  }
   const viewOnce = req.body.viewOnce === "true" || req.body.viewOnce === true;
   const url = viewOnce ? null : `/api/media/${req.file.filename}`;
   res.json({
@@ -398,7 +418,11 @@ app.get("/api/media/:filename", authMiddleware, (req, res) => {
   if (!fs.existsSync(filePath)) return res.status(404).end();
   res.setHeader("Cache-Control", "no-store, private");
   res.setHeader("X-Content-Type-Options", "nosniff");
-  res.sendFile(filePath);
+  const enc = fs.readFileSync(filePath);
+  const plain = decryptBuffer(enc);
+  const kind = req.query.kind;
+  if (kind) res.setHeader("Content-Type", kind);
+  res.send(plain);
 });
 app.use(express.static(path.join(__dirname, "public")));
 

@@ -26,3 +26,5 @@ projects:
                 sync: false
               - key: MESSAGE_ENCRYPTION_KEY
                 sync: false
+              - key: MESSAGE_ENCRYPTION_KEY
+                sync: false
