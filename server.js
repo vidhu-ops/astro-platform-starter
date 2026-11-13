@@ -727,13 +727,24 @@ app.post(
   : out.hasMedia
     ? "📎 Sent media"
     : "New message";
+  const msgEmoji = safeKind?.startsWith("video/") ? "🎬" : safeKind?.startsWith("image/") ? "📷" : "💬";
   void broadcastPush(req.user.user_id, {
-    title: `💋 @${req.user.username}`,
+    title: `${msgEmoji} @${req.user.username}`,
     body: preview,
     icon: "/icons/icon.svg",
     badge: "/icons/heart-badge.svg",
     tag: "velvet-msg",
-    data: { url: "/", kind: "message" },
+    data: {
+      url: "/",
+      kind: "message",
+      chatHeadKey: `msg:${rows[0].id}`,
+      msgId: rows[0].id,
+      from: req.user.username,
+      ts,
+      emoji: msgEmoji,
+      label: "New message",
+      body: preview,
+    },
   });
   }),
 );
@@ -775,16 +786,37 @@ app.post(
   }),
 );
 
-function moodPayload(from, moodKey, note) {
-  const preset = MOOD_PRESETS[moodKey] || MOOD_PRESETS.thinking;
-  const extra = note ? ` — “${note.slice(0, 80)}”` : "";
+function moodPresetFor(moodKey, note) {
+  if (moodKey === "emoji" && note) {
+    return { emoji: note.slice(0, 4), label: "Sent an emoji", tag: "mood-emoji" };
+  }
+  return MOOD_PRESETS[moodKey] || MOOD_PRESETS.thinking;
+}
+
+function moodPayload(from, moodKey, note, ts = Date.now()) {
+  const preset = moodPresetFor(moodKey, note);
+  const extra = note && moodKey !== "emoji" ? ` — “${note.slice(0, 80)}”` : "";
+  const body =
+    moodKey === "emoji"
+      ? `@${from} sent ${note || preset.emoji}`
+      : `@${from} sent ${preset.label.toLowerCase()}${extra}`;
   return {
-    title: `${preset.emoji} ${preset.label}`,
-    body: `@${from} sent ${preset.label.toLowerCase()}${extra}`,
+    title: `${preset.emoji} @${from}`,
+    body,
     icon: "/icons/icon.svg",
     badge: "/icons/heart-badge.svg",
     tag: preset.tag,
-    data: { url: "/", kind: "mood", mood: moodKey, from, note: note || "" },
+    data: {
+      url: "/",
+      kind: "mood",
+      mood: moodKey,
+      from,
+      note: note || "",
+      emoji: preset.emoji,
+      label: preset.label,
+      ts,
+      chatHeadKey: `mood:${from}:${ts}`,
+    },
   };
 }
 
@@ -804,8 +836,8 @@ app.get(
         user: r.username,
         userId: r.user_id,
         mood: r.mood_key,
-        emoji: (MOOD_PRESETS[r.mood_key] || MOOD_PRESETS.thinking).emoji,
-        label: (MOOD_PRESETS[r.mood_key] || MOOD_PRESETS.thinking).label,
+        emoji: moodPresetFor(r.mood_key, r.mood_note ? decryptField(r.mood_note) : "").emoji,
+        label: moodPresetFor(r.mood_key, r.mood_note ? decryptField(r.mood_note) : "").label,
         note: r.mood_note ? decryptField(r.mood_note) : "",
         ts: Number(r.ts),
       })),
@@ -837,7 +869,7 @@ app.post(
         ts,
       ],
     );
-    const payload = moodPayload(req.user.username, moodKey, noteRaw);
+    const payload = moodPayload(req.user.username, moodKey, noteRaw, ts);
     const sent = await broadcastPush(req.user.user_id, payload);
     const preset = MOOD_PRESETS[moodKey];
     res.json({
@@ -870,8 +902,32 @@ app.post(
          ts = EXCLUDED.ts`,
       [req.user.user_id, req.user.username, moodKey, noteRaw ? encryptField(noteRaw) : null, ts],
     );
-    const sent = await broadcastPush(req.user.user_id, moodPayload(req.user.username, moodKey, noteRaw));
+    const sent = await broadcastPush(req.user.user_id, moodPayload(req.user.username, moodKey, noteRaw, ts));
     res.json({ sent, pushEnabled: isPushReady() });
+  }),
+);
+
+app.post(
+  "/api/partner-emoji",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    const emoji = String(req.body?.emoji || "").trim();
+    if (!emoji) return res.status(400).json({ error: "Pick an emoji" });
+    const glyph = [...emoji][0] || emoji.slice(0, 8);
+    const ts = Date.now();
+    await pool.query(
+      `INSERT INTO chat_moods (user_id, username, mood_key, mood_note, ts)
+       VALUES ($1,$2,'emoji',$3,$4)
+       ON CONFLICT (user_id) DO UPDATE SET
+         username = EXCLUDED.username,
+         mood_key = EXCLUDED.mood_key,
+         mood_note = EXCLUDED.mood_note,
+         ts = EXCLUDED.ts`,
+      [req.user.user_id, req.user.username, encryptField(glyph), ts],
+    );
+    const payload = moodPayload(req.user.username, "emoji", glyph, ts);
+    const sent = await broadcastPush(req.user.user_id, payload);
+    res.json({ ok: true, emoji: glyph, ts, sent, pushEnabled: isPushReady() });
   }),
 );
 
@@ -938,11 +994,23 @@ app.post(
     );
     const row = rows[0];
     void broadcastPush(req.user.user_id, {
-      title: `📝 Note for @${to}`,
-      body: `@${req.user.username}: ${body.slice(0, 100)}`,
+      title: `📝 @${req.user.username}`,
+      body: `Note for @${to}: ${body.slice(0, 100)}`,
       icon: "/icons/icon.svg",
+      badge: "/icons/heart-badge.svg",
       tag: "shhh-note",
-      data: { url: "/", kind: "note", to, from: req.user.username },
+      data: {
+        url: "/",
+        kind: "note",
+        chatHeadKey: `note:${row.id}`,
+        noteId: row.id,
+        to,
+        from: req.user.username,
+        ts,
+        emoji: "📝",
+        label: "Left you a note",
+        body: body.slice(0, 160),
+      },
     });
     res.status(201).json({
       id: row.id,

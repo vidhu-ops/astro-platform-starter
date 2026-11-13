@@ -1,5 +1,5 @@
 /* shhh PWA — network-first HTML so rebrands reach mobile */
-const CACHE = "shhh-v12";
+const CACHE = "shhh-v13";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -19,7 +19,30 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
+  if (event.data?.type === "CLEAR_BADGE") {
+    event.waitUntil(clearBadge());
+  }
 });
+
+async function setBadge(n) {
+  try {
+    if (self.registration && "setAppBadge" in self.registration) {
+      await self.registration.setAppBadge(n);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+async function clearBadge() {
+  try {
+    if (self.registration && "clearAppBadge" in self.registration) {
+      await self.registration.clearAppBadge();
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 function isDocumentRequest(request, url) {
   return (
@@ -55,6 +78,11 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
+function shouldRequireInteraction(data) {
+  const kind = data?.data?.kind;
+  return kind === "mood" || kind === "message" || kind === "note" || kind === "heart";
+}
+
 self.addEventListener("push", (event) => {
   let data = { title: "shhh", body: "New whisper", icon: "/icons/icon.svg", badge: "/icons/heart-badge.svg" };
   try {
@@ -62,32 +90,48 @@ self.addEventListener("push", (event) => {
   } catch {
     /* ignore */
   }
-  const isHeart = data.tag === "velvet-heart" || data.data?.kind === "heart";
+  const payload = data.data || { url: "/" };
+  const requireInteraction = shouldRequireInteraction(data);
   event.waitUntil(
-    self.registration.showNotification(data.title || "shhh", {
-      body: data.body,
-      icon: data.icon || "/icons/icon.svg",
-      badge: data.badge || "/icons/heart-badge.svg",
-      tag: data.tag || "shhh",
-      renotify: true,
-      vibrate: isHeart ? [80, 40, 80, 40, 120] : [60, 30, 60],
-      data: data.data || { url: "/" },
-    }),
+    (async () => {
+      await self.registration.showNotification(data.title || "shhh", {
+        body: data.body,
+        icon: data.icon || "/icons/icon.svg",
+        badge: data.badge || "/icons/heart-badge.svg",
+        tag: data.tag || "shhh",
+        renotify: true,
+        requireInteraction,
+        vibrate: requireInteraction ? [80, 40, 80, 40, 120] : [60, 30, 60],
+        data: payload,
+      });
+      await setBadge(1);
+    })(),
   );
 });
 
+async function focusClientWithPayload(payload) {
+  const list = await clients.matchAll({ type: "window", includeUncontrolled: true });
+  for (const c of list) {
+    if ("focus" in c) {
+      await c.focus();
+      c.postMessage({ type: "CHAT_HEAD_PENDING", payload });
+      return true;
+    }
+  }
+  return false;
+}
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = event.notification.data?.url || "/";
+  const payload = event.notification.data || { url: "/" };
   event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
-      for (const c of list) {
-        if ("focus" in c) {
-          c.focus();
-          return;
-        }
+    (async () => {
+      const focused = await focusClientWithPayload(payload);
+      if (!focused && clients.openWindow) {
+        const enc = encodeURIComponent(btoa(JSON.stringify(payload)));
+        await clients.openWindow("/#ch=" + enc);
       }
-      if (clients.openWindow) return clients.openWindow(target);
-    }),
+      await clearBadge();
+    })(),
   );
 });

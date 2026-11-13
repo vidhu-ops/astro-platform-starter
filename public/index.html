@@ -563,6 +563,7 @@ body.partner-warm #app{
 <div id="bar">
   <div id="emo" class="hide">
     <input type="search" id="emoq" placeholder="Search emoji…" autocomplete="off">
+    <p class="sub" style="margin:0 0 6px;font-size:11px">Tap sends to partner · hold to add to message</p>
     <div id="emogrid"></div>
   </div>
   <div class="bar-tools">
@@ -712,6 +713,7 @@ let inboxNotes=[];
 let chatHeadEvent=null;
 let shownChatHeadKey=null;
 const CHAT_HEAD_DISMISS_KEY="shhh-chat-head-dismiss";
+const PENDING_CHAT_HEAD_KEY="shhh-pending-chat-head";
 let storyFile=null;
 let storyPosting=false;
 let lastStoriesFp="";
@@ -805,7 +807,8 @@ function urlBase64ToUint8Array(base64){
 async function setupPwa(){
   if(!("serviceWorker"in navigator))return;
   try{
-    const reg=await navigator.serviceWorker.register("/sw.js?v=12");
+    const reg=await navigator.serviceWorker.register("/sw.js?v=13");
+    navigator.serviceWorker.addEventListener("message",onSwMessage);
     if(reg.waiting){reg.waiting.postMessage({type:"SKIP_WAITING"});}
     reg.addEventListener("updatefound",()=>{
       const w=reg.installing;
@@ -901,8 +904,21 @@ async function detectBackend(){
   }finally{
     document.body.classList.remove("boot");
     document.body.classList.add("ready");
+    parseHashPending();
   }
 })();
+window.addEventListener("pageshow",()=>{
+  parseHashPending();
+  if(mode==="api"&&name){
+    void refreshMoods();
+    void refreshInboxForChatHead();
+    void refreshApi();
+    applyStoredPendingChatHead();
+  }
+});
+window.addEventListener("focus",()=>{
+  if(mode==="api"&&name)applyStoredPendingChatHead();
+});
 
 $("go").onclick=async()=>{
   const n=$("u").value.trim().toLowerCase().replace(/[^a-z0-9_]/g,"");
@@ -1534,6 +1550,15 @@ async function loadEmojiList(){
   }
   return emojiList;
 }
+async function sendPartnerEmoji(glyph){
+  if(mode!=="api")return;
+  try{
+    const r=await api("/api/partner-emoji",{method:"POST",body:{emoji:glyph}});
+    $("note").textContent=(r.emoji||glyph)+" sent to your partner.";
+    $("emo").classList.add("hide");
+    await refreshMoods();
+  }catch(e){$("note").textContent=(e.data&&e.data.error)||"Couldn't send emoji.";}
+}
 function renderEmojiGrid(filter){
   const grid=$("emogrid");grid.textContent="";
   const q=String(filter||"").trim().toLowerCase();
@@ -1542,7 +1567,26 @@ function renderEmojiGrid(filter){
   for(const e of list){
     if(q&&!e.includes(q)&&!e.toLowerCase().includes(q))continue;
     const b=document.createElement("button");b.type="button";b.textContent=e;
-    b.onclick=()=>{$("txt").value+=e;autoGrowTxt();$("txt").focus();};
+    let pressTimer=null;
+    let longPress=false;
+    b.addEventListener("pointerdown",()=>{
+      longPress=false;
+      pressTimer=setTimeout(()=>{
+        longPress=true;
+        $("txt").value+=e;
+        autoGrowTxt();
+        $("txt").focus();
+        $("note").textContent="Added to message.";
+      },480);
+    });
+    const end=()=>{
+      if(pressTimer)clearTimeout(pressTimer);
+      pressTimer=null;
+      if(!longPress)void sendPartnerEmoji(e);
+      longPress=false;
+    };
+    b.addEventListener("pointerup",end);
+    b.addEventListener("pointercancel",end);
     grid.appendChild(b);
     if(++n>600)break;
   }
@@ -1680,6 +1724,7 @@ function dismissChatHead(animateOut){
       bubble.classList.remove("chat-head-out","chat-head-pop");
       $("chat-head-card").classList.add("hide");
       document.body.classList.remove("partner-warm");
+      void syncAppBadge(false);
     },260);
     return;
   }
@@ -1687,22 +1732,77 @@ function dismissChatHead(animateOut){
   bubble?.classList.remove("chat-head-out","chat-head-pop");
   $("chat-head-card")?.classList.add("hide");
   document.body.classList.remove("partner-warm");
+  void syncAppBadge(false);
+}
+
+function payloadToChatEvent(p){
+  if(!p||!p.from)return null;
+  const kind=p.kind||"mood";
+  const ts=Number(p.ts)||Date.now();
+  const key=p.chatHeadKey||(kind==="msg"&&p.msgId?`msg:${p.msgId}`:kind==="note"&&p.noteId?`note:${p.noteId}`:`mood:${p.from}:${ts}`);
+  return{
+    kind,key,ts,user:p.from,
+    emoji:p.emoji||(kind==="note"?"📝":kind==="message"?"💬":"💗"),
+    label:p.label||(kind==="note"?"Left you a note":kind==="message"?"New message":"Thinking of you"),
+    body:p.body||p.note||"",
+  };
+}
+function applyPendingFromPushPayload(p){
+  const ev=payloadToChatEvent(p);
+  if(!ev)return;
+  try{sessionStorage.setItem(PENDING_CHAT_HEAD_KEY,JSON.stringify(p));}catch(e){}
+  chatHeadEvent=ev;
+  try{localStorage.removeItem(CHAT_HEAD_DISMISS_KEY);}catch(e){}
+  shownChatHeadKey=null;
+  updateChatHead({animate:true,force:true});
+}
+function applyStoredPendingChatHead(){
+  try{
+    const raw=sessionStorage.getItem(PENDING_CHAT_HEAD_KEY);
+    if(!raw)return;
+    applyPendingFromPushPayload(JSON.parse(raw));
+    sessionStorage.removeItem(PENDING_CHAT_HEAD_KEY);
+  }catch(e){}
+}
+function parseHashPending(){
+  const h=location.hash||"";
+  if(!h.startsWith("#ch="))return;
+  try{
+    const p=JSON.parse(atob(decodeURIComponent(h.slice(4))));
+    history.replaceState(null,"",location.pathname+location.search);
+    applyPendingFromPushPayload(p);
+  }catch(e){}
+}
+function onSwMessage(e){
+  if(e.data?.type==="CHAT_HEAD_PENDING")applyPendingFromPushPayload(e.data.payload||{});
+}
+async function syncAppBadge(show){
+  try{
+    if(show){
+      if("setAppBadge" in navigator)await navigator.setAppBadge(1);
+    }else{
+      if("clearAppBadge" in navigator)await navigator.clearAppBadge();
+      navigator.serviceWorker?.controller?.postMessage({type:"CLEAR_BADGE"});
+    }
+  }catch(e){}
 }
 
 function updateChatHead(opts={}){
   const head=$("chat-head");
   const bubble=$("chat-head-bubble");
   if(!head||!bubble||mode!=="api"||!name)return;
-  chatHeadEvent=buildChatHeadCandidates();
+  if(!opts.keepEvent)chatHeadEvent=buildChatHeadCandidates();
   if(!chatHeadEvent){
     dismissChatHead(false);
+    void syncAppBadge(false);
     return;
   }
   let dismissed=null;
   try{dismissed=localStorage.getItem(CHAT_HEAD_DISMISS_KEY);}catch(e){}
-  if(dismissed===chatHeadEvent.key){
+  if(!opts.force&&dismissed===chatHeadEvent.key){
     head.classList.add("hide");
     document.body.classList.remove("partner-warm");
+    void syncAppBadge(true);
     return;
   }
   document.body.classList.add("partner-warm");
@@ -1717,6 +1817,7 @@ function updateChatHead(opts={}){
     bubble.classList.add("chat-head-pop");
     shownChatHeadKey=chatHeadEvent.key;
   }else if(isNew)shownChatHeadKey=chatHeadEvent.key;
+  void syncAppBadge(true);
 }
 
 function initChatHeadDrag(){
@@ -1963,7 +2064,7 @@ function renderCalEvents(day){
     row.appendChild(body);
     if(d.media){
       const fr=document.createElement("div");fr.className="vintage-frame";
-      if(String(d.kind||"").startsWith("video/")||/\.mp4/i.test(d.media)){
+      if(mediaIsVideo(d.kind,d.media)){
         const v=document.createElement("video");v.src=d.media;v.controls=true;v.preload="metadata";
         if(mode==="api"&&d.media.startsWith("/api/media/"))void loadAuthMedia(fr,d.media,d.kind,null);
         else fr.appendChild(v);
@@ -1993,11 +2094,15 @@ function renderCalEvents(day){
   $("scrapdate").value=`${scrapCalYear}-${String(scrapCalMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
 }
 
+function mediaIsVideo(kind,url){
+  return String(kind||"").startsWith("video/")||/\.(mp4|webm|mov)(\?|$)/i.test(String(url||""));
+}
 function appendVintageMedia(host,url,kind){
   const fr=document.createElement("div");
   fr.className="vintage-frame";
-  if(mode==="api"&&url.startsWith("/api/media/"))void loadAuthMedia(fr,url,kind||"image/jpeg",null);
-  else if(String(kind||"").startsWith("video/")||/\.mp4/i.test(url)){
+  const k=kind||(mediaIsVideo(kind,url)?"video/mp4":"image/jpeg");
+  if(mode==="api"&&url.startsWith("/api/media/"))void loadAuthMedia(fr,url,k,null);
+  else if(mediaIsVideo(k,url)){
     const v=document.createElement("video");v.src=url;v.controls=true;v.preload="metadata";fr.appendChild(v);
   }else{
     const i=document.createElement("img");i.src=url;i.loading="lazy";fr.appendChild(i);
@@ -2336,8 +2441,9 @@ async function loadAuthMedia(host,url,kind,fname){
     if(!res.ok)throw 0;
     const blob=await res.blob();const u=URL.createObjectURL(blob);mediaObjectUrls.push(u);
     host.textContent="";
-    if(kind.startsWith("image/")){const i=document.createElement("img");i.src=u;i.className="protected";drapeProtect(i);host.appendChild(i);}
-    else if(kind.startsWith("video/")){const v=document.createElement("video");v.src=u;v.controls=true;v.controlsList="nodownload noremoteplayback";v.disablePictureInPicture=true;drapeProtect(v);host.appendChild(v);}
+    const k=String(kind||"");
+    if(k.startsWith("image/")){const i=document.createElement("img");i.src=u;i.className="protected";drapeProtect(i);host.appendChild(i);}
+    else if(k.startsWith("video/")||mediaIsVideo(k,url)){const v=document.createElement("video");v.src=u;v.controls=true;v.playsInline=true;v.controlsList="nodownload noremoteplayback";v.disablePictureInPicture=true;drapeProtect(v);host.appendChild(v);}
     else{const a=document.createElement("span");a.className="file";a.textContent="📄 "+(fname||"file");host.appendChild(a);}
   }catch(e){host.textContent="";const err=document.createElement("div");err.style.color="var(--mute)";err.textContent="Media unavailable";host.appendChild(err);}
 }
