@@ -358,15 +358,25 @@ header h2{
 .cal-chip .meta{font-size:11px;color:var(--mute)}
 .cal-chip .acts{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
 .cal-chip .acts button{font-size:10px;padding:5px 9px}
-#scrapfeed{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,168px),1fr));gap:14px}
+#scrapfeed{display:flex;flex-direction:column;gap:0}
+.timeline-row{
+  display:flex;gap:14px;padding:16px 4px 18px;border-bottom:1px solid var(--line);
+  align-items:flex-start;
+}
+.timeline-row:last-child{border-bottom:0}
+.timeline-when{
+  flex:0 0 92px;font-size:11px;line-height:1.35;color:var(--mute);font-weight:600;
+  letter-spacing:.03em;padding-top:4px;
+}
+.timeline-when b{display:block;font-size:13px;color:var(--gold);font-weight:600;margin-bottom:2px}
 .scrap-item{
-  position:relative;border-radius:4px;padding:10px 10px 14px;
+  position:relative;flex:1;border-radius:14px;padding:14px 14px 16px;
   background:linear-gradient(145deg,#fdf8ef,#efe6d6);
-  border:1px solid #c9b89a88;box-shadow:0 8px 22px #0000001f,0 2px 0 #fff8 inset;
-  color:#2a2118;transform:rotate(var(--rot,0deg));
+  border:1px solid #c9b89a66;box-shadow:0 6px 18px #00000014;
+  color:#2a2118;
 }
 html[data-theme="dark"] .scrap-item{
-  background:linear-gradient(145deg,#3a342c,#2a2520);border-color:#6d5e4a;color:#f2ebe0;
+  background:linear-gradient(145deg,#35302a,#2a2520);border-color:#6d5e4a;color:#f2ebe0;
 }
 .scrap-item.quote{
   padding:16px 14px 18px;border-radius:6px;
@@ -409,6 +419,56 @@ html[data-theme="dark"] .vintage-frame{background:#1c1a16;border-color:#5a5048}
 #scrapbody{min-height:54px;max-height:100px;resize:none;width:100%}
 .scrap-types{display:flex;gap:6px;flex-wrap:wrap}
 .scrap-types button.on{border-color:var(--rose);color:var(--rose);background:var(--tab-on-bg)}
+#scrapwhen{font-size:13px;max-width:220px}
+#noteview{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#notefeed{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.note-card{
+  padding:14px 16px;border-radius:18px;border:1px solid var(--line);
+  background:var(--panel);box-shadow:var(--shadow);
+}
+.note-card.unread{border-color:var(--rose);box-shadow:0 0 0 1px var(--accent-ring)}
+.note-card .from{font-size:12px;color:var(--mute);margin-bottom:6px}
+.note-card .from strong{color:var(--rose);font-weight:600}
+.note-card .body{font-size:15px;line-height:1.5;color:var(--text)}
+.note-card .stamp{font-size:10px;color:var(--mute);margin-top:8px;text-align:right}
+#notebar{
+  padding:12px;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);background:var(--bar-bg);
+}
+#notebar input,#notebar textarea{
+  border-radius:14px;border:1px solid var(--line);background:var(--input-bg);
+  padding:10px 12px;font-size:15px;color:var(--text);width:100%;
+}
+#notebar textarea{min-height:72px;resize:vertical;max-height:140px}
+#moodpanel{position:fixed;inset:0;background:var(--scrim);z-index:42;display:flex;align-items:flex-end;justify-content:center}
+#moodpanel .sheet{
+  width:100%;max-width:480px;background:var(--panel);border:1px solid var(--line);
+  border-radius:28px 28px 0 0;padding:18px 16px 28px;color:var(--text);
+}
+.mood-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+.mood-grid button{
+  border:1px solid var(--line);border-radius:16px;padding:14px 12px;background:var(--panel2);
+  cursor:pointer;font-size:14px;text-align:left;color:var(--text);
+}
+.mood-grid button:hover{border-color:var(--rose)}
+#moodnote{width:100%;margin:0 0 10px;border-radius:14px;border:1px solid var(--line);
+  background:var(--input-bg);padding:12px;font-size:15px;color:var(--text)}
+#mood-float{
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(78px + env(safe-area-inset-bottom,0px));z-index:35;
+  display:flex;align-items:center;gap:12px;padding:12px 16px 12px 14px;
+  border-radius:999px;border:1px solid var(--line);
+  background:linear-gradient(135deg,#fff5f0,#ffe8f0ee);
+  box-shadow:0 12px 32px #00000022;color:#3d2430;
+  max-width:min(94vw,420px);
+}
+html[data-theme="dark"] #mood-float{background:linear-gradient(135deg,#3a2830,#2a1a22);color:#f4ebe6}
+#mood-float-emoji{font-size:32px;line-height:1}
+#mood-float-text{font-size:13px;line-height:1.35;flex:1;min-width:0}
+#mood-float-text strong{display:block;font-size:14px;margin-bottom:2px}
+#mood-float-x{border:0;background:transparent;font-size:22px;cursor:pointer;padding:4px 8px;color:inherit;opacity:.7}
+body.partner-warm #app{
+  background:radial-gradient(900px 400px at 50% -10%,#ffb4c822,transparent);
+}
 @media (max-width:520px){
   #gate{padding:20px 16px}
   .brand-mark{font-size:3.25rem}
@@ -523,17 +583,44 @@ html[data-theme="dark"] .vintage-frame{background:#1c1a16;border-color:#5a5048}
     </div>
     <textarea id="scrapbody" placeholder="Write a memory, quote, or note…" maxlength="2000"></textarea>
     <div class="row">
+      <input type="datetime-local" id="scrapwhen" title="When this memory happened">
+    </div>
+    <div class="row">
       <input type="date" id="scrapdate" title="Important date (optional)">
       <input type="text" id="scrapdatelabel" placeholder="Date label (e.g. First trip)" maxlength="120" autocomplete="off">
       <button type="button" class="send" id="scrapsave" title="Save to scrapbook">➤</button>
     </div>
   </div>
 </div>
+<div id="noteview" class="hide">
+  <div id="notefeed"></div>
+  <div id="notebar">
+    <input type="text" id="noteto" placeholder="@username" autocomplete="username" maxlength="20">
+    <textarea id="notebody" placeholder="Leave them a note…" maxlength="2000"></textarea>
+    <button type="button" class="btn" id="notesend">Send note</button>
+  </div>
+</div>
 <nav id="maintabs" aria-label="Sections">
   <button type="button" class="on" id="tabchat">Chat</button>
   <button type="button" id="tabdate">Updates</button>
   <button type="button" class="hide" id="tabscrap">Scrapbook</button>
+  <button type="button" class="hide" id="tabnotes">Leave a note</button>
 </nav>
+<div id="moodpanel" class="hide" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <strong style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:22px;color:var(--gold)">Little love notes</strong>
+      <button type="button" class="pill" id="moodclose">Close</button>
+    </div>
+    <input type="text" id="moodnote" placeholder="Add a whisper (optional)…" maxlength="200" autocomplete="off">
+    <div class="mood-grid" id="moodgrid"></div>
+  </div>
+</div>
+<div id="mood-float" class="hide" role="status" aria-live="polite">
+  <span id="mood-float-emoji" aria-hidden="true">💗</span>
+  <div id="mood-float-text"><strong></strong><span></span></div>
+  <button type="button" id="mood-float-x" aria-label="Dismiss">×</button>
+</div>
 </div>
 
 <div id="gifpanel" class="hide">
@@ -574,6 +661,11 @@ let scrapCalSel=null;
 let scrapPickFile=null;
 let scrapItemType="memory";
 let scrapSaving=false;
+let notePollTimer=null;
+let moodPollTimer=null;
+let partnerMoods=[];
+let moodDismissed=null;
+const MOOD_DISMISS_KEY="shhh-mood-dismiss";
 let storyFile=null;
 let storyPosting=false;
 let lastStoriesFp="";
@@ -608,7 +700,7 @@ function clearSavedName(){
 function savedTab(){
   try{
     const t=localStorage.getItem(TAB_KEY);
-    return t==="date"||t==="chat"||t==="scrap"?t:null;
+    return t==="date"||t==="chat"||t==="scrap"||t==="notes"?t:null;
   }catch(e){return null;}
 }
 function applyTheme(t){
@@ -667,7 +759,7 @@ function urlBase64ToUint8Array(base64){
 async function setupPwa(){
   if(!("serviceWorker"in navigator))return;
   try{
-    const reg=await navigator.serviceWorker.register("/sw.js?v=10");
+    const reg=await navigator.serviceWorker.register("/sw.js?v=11");
     if(reg.waiting){reg.waiting.postMessage({type:"SKIP_WAITING"});}
     reg.addEventListener("updatefound",()=>{
       const w=reg.installing;
@@ -708,7 +800,12 @@ async function detectBackend(){
         return;
       }
     }
-    if(h&&h.ok&&h.db){mode="api";$("tabscrap")?.classList.remove("hide");return;}
+    if(h&&h.ok&&h.db){
+      mode="api";
+      $("tabscrap")?.classList.remove("hide");
+      $("tabnotes")?.classList.remove("hide");
+      return;
+    }
     if(h&&h.db===false){
       $("err").textContent="Add DATABASE_URL (Neon) in Render → astro-platform-starter → Environment.";
       mode="api";
@@ -816,6 +913,9 @@ function enter(n,opts={}){
     scheduleStoryPoll();
     scheduleScrapPoll();
     schedulePresence();
+    scheduleMoodPoll();
+    scheduleNotePoll();
+    try{moodDismissed=localStorage.getItem(MOOD_DISMISS_KEY);}catch(e){}
     document.addEventListener("visibilitychange",onVis);
     return;
   }
@@ -831,7 +931,7 @@ let visKick=null;
 function onVis(){
   if(document.hidden||mode!=="api")return;
   clearTimeout(visKick);
-  visKick=setTimeout(()=>{void refreshApi();void pingPresence();},500);
+  visKick=setTimeout(()=>{void refreshApi();void pingPresence();void refreshMoods();},500);
 }
 
 async function refreshApi(){
@@ -1022,6 +1122,8 @@ $("out").onclick=async()=>{
   if(pollMetaTimer)clearTimeout(pollMetaTimer);
   if(storyPollTimer)clearInterval(storyPollTimer);
   if(scrapPollTimer)clearInterval(scrapPollTimer);
+  if(notePollTimer)clearInterval(notePollTimer);
+  if(moodPollTimer)clearInterval(moodPollTimer);
   if(presenceTimer)clearInterval(presenceTimer);
   document.removeEventListener("visibilitychange",onVis);
   msgById.clear();
@@ -1030,14 +1132,42 @@ $("out").onclick=async()=>{
   location.reload();
 };
 
-$("think").onclick=async()=>{
-  $("note").textContent="Sending love…";
-  try{
-    const r=await api("/api/thinking-of-you",{method:"POST"});
-    if(!r.pushEnabled)$("note").textContent="Add VAPID keys on Render for heart notifications.";
-    else if(!r.sent)$("note").textContent="No one else subscribed yet — they need to open shhh and allow alerts.";
-    else $("note").textContent="💗 Hearts sent.";
-  }catch(e){$("note").textContent="Couldn't send heart ping.";}
+function renderMoodGrid(){
+  const grid=$("moodgrid");
+  if(!grid||!appConfig?.moods)return;
+  grid.textContent="";
+  Object.entries(appConfig.moods).forEach(([key,meta])=>{
+    const b=document.createElement("button");
+    b.type="button";
+    b.textContent=(meta.emoji||"💗")+" "+(meta.label||key);
+    b.onclick=async()=>{
+      $("note").textContent="Sending…";
+      try{
+        const r=await api("/api/moods",{method:"POST",body:{mood:key,note:$("moodnote").value.trim()}});
+        $("moodpanel").classList.add("hide");
+        if(!r.pushEnabled)$("note").textContent="Mood set — add VAPID for push alerts.";
+        else if(!r.sent)$("note").textContent=(r.emoji||"💗")+" Sent (partner may need to allow notifications).";
+        else $("note").textContent=(r.emoji||"💗")+" "+(r.label||"Sent")+"!";
+      }catch(e){$("note").textContent=(e.data&&e.data.error)||"Couldn't send mood.";}
+    };
+    grid.appendChild(b);
+  });
+}
+$("think").onclick=()=>{
+  if(mode!=="api")return;
+  if(!appConfig?.moods)loadConfig().then(renderMoodGrid);
+  else renderMoodGrid();
+  $("moodpanel").classList.remove("hide");
+  $("moodnote").value="";
+};
+$("moodclose").onclick=()=>$("moodpanel").classList.add("hide");
+$("moodpanel").addEventListener("click",e=>{if(e.target===$("moodpanel"))$("moodpanel").classList.add("hide");});
+$("mood-float-x").onclick=()=>{
+  const m=partnerMoods[0];
+  if(m)try{localStorage.setItem(MOOD_DISMISS_KEY,m.user+":"+m.ts);}catch(e){}
+  moodDismissed=m?m.user+":"+m.ts:null;
+  $("mood-float").classList.add("hide");
+  document.body.classList.remove("partner-warm");
 };
 
 const IMG=/\.(png|jpe?g|gif|webp|avif)(\?|$)/i,VID=/\.(mp4|webm|mov)(\?|$)/i;
@@ -1396,21 +1526,137 @@ function setMainTab(tab){
   $("tabchat").classList.toggle("on",tab==="chat");
   $("tabdate").classList.toggle("on",tab==="date");
   $("tabscrap").classList.toggle("on",tab==="scrap");
+  $("tabnotes").classList.toggle("on",tab==="notes");
   $("chatview").classList.toggle("hide",tab!=="chat");
   $("dateview").classList.toggle("hide",tab!=="date");
   $("scrapview").classList.toggle("hide",tab!=="scrap");
+  $("noteview").classList.toggle("hide",tab!=="notes");
   const tag=$("hdr-brand")?.querySelector(".hdr-tag");
   if(tag){
-    tag.textContent=tab==="date"?"updates board":tab==="scrap"?"scrapbook":"private";
+    const tags={date:"updates board",scrap:"scrapbook",notes:"leave a note"};
+    tag.textContent=tags[tab]||"private";
   }
   $("sel").classList.toggle("hide",tab!=="chat"||mode!=="api");
-  $("sv").classList.toggle("hide",tab==="scrap");
+  $("sv").classList.toggle("hide",tab==="scrap"||tab==="notes");
+  $("del").classList.toggle("hide",tab==="notes");
   if(tab==="date")void refreshStories();
-  if(tab==="scrap")void refreshScrapbook();
+  if(tab==="scrap"){initScrapWhenForce();void refreshScrapbook();}
+  if(tab==="notes")void refreshNotes();
 }
 $("tabchat").onclick=()=>setMainTab("chat");
 $("tabdate").onclick=()=>setMainTab("date");
 $("tabscrap").onclick=()=>setMainTab("scrap");
+$("tabnotes").onclick=()=>setMainTab("notes");
+
+function initScrapWhenForce(){
+  const el=$("scrapwhen");
+  if(!el)return;
+  const d=new Date();
+  d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
+  el.value=d.toISOString().slice(0,16);
+}
+
+function formatTimelineWhen(ts){
+  const d=new Date(Number(ts));
+  return{
+    line1:d.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"}),
+    line2:d.toLocaleDateString([],{year:"numeric"})+" · "+d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}),
+  };
+}
+
+function applyPartnerMoodUI(){
+  const m=partnerMoods[0];
+  const flo=$("mood-float");
+  if(!m||!flo){
+    document.body.classList.remove("partner-warm");
+    flo?.classList.add("hide");
+    return;
+  }
+  const key=m.user+":"+m.ts;
+  if(moodDismissed===key||localStorage.getItem(MOOD_DISMISS_KEY)===key){
+    document.body.classList.remove("partner-warm");
+    flo.classList.add("hide");
+    return;
+  }
+  document.body.classList.add("partner-warm");
+  $("mood-float-emoji").textContent=m.emoji||"💗";
+  const inner=$("mood-float-text");
+  inner.querySelector("strong").textContent="@"+m.user+" · "+(m.label||"Thinking of you");
+  inner.querySelector("span").textContent=m.note||(m.label||"");
+  flo.classList.remove("hide");
+}
+
+async function refreshMoods(){
+  if(mode!=="api")return;
+  try{
+    const r=await api("/api/moods");
+    partnerMoods=(r.moods||[]).sort((a,b)=>b.ts-a.ts);
+    applyPartnerMoodUI();
+  }catch(e){}
+}
+function scheduleMoodPoll(){
+  if(moodPollTimer)clearInterval(moodPollTimer);
+  if(mode!=="api")return;
+  void refreshMoods();
+  moodPollTimer=setInterval(()=>{if(!document.hidden)void refreshMoods();},8000);
+}
+
+async function refreshNotes(){
+  if(mode!=="api")return;
+  const feed=$("notefeed");
+  if(!feed)return;
+  try{
+    const r=await api("/api/notes?box=inbox");
+    const notes=r.notes||[];
+    feed.textContent="";
+    if(!notes.length){
+      const p=document.createElement("p");
+      p.className="scrap-sub";
+      p.textContent="Notes left for you appear here. Compose below with @username.";
+      feed.appendChild(p);
+      return;
+    }
+    notes.forEach(n=>{
+      const card=document.createElement("article");
+      card.className="note-card"+(n.readAt?"":" unread");
+      const from=document.createElement("div");
+      from.className="from";
+      from.innerHTML="From <strong>@"+n.from+"</strong>";
+      const body=document.createElement("div");
+      body.className="body";
+      body.textContent=n.body||"";
+      const st=document.createElement("div");
+      st.className="stamp";
+      st.textContent=new Date(Number(n.ts)).toLocaleString();
+      card.appendChild(from);card.appendChild(body);card.appendChild(st);
+      if(!n.readAt){
+        card.onclick=async()=>{
+          try{await api("/api/notes/"+n.id+"/read",{method:"PATCH"});card.classList.remove("unread");}
+          catch(e){}
+        };
+      }
+      feed.appendChild(card);
+    });
+  }catch(e){$("note").textContent="Couldn't load notes.";}
+}
+function scheduleNotePoll(){
+  if(notePollTimer)clearInterval(notePollTimer);
+  notePollTimer=setInterval(()=>{if(activeTab==="notes"&&!document.hidden)void refreshNotes();},12000);
+}
+$("notesend").onclick=async()=>{
+  if(mode!=="api")return;
+  const to=$("noteto").value.trim().replace(/^@/,"").toLowerCase();
+  const body=$("notebody").value.trim();
+  if(to.length<3||!body)return $("note").textContent="Need @username and a note.";
+  $("notesend").disabled=true;
+  try{
+    await api("/api/notes",{method:"POST",body:{toUsername:to,body}});
+    $("noteto").value="";$("notebody").value="";
+    $("note").textContent="Note sent to @"+to+".";
+    if(activeTab==="notes")await refreshNotes();
+  }catch(e){$("note").textContent=(e.data&&e.data.error)||"Couldn't send note.";}
+  finally{$("notesend").disabled=false;}
+};
 
 async function pingPresence(){
   if(mode!=="api"||!name)return;
@@ -1546,20 +1792,39 @@ function renderCalEvents(day){
   $("scrapdate").value=`${scrapCalYear}-${String(scrapCalMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
 }
 
+function appendVintageMedia(host,url,kind){
+  const fr=document.createElement("div");
+  fr.className="vintage-frame";
+  if(mode==="api"&&url.startsWith("/api/media/"))void loadAuthMedia(fr,url,kind||"image/jpeg",null);
+  else if(String(kind||"").startsWith("video/")||/\.mp4/i.test(url)){
+    const v=document.createElement("video");v.src=url;v.controls=true;v.preload="metadata";fr.appendChild(v);
+  }else{
+    const i=document.createElement("img");i.src=url;i.loading="lazy";fr.appendChild(i);
+  }
+  host.appendChild(fr);
+}
+
 function renderScrapItems(){
   const feed=$("scrapfeed");
   if(!feed)return;
   feed.textContent="";
-  if(!scrapItems.length){
-    const p=document.createElement("p");p.className="scrap-sub";p.textContent="Add a memory in a retro frame, a quote, or a note.";
+  const sorted=[...scrapItems].sort((a,b)=>(b.memoryAt||b.ts)-(a.memoryAt||a.ts));
+  if(!sorted.length){
+    const p=document.createElement("p");p.className="scrap-sub";
+    p.textContent="Your timeline starts here — newest at the top. Pick any date & time for the memory.";
     feed.appendChild(p);return;
   }
-  scrapItems.forEach((it,idx)=>{
+  sorted.forEach(it=>{
+    const row=document.createElement("div");
+    row.className="timeline-row";
+    const when=document.createElement("div");
+    when.className="timeline-when";
+    const w=formatTimelineWhen(it.memoryAt||it.ts);
+    when.innerHTML="<b>"+w.line1+"</b>"+w.line2;
     const card=document.createElement("article");
-    const rot=(idx%5)-2;
     card.className="scrap-item "+(it.type||"note");
-    card.style.setProperty("--rot",rot*0.6+"deg");
-    const tag=document.createElement("div");tag.className="scrap-type";tag.textContent=it.type||"note";
+    const tag=document.createElement("div");tag.className="scrap-type";
+    tag.textContent=(it.type||"note")+" · @"+it.user;
     card.appendChild(tag);
     if(it.title){const h=document.createElement("h3");h.className="scrap-title";h.textContent=it.title;card.appendChild(h);}
     if(it.type==="quote"&&it.body){
@@ -1567,15 +1832,8 @@ function renderScrapItems(){
     }else if(it.body){
       const p=document.createElement("p");p.className="scrap-cap";p.textContent=it.body;card.appendChild(p);
     }
-    if(it.media){
-      const fr=document.createElement("div");fr.className="vintage-frame";
-      if(mode==="api"&&it.media.startsWith("/api/media/"))void loadAuthMedia(fr,it.media,it.kind||"image/jpeg",null);
-      else if(String(it.kind||"").startsWith("video/")){
-        const v=document.createElement("video");v.src=it.media;v.controls=true;fr.appendChild(v);
-      }else{const i=document.createElement("img");i.src=it.media;i.loading="lazy";fr.appendChild(i);}
-      card.appendChild(fr);
-    }
-  if(mode==="api"&&it.user===name){
+    if(it.media)appendVintageMedia(card,it.media,it.kind);
+    if(mode==="api"&&it.user===name){
       const del=document.createElement("button");
       del.type="button";del.className="scrap-del";del.title="Remove";del.textContent="×";
       del.onclick=async()=>{
@@ -1586,7 +1844,9 @@ function renderScrapItems(){
       };
       card.appendChild(del);
     }
-    feed.appendChild(card);
+    row.appendChild(when);
+    row.appendChild(card);
+    feed.appendChild(row);
   });
 }
 
@@ -1650,9 +1910,12 @@ $("scrapsave").onclick=async()=>{
     }
     const addItem=!!(body||scrapPickFile);
     const addDate=!!(dateLabel&&dateVal);
+    let memoryAt=Date.now();
+    const whenVal=$("scrapwhen").value;
+    if(whenVal&&!Number.isNaN(new Date(whenVal).getTime()))memoryAt=new Date(whenVal).getTime();
     if(addItem){
       await api("/api/scrapbook/items",{method:"POST",body:{
-        type:scrapItemType,title,body,mediaKey,kind,
+        type:scrapItemType,title,body,mediaKey,kind,memoryAt,
       }});
     }
     if(addDate){
@@ -1663,6 +1926,7 @@ $("scrapsave").onclick=async()=>{
     }
     $("scrapbody").value="";$("scraptitle").value="";$("scrapdatelabel").value="";
     scrapPickFile=null;$("scrapfile").value="";
+    initScrapWhenForce();
     $("note").textContent="Saved to scrapbook.";
     await refreshScrapbook();
   }catch(e){

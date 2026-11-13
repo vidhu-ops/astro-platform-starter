@@ -162,8 +162,36 @@ async function migrate() {
       ts BIGINT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS chat_scrapbook_dates_day_idx ON chat_scrapbook_dates (event_date);
+    ALTER TABLE chat_scrapbook_items ADD COLUMN IF NOT EXISTS memory_at BIGINT;
+    CREATE TABLE IF NOT EXISTS chat_user_notes (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      from_user_id TEXT NOT NULL,
+      from_username TEXT NOT NULL,
+      to_username TEXT NOT NULL,
+      body_text TEXT NOT NULL,
+      ts BIGINT NOT NULL,
+      read_at TIMESTAMPTZ
+    );
+    CREATE INDEX IF NOT EXISTS chat_user_notes_to_idx ON chat_user_notes (to_username, ts DESC);
+    CREATE TABLE IF NOT EXISTS chat_moods (
+      user_id TEXT PRIMARY KEY,
+      username TEXT NOT NULL,
+      mood_key TEXT NOT NULL,
+      mood_note TEXT,
+      ts BIGINT NOT NULL
+    );
   `);
 }
+
+const MOOD_PRESETS = {
+  thinking: { emoji: "💗", label: "Thinking of you", tag: "mood-thinking" },
+  kiss: { emoji: "😘", label: "Kisses", tag: "mood-kiss" },
+  forehead: { emoji: "😚", label: "Forehead kisses", tag: "mood-forehead" },
+  hug: { emoji: "🤗", label: "Hugs", tag: "mood-hug" },
+  love: { emoji: "🥰", label: "Love you", tag: "mood-love" },
+  miss: { emoji: "💋", label: "Missing you", tag: "mood-miss" },
+  spark: { emoji: "✨", label: "You sparkle", tag: "mood-spark" },
+};
 
 const SCRAP_TYPES = new Set(["memory", "quote", "note"]);
 
@@ -469,6 +497,8 @@ app.get("/api/config", (_req, res) => {
     storiesEnabled: Boolean(pool),
     scrapbookEnabled: Boolean(pool),
     maxUploadMb: Math.round(MAX_FILE_BYTES / (1024 * 1024)),
+    moods: MOOD_PRESETS,
+    notesEnabled: Boolean(pool),
   });
 });
 
@@ -745,21 +775,213 @@ app.post(
   }),
 );
 
+function moodPayload(from, moodKey, note) {
+  const preset = MOOD_PRESETS[moodKey] || MOOD_PRESETS.thinking;
+  const extra = note ? ` — “${note.slice(0, 80)}”` : "";
+  return {
+    title: `${preset.emoji} ${preset.label}`,
+    body: `@${from} sent ${preset.label.toLowerCase()}${extra}`,
+    icon: "/icons/icon.svg",
+    badge: "/icons/heart-badge.svg",
+    tag: preset.tag,
+    data: { url: "/", kind: "mood", mood: moodKey, from, note: note || "" },
+  };
+}
+
+app.get(
+  "/api/moods",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    const { rows } = await pool.query(
+      `SELECT user_id, username, mood_key, mood_note, ts
+       FROM chat_moods
+       WHERE user_id IS DISTINCT FROM $1 AND ts > $2
+       ORDER BY ts DESC`,
+      [req.user.user_id, Date.now() - 48 * 60 * 60 * 1000],
+    );
+    res.json({
+      moods: rows.map((r) => ({
+        user: r.username,
+        userId: r.user_id,
+        mood: r.mood_key,
+        emoji: (MOOD_PRESETS[r.mood_key] || MOOD_PRESETS.thinking).emoji,
+        label: (MOOD_PRESETS[r.mood_key] || MOOD_PRESETS.thinking).label,
+        note: r.mood_note ? decryptField(r.mood_note) : "",
+        ts: Number(r.ts),
+      })),
+    });
+  }),
+);
+
+app.post(
+  "/api/moods",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    const moodKey = String(req.body?.mood || "thinking").toLowerCase();
+    if (!MOOD_PRESETS[moodKey]) return res.status(400).json({ error: "Unknown mood" });
+    const noteRaw = String(req.body?.note || "").trim().slice(0, 200);
+    const ts = Date.now();
+    await pool.query(
+      `INSERT INTO chat_moods (user_id, username, mood_key, mood_note, ts)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (user_id) DO UPDATE SET
+         username = EXCLUDED.username,
+         mood_key = EXCLUDED.mood_key,
+         mood_note = EXCLUDED.mood_note,
+         ts = EXCLUDED.ts`,
+      [
+        req.user.user_id,
+        req.user.username,
+        moodKey,
+        noteRaw ? encryptField(noteRaw) : null,
+        ts,
+      ],
+    );
+    const payload = moodPayload(req.user.username, moodKey, noteRaw);
+    const sent = await broadcastPush(req.user.user_id, payload);
+    const preset = MOOD_PRESETS[moodKey];
+    res.json({
+      ok: true,
+      mood: moodKey,
+      emoji: preset.emoji,
+      label: preset.label,
+      ts,
+      sent,
+      pushEnabled: isPushReady(),
+    });
+  }),
+);
+
 app.post(
   "/api/thinking-of-you",
   authMiddleware,
   asyncHandler(async (req, res) => {
-  const from = req.user.username;
-  const payload = {
-    title: "💗 Thinking of you",
-    body: `@${from} is thinking of you on shhh`,
-    icon: "/icons/icon.svg",
-    badge: "/icons/heart-badge.svg",
-    tag: "velvet-heart",
-    data: { url: "/", kind: "heart" },
-  };
-  const sent = await broadcastPush(req.user.user_id, payload);
-  res.json({ sent, pushEnabled: isPushReady() });
+    req.body = { ...(req.body || {}), mood: "thinking" };
+    const moodKey = "thinking";
+    const noteRaw = String(req.body?.note || "").trim().slice(0, 200);
+    const ts = Date.now();
+    await pool.query(
+      `INSERT INTO chat_moods (user_id, username, mood_key, mood_note, ts)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (user_id) DO UPDATE SET
+         username = EXCLUDED.username,
+         mood_key = EXCLUDED.mood_key,
+         mood_note = EXCLUDED.mood_note,
+         ts = EXCLUDED.ts`,
+      [req.user.user_id, req.user.username, moodKey, noteRaw ? encryptField(noteRaw) : null, ts],
+    );
+    const sent = await broadcastPush(req.user.user_id, moodPayload(req.user.username, moodKey, noteRaw));
+    res.json({ sent, pushEnabled: isPushReady() });
+  }),
+);
+
+app.get(
+  "/api/notes",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    const box = String(req.query.box || "inbox");
+    if (box === "sent") {
+      const { rows } = await pool.query(
+        `SELECT id, from_username, to_username, body_text, ts, read_at
+         FROM chat_user_notes WHERE from_username = $1 ORDER BY ts DESC LIMIT 120`,
+        [req.user.username],
+      );
+      return res.json({
+        notes: rows.map((r) => ({
+          id: r.id,
+          from: r.from_username,
+          to: r.to_username,
+          body: decryptField(r.body_text),
+          ts: Number(r.ts),
+          readAt: r.read_at,
+        })),
+      });
+    }
+    const { rows } = await pool.query(
+      `SELECT id, from_username, to_username, body_text, ts, read_at
+       FROM chat_user_notes WHERE to_username = $1 ORDER BY ts DESC LIMIT 120`,
+      [req.user.username],
+    );
+    res.json({
+      notes: rows.map((r) => ({
+        id: r.id,
+        from: r.from_username,
+        to: r.to_username,
+        body: decryptField(r.body_text),
+        ts: Number(r.ts),
+        readAt: r.read_at,
+      })),
+    });
+  }),
+);
+
+app.post(
+  "/api/notes",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    const to = String(req.body?.toUsername || req.body?.to || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "");
+    const body = String(req.body?.body || "").trim().slice(0, 2000);
+    if (to.length < 3) return res.status(400).json({ error: "Recipient username too short" });
+    if (to === req.user.username) return res.status(400).json({ error: "Pick someone else" });
+    if (body.length < 1) return res.status(400).json({ error: "Write a note first" });
+    const chk = await pool.query(`SELECT username FROM chat_users WHERE username = $1`, [to]);
+    if (!chk.rows[0]) return res.status(404).json({ error: "No user with that username yet" });
+    const ts = Date.now();
+    const { rows } = await pool.query(
+      `INSERT INTO chat_user_notes (from_user_id, from_username, to_username, body_text, ts)
+       VALUES ($1,$2,$3,$4,$5)
+       RETURNING id, from_username, to_username, body_text, ts`,
+      [req.user.user_id, req.user.username, to, encryptField(body), ts],
+    );
+    const row = rows[0];
+    void broadcastPush(req.user.user_id, {
+      title: `📝 Note for @${to}`,
+      body: `@${req.user.username}: ${body.slice(0, 100)}`,
+      icon: "/icons/icon.svg",
+      tag: "shhh-note",
+      data: { url: "/", kind: "note", to, from: req.user.username },
+    });
+    res.status(201).json({
+      id: row.id,
+      from: row.from_username,
+      to: row.to_username,
+      body: decryptField(row.body_text),
+      ts: Number(row.ts),
+    });
+  }),
+);
+
+app.patch(
+  "/api/notes/:id/read",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    if (!isUuid(req.params.id)) return res.status(400).json({ error: "Invalid id" });
+    const { rows } = await pool.query(
+      `UPDATE chat_user_notes SET read_at = NOW()
+       WHERE id = $1 AND to_username = $2
+       RETURNING id`,
+      [req.params.id, req.user.username],
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Not found" });
+    res.json({ ok: true });
+  }),
+);
+
+app.delete(
+  "/api/notes/:id",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    if (!isUuid(req.params.id)) return res.status(400).json({ error: "Invalid id" });
+    const { rowCount } = await pool.query(
+      `DELETE FROM chat_user_notes
+       WHERE id = $1 AND (from_username = $2 OR to_username = $2)`,
+      [req.params.id, req.user.username],
+    );
+    if (!rowCount) return res.status(404).json({ error: "Not found" });
+    res.json({ ok: true });
   }),
 );
 
@@ -1194,6 +1416,7 @@ const scrapbookLimiter = rateLimit({
 });
 
 function mapScrapItem(row) {
+  const memoryAt = row.memory_at != null ? Number(row.memory_at) : Number(row.ts);
   return {
     id: row.id,
     user: row.user_name,
@@ -1203,7 +1426,8 @@ function mapScrapItem(row) {
     body: decryptField(row.body_text),
     media: row.media_key ? `/api/media/${row.media_key}` : null,
     kind: row.kind,
-    ts: row.ts,
+    ts: Number(row.ts),
+    memoryAt,
   };
 }
 
@@ -1230,8 +1454,9 @@ app.get(
   authMiddleware,
   asyncHandler(async (_req, res) => {
     const { rows } = await pool.query(
-      `SELECT id, user_name, user_id, item_type, title_text, body_text, media_key, kind, ts
-       FROM chat_scrapbook_items ORDER BY ts DESC LIMIT 200`,
+      `SELECT id, user_name, user_id, item_type, title_text, body_text, media_key, kind, ts, memory_at
+       FROM chat_scrapbook_items
+       ORDER BY COALESCE(memory_at, ts) DESC LIMIT 200`,
     );
     res.json({ items: rows.map(mapScrapItem) });
   }),
@@ -1264,10 +1489,15 @@ app.post(
       await pool.query(`DELETE FROM chat_uploads WHERE media_key = $1`, [keyFromClient]);
     }
     const ts = Date.now();
+    let memoryAt = ts;
+    const rawMem = req.body?.memoryAt;
+    if (rawMem != null && Number.isFinite(Number(rawMem))) {
+      memoryAt = Math.min(Math.max(Number(rawMem), 0), ts + 365 * 24 * 60 * 60 * 1000);
+    }
     const { rows } = await pool.query(
-      `INSERT INTO chat_scrapbook_items (user_name, user_id, item_type, title_text, body_text, media_key, kind, ts)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-       RETURNING id, user_name, user_id, item_type, title_text, body_text, media_key, kind, ts`,
+      `INSERT INTO chat_scrapbook_items (user_name, user_id, item_type, title_text, body_text, media_key, kind, ts, memory_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       RETURNING id, user_name, user_id, item_type, title_text, body_text, media_key, kind, ts, memory_at`,
       [
         req.user.username,
         req.user.user_id,
@@ -1277,6 +1507,7 @@ app.post(
         mediaKey,
         kind,
         ts,
+        memoryAt,
       ],
     );
     res.status(201).json(mapScrapItem(rows[0]));
