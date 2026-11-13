@@ -452,22 +452,59 @@ html[data-theme="dark"] .vintage-frame{background:#1c1a16;border-color:#5a5048}
 .mood-grid button:hover{border-color:var(--rose)}
 #moodnote{width:100%;margin:0 0 10px;border-radius:14px;border:1px solid var(--line);
   background:var(--input-bg);padding:12px;font-size:15px;color:var(--text)}
-#mood-float{
-  position:fixed;left:50%;transform:translateX(-50%);
-  bottom:calc(78px + env(safe-area-inset-bottom,0px));z-index:35;
-  display:flex;align-items:center;gap:12px;padding:12px 16px 12px 14px;
-  border-radius:999px;border:1px solid var(--line);
-  background:linear-gradient(135deg,#fff5f0,#ffe8f0ee);
-  box-shadow:0 12px 32px #00000022;color:#3d2430;
-  max-width:min(94vw,420px);
+#chat-head{
+  position:fixed;z-index:45;right:16px;
+  bottom:calc(64px + env(safe-area-inset-bottom,0px));
+  touch-action:none;pointer-events:none;
 }
-html[data-theme="dark"] #mood-float{background:linear-gradient(135deg,#3a2830,#2a1a22);color:#f4ebe6}
-#mood-float-emoji{font-size:32px;line-height:1}
-#mood-float-text{font-size:13px;line-height:1.35;flex:1;min-width:0}
-#mood-float-text strong{display:block;font-size:14px;margin-bottom:2px}
-#mood-float-x{border:0;background:transparent;font-size:22px;cursor:pointer;padding:4px 8px;color:inherit;opacity:.7}
+#chat-head:not(.hide){pointer-events:auto}
+#chat-head-stack{position:relative;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+#chat-head-bubble{
+  width:58px;height:58px;border-radius:50%;border:0;cursor:grab;
+  background:linear-gradient(145deg,#fff8f6,#ffe8ec);
+  box-shadow:0 6px 18px #00000030,0 0 0 3px #ffffffaa;
+  font-size:28px;line-height:58px;text-align:center;padding:0;
+  transition:transform .2s ease,opacity .25s ease;
+}
+#chat-head-bubble:not(.chat-head-pop):not(.chat-head-out){
+  animation:chatHeadIdle 4s ease-in-out infinite;
+}
+html[data-theme="dark"] #chat-head-bubble{
+  background:linear-gradient(145deg,#4a3540,#2f2228);
+  box-shadow:0 8px 24px #00000055,0 0 0 2px #ffffff18;
+}
+#chat-head-bubble:active{cursor:grabbing}
+#chat-head-bubble.chat-head-pop{animation:chatHeadPop .55s cubic-bezier(.34,1.56,.64,1) both}
+#chat-head-bubble.chat-head-out{opacity:0;transform:scale(.4) translateX(40px)}
+@keyframes chatHeadPop{
+  0%{opacity:0;transform:scale(.3) translateY(24px)}
+  70%{transform:scale(1.08)}
+  100%{opacity:1;transform:scale(1)}
+}
+@keyframes chatHeadIdle{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-3px)}
+}
+#chat-head-card{
+  width:min(280px,calc(100vw - 32px));
+  border-radius:20px;padding:14px 16px 16px;border:1px solid var(--line);
+  background:var(--panel);box-shadow:0 16px 40px #00000033;color:var(--text);
+  position:relative;transform-origin:bottom right;
+  animation:chatHeadCardIn .3s ease-out;
+}
+#chat-head-card.hide{display:none}
+@keyframes chatHeadCardIn{
+  from{opacity:0;transform:scale(.92) translateY(8px)}
+  to{opacity:1;transform:none}
+}
+#chat-head-card-title{font-size:14px;font-weight:600;margin:0 0 6px;color:var(--rose)}
+#chat-head-card-body{font-size:14px;line-height:1.45;color:var(--text);opacity:.95}
+#chat-head-card-x{
+  position:absolute;top:8px;right:8px;border:0;background:transparent;
+  font-size:22px;line-height:1;cursor:pointer;color:var(--mute);padding:4px 8px;
+}
 body.partner-warm #app{
-  background:radial-gradient(900px 400px at 50% -10%,#ffb4c822,transparent);
+  background:radial-gradient(900px 420px at 50% -8%,#ffb4c826,transparent);
 }
 @media (max-width:520px){
   #gate{padding:20px 16px}
@@ -616,10 +653,17 @@ body.partner-warm #app{
     <div class="mood-grid" id="moodgrid"></div>
   </div>
 </div>
-<div id="mood-float" class="hide" role="status" aria-live="polite">
-  <span id="mood-float-emoji" aria-hidden="true">💗</span>
-  <div id="mood-float-text"><strong></strong><span></span></div>
-  <button type="button" id="mood-float-x" aria-label="Dismiss">×</button>
+<div id="chat-head" class="hide" role="status" aria-live="polite">
+  <div id="chat-head-stack">
+    <div id="chat-head-card" class="hide" role="dialog" aria-label="Partner activity">
+      <button type="button" id="chat-head-card-x" aria-label="Dismiss">×</button>
+      <div id="chat-head-card-title"></div>
+      <div id="chat-head-card-body"></div>
+    </div>
+    <button type="button" id="chat-head-bubble" aria-label="Open partner activity">
+      <span id="chat-head-emoji" aria-hidden="true">💗</span>
+    </button>
+  </div>
 </div>
 </div>
 
@@ -664,8 +708,10 @@ let scrapSaving=false;
 let notePollTimer=null;
 let moodPollTimer=null;
 let partnerMoods=[];
-let moodDismissed=null;
-const MOOD_DISMISS_KEY="shhh-mood-dismiss";
+let inboxNotes=[];
+let chatHeadEvent=null;
+let shownChatHeadKey=null;
+const CHAT_HEAD_DISMISS_KEY="shhh-chat-head-dismiss";
 let storyFile=null;
 let storyPosting=false;
 let lastStoriesFp="";
@@ -759,7 +805,7 @@ function urlBase64ToUint8Array(base64){
 async function setupPwa(){
   if(!("serviceWorker"in navigator))return;
   try{
-    const reg=await navigator.serviceWorker.register("/sw.js?v=11");
+    const reg=await navigator.serviceWorker.register("/sw.js?v=12");
     if(reg.waiting){reg.waiting.postMessage({type:"SKIP_WAITING"});}
     reg.addEventListener("updatefound",()=>{
       const w=reg.installing;
@@ -915,7 +961,8 @@ function enter(n,opts={}){
     schedulePresence();
     scheduleMoodPoll();
     scheduleNotePoll();
-    try{moodDismissed=localStorage.getItem(MOOD_DISMISS_KEY);}catch(e){}
+    initChatHeadDrag();
+    void refreshInboxForChatHead();
     document.addEventListener("visibilitychange",onVis);
     return;
   }
@@ -931,17 +978,27 @@ let visKick=null;
 function onVis(){
   if(document.hidden||mode!=="api")return;
   clearTimeout(visKick);
-  visKick=setTimeout(()=>{void refreshApi();void pingPresence();void refreshMoods();},500);
+  visKick=setTimeout(()=>{
+    void refreshApi();
+    void pingPresence();
+    void refreshMoods();
+    void refreshInboxForChatHead();
+  },500);
 }
 
 async function refreshApi(){
   if(refreshInFlight)return refreshInFlight;
   refreshInFlight=(async()=>{
+    const prevPartnerMsg=[...lastMsgs].reverse().find(m=>m.user!==name&&!String(m.id).startsWith("pending"));
+    const prevMsgId=prevPartnerMsg?.id;
     try{
       const {messages}=await api("/api/messages");
       lastMsgs=messages;
       lastDocs=messages.map(m=>({data:()=>m,id:m.id}));
       render(messages);
+      const nextPartner=[...messages].reverse().find(m=>m.user!==name&&!String(m.id).startsWith("pending"));
+      const animate=!!(nextPartner&&nextPartner.id!==prevMsgId);
+      updateChatHead({animate});
     }catch(e){
       if(e.status===401){
         if(pollTimer)clearInterval(pollTimer);
@@ -1162,13 +1219,6 @@ $("think").onclick=()=>{
 };
 $("moodclose").onclick=()=>$("moodpanel").classList.add("hide");
 $("moodpanel").addEventListener("click",e=>{if(e.target===$("moodpanel"))$("moodpanel").classList.add("hide");});
-$("mood-float-x").onclick=()=>{
-  const m=partnerMoods[0];
-  if(m)try{localStorage.setItem(MOOD_DISMISS_KEY,m.user+":"+m.ts);}catch(e){}
-  moodDismissed=m?m.user+":"+m.ts:null;
-  $("mood-float").classList.add("hide");
-  document.body.classList.remove("partner-warm");
-};
 
 const IMG=/\.(png|jpe?g|gif|webp|avif)(\?|$)/i,VID=/\.(mp4|webm|mov)(\?|$)/i;
 
@@ -1564,34 +1614,179 @@ function formatTimelineWhen(ts){
   };
 }
 
-function applyPartnerMoodUI(){
-  const m=partnerMoods[0];
-  const flo=$("mood-float");
-  if(!m||!flo){
-    document.body.classList.remove("partner-warm");
-    flo?.classList.add("hide");
+function messagePreview(m){
+  const t=String(m.text||"").trim();
+  if(t)return t.slice(0,120);
+  if(m.viewOnce)return "📷 View-once media";
+  if(m.hasMedia||m.media)return "📎 Sent media";
+  return "New message";
+}
+
+function buildChatHeadCandidates(){
+  const events=[];
+  if(partnerMoods[0]){
+    const m=partnerMoods[0];
+    events.push({
+      kind:"mood",
+      key:`mood:${m.user}:${m.ts}`,
+      ts:m.ts,
+      user:m.user,
+      emoji:m.emoji||"💗",
+      label:m.label||"Thinking of you",
+      body:m.note||"",
+    });
+  }
+  const partnerMsg=[...lastMsgs].reverse().find(m=>{
+    if(m.user===name||String(m.id).startsWith("pending"))return false;
+    return Number(m.ts)>=joinedAt-3000;
+  });
+  if(partnerMsg){
+    events.push({
+      kind:"msg",
+      key:`msg:${partnerMsg.id}`,
+      ts:Number(partnerMsg.ts),
+      user:partnerMsg.user,
+      emoji:"💬",
+      label:"New message",
+      body:messagePreview(partnerMsg),
+    });
+  }
+  const unread=inboxNotes.find(n=>!n.readAt&&n.from!==name);
+  if(unread){
+    events.push({
+      kind:"note",
+      key:`note:${unread.id}`,
+      ts:Number(unread.ts),
+      user:unread.from,
+      emoji:"📝",
+      label:"Left you a note",
+      body:String(unread.body||"").slice(0,160),
+    });
+  }
+  events.sort((a,b)=>b.ts-a.ts);
+  return events[0]||null;
+}
+
+function dismissChatHead(animateOut){
+  const head=$("chat-head");
+  const bubble=$("chat-head-bubble");
+  if(chatHeadEvent){
+    try{localStorage.setItem(CHAT_HEAD_DISMISS_KEY,chatHeadEvent.key);}catch(e){}
+  }
+  if(animateOut&&bubble){
+    bubble.classList.add("chat-head-out");
+    setTimeout(()=>{
+      head.classList.add("hide");
+      bubble.classList.remove("chat-head-out","chat-head-pop");
+      $("chat-head-card").classList.add("hide");
+      document.body.classList.remove("partner-warm");
+    },260);
     return;
   }
-  const key=m.user+":"+m.ts;
-  if(moodDismissed===key||localStorage.getItem(MOOD_DISMISS_KEY)===key){
+  head?.classList.add("hide");
+  bubble?.classList.remove("chat-head-out","chat-head-pop");
+  $("chat-head-card")?.classList.add("hide");
+  document.body.classList.remove("partner-warm");
+}
+
+function updateChatHead(opts={}){
+  const head=$("chat-head");
+  const bubble=$("chat-head-bubble");
+  if(!head||!bubble||mode!=="api"||!name)return;
+  chatHeadEvent=buildChatHeadCandidates();
+  if(!chatHeadEvent){
+    dismissChatHead(false);
+    return;
+  }
+  let dismissed=null;
+  try{dismissed=localStorage.getItem(CHAT_HEAD_DISMISS_KEY);}catch(e){}
+  if(dismissed===chatHeadEvent.key){
+    head.classList.add("hide");
     document.body.classList.remove("partner-warm");
-    flo.classList.add("hide");
     return;
   }
   document.body.classList.add("partner-warm");
-  $("mood-float-emoji").textContent=m.emoji||"💗";
-  const inner=$("mood-float-text");
-  inner.querySelector("strong").textContent="@"+m.user+" · "+(m.label||"Thinking of you");
-  inner.querySelector("span").textContent=m.note||(m.label||"");
-  flo.classList.remove("hide");
+  $("chat-head-emoji").textContent=chatHeadEvent.emoji;
+  $("chat-head-card-title").textContent="@"+chatHeadEvent.user+" · "+chatHeadEvent.label;
+  $("chat-head-card-body").textContent=chatHeadEvent.body||chatHeadEvent.label;
+  head.classList.remove("hide");
+  const isNew=shownChatHeadKey!==chatHeadEvent.key;
+  if(opts.animate&&isNew){
+    bubble.classList.remove("chat-head-pop");
+    void bubble.offsetWidth;
+    bubble.classList.add("chat-head-pop");
+    shownChatHeadKey=chatHeadEvent.key;
+  }else if(isNew)shownChatHeadKey=chatHeadEvent.key;
+}
+
+function initChatHeadDrag(){
+  const head=$("chat-head");
+  const bubble=$("chat-head-bubble");
+  if(!head||!bubble||bubble.dataset.dragInit)return;
+  bubble.dataset.dragInit="1";
+  let sx=0,sy=0,ox=0,oy=0,dragging=false,moved=false;
+  const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
+  bubble.addEventListener("pointerdown",e=>{
+    dragging=true;
+    moved=false;
+    sx=e.clientX;sy=e.clientY;
+    const r=head.getBoundingClientRect();
+    ox=r.left;oy=r.top;
+    head.style.left="auto";
+    head.style.right="auto";
+    head.style.bottom="auto";
+    head.style.top=oy+"px";
+    head.style.left=ox+"px";
+    bubble.setPointerCapture(e.pointerId);
+  });
+  bubble.addEventListener("pointermove",e=>{
+    if(!dragging)return;
+    if(Math.abs(e.clientX-sx)>6||Math.abs(e.clientY-sy)>6)moved=true;
+    const nx=ox+(e.clientX-sx);
+    const ny=oy+(e.clientY-sy);
+    head.style.left=clamp(nx,8,window.innerWidth-70)+"px";
+    head.style.top=clamp(ny,8,window.innerHeight-80)+"px";
+  });
+  const endDrag=e=>{
+    if(!dragging)return;
+    dragging=false;
+    const dx=e.clientX-sx;
+    if(Math.abs(dx)>90){
+      dismissChatHead(true);
+      try{bubble.releasePointerCapture(e.pointerId);}catch(e){}
+      return;
+    }
+    if(!moved){
+      const card=$("chat-head-card");
+      card.classList.toggle("hide");
+    }
+    try{bubble.releasePointerCapture(e.pointerId);}catch(e){}
+  };
+  bubble.addEventListener("pointerup",endDrag);
+  bubble.addEventListener("pointercancel",endDrag);
+  $("chat-head-card-x").onclick=e=>{
+    e.stopPropagation();
+    dismissChatHead(true);
+  };
+}
+
+async function refreshInboxForChatHead(){
+  if(mode!=="api")return;
+  try{
+    const r=await api("/api/notes?box=inbox");
+    inboxNotes=r.notes||[];
+    updateChatHead({animate:false});
+  }catch(e){}
 }
 
 async function refreshMoods(){
   if(mode!=="api")return;
   try{
     const r=await api("/api/moods");
+    const prev=partnerMoods[0]?.ts||0;
     partnerMoods=(r.moods||[]).sort((a,b)=>b.ts-a.ts);
-    applyPartnerMoodUI();
+    const animate=partnerMoods[0]&&partnerMoods[0].ts>prev;
+    updateChatHead({animate});
   }catch(e){}
 }
 function scheduleMoodPoll(){
@@ -1608,6 +1803,8 @@ async function refreshNotes(){
   try{
     const r=await api("/api/notes?box=inbox");
     const notes=r.notes||[];
+    inboxNotes=notes;
+    updateChatHead();
     feed.textContent="";
     if(!notes.length){
       const p=document.createElement("p");
@@ -1641,7 +1838,11 @@ async function refreshNotes(){
 }
 function scheduleNotePoll(){
   if(notePollTimer)clearInterval(notePollTimer);
-  notePollTimer=setInterval(()=>{if(activeTab==="notes"&&!document.hidden)void refreshNotes();},12000);
+  notePollTimer=setInterval(()=>{
+    if(document.hidden)return;
+    void refreshInboxForChatHead();
+    if(activeTab==="notes")void refreshNotes();
+  },12000);
 }
 $("notesend").onclick=async()=>{
   if(mode!=="api")return;
