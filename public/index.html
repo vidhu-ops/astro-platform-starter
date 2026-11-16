@@ -903,7 +903,7 @@ let inboxNotes=[];
 let partnerChipTimer=null;
 const PENDING_PARTNER_KEY="shhh-pending-partner";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="25";
+const APP_SW_BUILD="26";
 let deployCommitShort="";
 let jsErrorToastSent=false;
 const SCRAP_POLL_MS=45000;
@@ -1648,7 +1648,10 @@ $("go").onclick=async()=>{
     else if(e.status===409)setGateError("That username is taken.");
     else setGateError(e.message||"Couldn't sign in. Try again.");
   }finally{
-    if(!name){
+    if(name){
+      btn.disabled=false;
+      btn.textContent="Continue";
+    }else{
       btn.disabled=!mode;
       btn.textContent=prevLabel||"Continue";
     }
@@ -1759,13 +1762,19 @@ async function refreshApi(){
         if(pollTimer)clearInterval(pollTimer);
         if(pollMetaTimer)clearTimeout(pollMetaTimer);
         if(storyPollTimer)clearInterval(storyPollTimer);
+        pollTimer=null;
         msgById.clear();
         $("feed").textContent="";
-        $("gate").classList.remove("hide");
-        $("app").classList.add("hide");
-        if(name)setSavedName(name);
-        if(name)$("u").value=name;
-        $("err").textContent="Session expired — enter the room password to continue.";
+        const remembered=name;
+        if(remembered){
+          setSavedName(remembered);
+          $("u").value=remembered;
+        }
+        name=null;
+        setGateError("Session expired — enter the room password to continue.");
+        showAuthShell(false);
+        enableGateSignIn();
+        $("p").value="";
         $("p").focus();
       }else setStatus((e.data&&e.data.error)||"Couldn't load messages.","err");
     }finally{
