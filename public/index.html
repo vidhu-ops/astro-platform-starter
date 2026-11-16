@@ -239,6 +239,10 @@ header h2{
   transition:color .15s,background .15s,border-color .15s;
 }
 #maintabs button.on{color:var(--tab-on-fg);border-top-color:var(--rose);background:var(--tab-on-bg)}
+#tabapp.update-ready{color:var(--gold);font-weight:700}
+#tabapp.install-tab{color:var(--champagne)}
+#pushprompt{position:fixed;inset:0;background:var(--scrim);z-index:44;display:flex;align-items:center;justify-content:center;padding:20px}
+#pushprompt .card{max-width:400px;width:100%}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
 #dateview{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .updates-toolbar{
@@ -760,7 +764,16 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
   <button type="button" class="on" id="tabchat">Chat</button>
   <button type="button" id="tabdate">Updates</button>
   <button type="button" class="hide" id="tabscrap">Scrapbook</button>
+  <button type="button" class="hide" id="tabapp" title="Install or update app">Install</button>
 </nav>
+<div id="pushprompt" class="hide" role="dialog" aria-modal="true">
+  <div class="card">
+    <h1 style="font-size:24px;margin:0 0 8px;font-family:'Cormorant Garamond',serif;font-style:italic">Stay in the loop</h1>
+    <p class="sub" style="margin-bottom:18px">Turn on notifications for partner moods, messages, and notes — especially when the app is in the background.</p>
+    <button type="button" class="btn" id="pushprompt-go">Turn on notifications</button>
+    <button type="button" class="btn ghost" id="pushprompt-skip" style="margin-top:8px">Not now</button>
+  </div>
+</div>
 <div id="notepanel" class="hide" role="dialog" aria-modal="true">
   <div class="sheet paper-compose">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
@@ -876,7 +889,9 @@ let shownChatHeadKey=null;
 const CHAT_HEAD_DISMISS_KEY="shhh-chat-head-dismiss";
 const PENDING_CHAT_HEAD_KEY="shhh-pending-chat-head";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="18";
+const APP_SW_BUILD="19";
+const PUSH_PROMPT_SEEN_KEY="shhh-push-prompt-seen";
+const PUSH_DENY_HINT_KEY="shhh-push-deny-hint";
 const PARTNER_PIN_EMOJI=[{e:"🦄",label:"Unicorn"},{e:"🐻",label:"Bear hug"}];
 let swRegistration=null;
 let swWaitingWorker=null;
@@ -960,12 +975,104 @@ async function api(path,opts={}){
   return data;
 }
 
-window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;$("install").classList.remove("hide");});
-$("install").onclick=async()=>{
-  if(!deferredInstall)return;
-  deferredInstall.prompt();
-  await deferredInstall.userChoice;
-  deferredInstall=null;$("install").classList.add("hide");
+let installedRelatedApp=false;
+async function probeInstalledRelated(){
+  if(!navigator.getInstalledRelatedApps)return;
+  try{
+    const apps=await navigator.getInstalledRelatedApps();
+    installedRelatedApp=!!(apps&&apps.length);
+    syncAppTab();
+  }catch(e){}
+}
+function isAppInstalled(){
+  try{
+    if(window.matchMedia("(display-mode: standalone)").matches)return true;
+    if(window.matchMedia("(display-mode: fullscreen)").matches)return true;
+    if(window.matchMedia("(display-mode: minimal-ui)").matches)return true;
+  }catch(e){}
+  return Boolean(navigator.standalone)||installedRelatedApp;
+}
+function hasSwUpdatePending(){
+  return !!(swWaitingWorker||swRegistration?.waiting);
+}
+function syncAppTab(){
+  const tab=$("tabapp"),hdrInstall=$("install"),hdrUpdate=$("hdr-update");
+  if(!tab||mode!=="api"){
+    tab?.classList.add("hide");
+    return;
+  }
+  const installed=isAppInstalled();
+  const pending=hasSwUpdatePending();
+  tab.classList.remove("hide","update-ready","install-tab");
+  hdrInstall?.classList.add("hide");
+  hdrUpdate?.classList.add("hide");
+  if(installed){
+    tab.textContent="Update";
+    tab.classList.toggle("update-ready",pending);
+    tab.title=pending?"Get the latest app version":"Check for app updates";
+  }else{
+    tab.textContent="Install";
+    tab.classList.add("install-tab");
+    tab.title="Add shhh to your home screen";
+  }
+}
+async function runInstallFlow(){
+  if(deferredInstall){
+    deferredInstall.prompt();
+    await deferredInstall.userChoice;
+    deferredInstall=null;
+    syncAppTab();
+    return;
+  }
+  setStatus("On iPhone: Share → Add to Home Screen. On Android/Chrome: menu → Install app.","warn");
+}
+async function runTabUpdateFlow(){
+  if(hasSwUpdatePending()){applySwRefresh();return;}
+  try{
+    await swRegistration?.update?.();
+    if(swRegistration?.waiting)applySwRefresh();
+    else setStatus("You're on the latest version.","ok");
+  }catch(e){setStatus("Couldn't check for updates.","err");}
+  syncAppTab();
+}
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;syncAppTab();});
+window.addEventListener("appinstalled",()=>{deferredInstall=null;syncAppTab();void maybeShowPushPrompt();});
+try{window.matchMedia("(display-mode: standalone)").addEventListener("change",syncAppTab);}catch(e){}
+$("install").onclick=()=>void runInstallFlow();
+$("tabapp").onclick=()=>{
+  if(isAppInstalled())void runTabUpdateFlow();
+  else void runInstallFlow();
+};
+function maybeShowPushPrompt(){
+  if(mode!=="api"||!name||!appConfig?.vapidPublicKey)return;
+  if(Notification.permission==="granted"){
+    $("pushprompt")?.classList.add("hide");
+    return;
+  }
+  if(Notification.permission==="denied"){
+    try{
+      if(localStorage.getItem(PUSH_DENY_HINT_KEY))return;
+      localStorage.setItem(PUSH_DENY_HINT_KEY,"1");
+    }catch(e){}
+    setStatus("Notifications are off — enable them in browser/site settings, then tap Enable alerts.","warn");
+    return;
+  }
+  try{if(localStorage.getItem(PUSH_PROMPT_SEEN_KEY))return;}catch(e){}
+  $("pushprompt")?.classList.remove("hide");
+}
+$("pushprompt-go").onclick=async()=>{
+  $("pushprompt")?.classList.add("hide");
+  try{localStorage.setItem(PUSH_PROMPT_SEEN_KEY,"1");}catch(e){}
+  await ensurePushSubscription({prompt:true});
+};
+$("pushprompt-skip").onclick=()=>{
+  $("pushprompt")?.classList.add("hide");
+  try{localStorage.setItem(PUSH_PROMPT_SEEN_KEY,"1");}catch(e){}
+};
+$("pushprompt").onclick=e=>{
+  if(e.target!==$("pushprompt"))return;
+  $("pushprompt").classList.add("hide");
+  try{localStorage.setItem(PUSH_PROMPT_SEEN_KEY,"1");}catch(err){}
 };
 
 async function loadConfig(){
@@ -986,7 +1093,7 @@ function swDismissedForBuild(){
 function offerSwUpdate(worker){
   if(!worker||!navigator.serviceWorker.controller)return;
   swWaitingWorker=worker;
-  $("hdr-update")?.classList.remove("hide");
+  syncAppTab();
   if(swDismissedForBuild())return;
   $("sw-update")?.classList.remove("hide");
 }
@@ -1072,7 +1179,10 @@ async function ensurePushSubscription(opts={}){
       const st=await api("/api/push/status");
       updatePushPill(st.subscribed?"on":"off");
     }catch(e){updatePushPill("on");}
-    if(opts.prompt&&Notification.permission==="granted")setStatus("Alerts on — you'll get partner notifications.","ok");
+    if(opts.prompt&&Notification.permission==="granted"){
+      setStatus("Alerts on — you'll get partner notifications.","ok");
+      $("pushprompt")?.classList.add("hide");
+    }
     return true;
   }catch(e){
     updatePushPill("off");
@@ -1100,6 +1210,8 @@ async function setupPwa(){
     });
     void reg.update().catch(()=>{});
   }catch(e){}
+  void probeInstalledRelated();
+  syncAppTab();
   if(mode==="api")await ensurePushSubscription({prompt:false});
 }
 $("push-alerts").onclick=()=>void ensurePushSubscription({prompt:true});
@@ -1232,7 +1344,9 @@ function enter(n,opts={}){
   joinedAt=opts.joinedAt!=null?opts.joinedAt:Date.now();
   void setupPwa();
   void ensurePushSubscription({prompt:false});
+  syncAppTab();
   if(mode==="api"){
+    window.setTimeout(()=>void maybeShowPushPrompt(),1200);
     if(pollTimer)clearInterval(pollTimer);
     if(pollMetaTimer)clearTimeout(pollMetaTimer);
     refreshApi();
