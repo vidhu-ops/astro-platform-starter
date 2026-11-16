@@ -1,8 +1,7 @@
 /* shhh PWA — network-first HTML so rebrands reach mobile */
-const CACHE = "shhh-v14";
+const CACHE = "shhh-v15";
 
 self.addEventListener("install", (event) => {
-  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE).then((c) =>
       c.addAll(["/manifest.webmanifest", "/icons/icon.svg", "/icons/maskable.svg"]),

@@ -527,6 +527,17 @@ html[data-theme="dark"] #chat-head-bubble{
 body.partner-warm #app{
   background:radial-gradient(900px 420px at 50% -8%,#ffb4c826,transparent);
 }
+#sw-update{
+  position:fixed;left:12px;right:12px;top:max(12px,env(safe-area-inset-top,0px));
+  z-index:80;max-width:520px;margin:0 auto;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:12px 14px;border-radius:16px;border:1px solid var(--line);
+  background:var(--panel);box-shadow:0 12px 36px #00000044;color:var(--text);
+}
+#sw-update.hide{display:none!important}
+#sw-update p{margin:0;flex:1;font-size:14px;line-height:1.35;min-width:160px}
+#sw-update .pill{padding:10px 14px;font-size:13px}
+#sw-update .pill.primary{border-color:var(--rose);color:var(--on-accent);background:linear-gradient(135deg,var(--wine),var(--heat))}
 @media (max-width:520px){
   #gate{padding:20px 16px}
   .brand-mark{font-size:3.25rem}
@@ -558,6 +569,11 @@ body.partner-warm #app{
   <div class="err" id="err"></div>
 </div></div>
 
+<div id="sw-update" class="hide" role="region" aria-label="App update">
+  <p>A newer version is ready.</p>
+  <button type="button" class="pill primary" id="sw-refresh">Refresh</button>
+  <button type="button" class="pill" id="sw-dismiss">Not now</button>
+</div>
 <div id="app" class="hide">
 <header>
   <div class="hdr-brand">
@@ -762,6 +778,11 @@ let chatHeadEvent=null;
 let shownChatHeadKey=null;
 const CHAT_HEAD_DISMISS_KEY="shhh-chat-head-dismiss";
 const PENDING_CHAT_HEAD_KEY="shhh-pending-chat-head";
+const SW_DISMISS_KEY="shhh-sw-dismiss";
+const APP_SW_BUILD="15";
+let swRegistration=null;
+let swWaitingWorker=null;
+let swRefreshPending=false;
 let storyFile=null;
 let storyPosting=false;
 let lastStoriesFp="";
@@ -857,21 +878,50 @@ function urlBase64ToUint8Array(base64){
   return out;
 }
 
+function swDismissedForBuild(){
+  try{return localStorage.getItem(SW_DISMISS_KEY)===APP_SW_BUILD;}catch(e){return false;}
+}
+function offerSwUpdate(worker){
+  if(!worker||!navigator.serviceWorker.controller)return;
+  swWaitingWorker=worker;
+  if(swDismissedForBuild())return;
+  $("sw-update")?.classList.remove("hide");
+}
+function bindSwUpdateUiOnce(){
+  if(bindSwUpdateUiOnce.done)return;
+  bindSwUpdateUiOnce.done=true;
+  $("sw-dismiss")?.addEventListener("click",()=>{
+    $("sw-update")?.classList.add("hide");
+    try{localStorage.setItem(SW_DISMISS_KEY,APP_SW_BUILD);}catch(e){}
+  });
+  $("sw-refresh")?.addEventListener("click",()=>{
+    if(swRefreshPending)return;
+    swRefreshPending=true;
+    $("sw-refresh").disabled=true;
+    const w=swWaitingWorker||swRegistration?.waiting;
+    const finish=()=>{swRefreshPending=false;location.reload();};
+    navigator.serviceWorker.addEventListener("controllerchange",finish,{once:true});
+    if(w)w.postMessage({type:"SKIP_WAITING"});
+    else finish();
+    setTimeout(finish,2500);
+  });
+}
 async function setupPwa(){
   if(!("serviceWorker"in navigator))return;
+  bindSwUpdateUiOnce();
   try{
-    const reg=await navigator.serviceWorker.register("/sw.js?v=14");
+    const reg=await navigator.serviceWorker.register("/sw.js?v="+APP_SW_BUILD);
+    swRegistration=reg;
     navigator.serviceWorker.addEventListener("message",onSwMessage);
-    if(reg.waiting){reg.waiting.postMessage({type:"SKIP_WAITING"});}
+    if(reg.waiting&&navigator.serviceWorker.controller)offerSwUpdate(reg.waiting);
     reg.addEventListener("updatefound",()=>{
       const w=reg.installing;
       if(!w)return;
       w.addEventListener("statechange",()=>{
-        if(w.state==="installed"&&navigator.serviceWorker.controller){
-          w.postMessage({type:"SKIP_WAITING"});
-        }
+        if(w.state==="installed"&&navigator.serviceWorker.controller)offerSwUpdate(w);
       });
     });
+    void reg.update().catch(()=>{});
   }catch(e){}
   if(mode!=="api"||!appConfig?.vapidPublicKey)return;
   try{
