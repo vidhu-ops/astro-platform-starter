@@ -71,8 +71,7 @@ html,body{margin:0;min-height:100%;height:100dvh}
 @supports (-webkit-touch-callout:none){
   html,body{min-height:-webkit-fill-available;height:-webkit-fill-available}
 }
-body.boot #gate,body.boot #app{visibility:hidden}
-body.ready #gate,body.ready #app{visibility:visible}
+/* Shell is visible by default; boot/ready only used for diagnostics */
 html[data-theme="dark"] body{
   background:
     radial-gradient(900px 520px at 78% -8%,#c4758a18,transparent),
@@ -600,6 +599,7 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
 </style>
 </head>
 <body class="boot">
+<noscript><p style="padding:24px;font-family:system-ui,sans-serif">shhh needs JavaScript — enable it and open <a href="https://sexychat.fun">sexychat.fun</a>.</p></noscript>
 <div id="gate"><div class="card">
   <div class="brand">
     <h1 class="brand-mark">shhh</h1>
@@ -620,7 +620,7 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
 <header>
   <div class="hdr-brand">
     <h2>shhh</h2><span class="hdr-tag">private</span>
-    <button type="button" id="build-badge" class="hide" title="Tap to hide build info">build</button>
+    <button type="button" id="build-badge" title="Tap to hide build info">v…</button>
   </div>
   <div class="hdr-actions">
     <span id="online" class="online-pill hide" title="Recently active in the room"></span>
@@ -737,6 +737,7 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
     <p class="subline" id="app-panel-build">—</p>
     <div class="row">
       <button type="button" class="btn" id="app-panel-action">Check for updates</button>
+      <button type="button" class="btn" id="app-panel-refresh">Refresh app</button>
       <button type="button" class="btn ghost" id="app-panel-alerts">Turn on notifications</button>
     </div>
   </section>
@@ -829,6 +830,23 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
 
 <script>
 const $=id=>document.getElementById(id);
+function markBodyReady(){
+  document.body.classList.remove("boot");
+  document.body.classList.add("ready");
+}
+function showAuthShell(loggedIn){
+  markBodyReady();
+  const gate=$("gate"),app=$("app");
+  if(loggedIn){
+    gate?.classList.add("hide");
+    app?.classList.remove("hide");
+  }else{
+    gate?.classList.remove("hide");
+    app?.classList.add("hide");
+  }
+}
+setTimeout(markBodyReady,1800);
+document.addEventListener("DOMContentLoaded",markBodyReady);
 let statusClearTimer=null;
 function setStatus(msg,kind=""){
   const el=$("note");
@@ -877,7 +895,7 @@ let inboxNotes=[];
 let partnerChipTimer=null;
 const PENDING_PARTNER_KEY="shhh-pending-partner";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="23";
+const APP_SW_BUILD="24";
 let deployCommitShort="";
 let jsErrorToastSent=false;
 const SCRAP_POLL_MS=45000;
@@ -1085,6 +1103,14 @@ $("app-panel-action").onclick=()=>{
   else void runInstallFlow();
 };
 $("app-panel-alerts").onclick=()=>void ensurePushSubscription({prompt:true,resubscribe:true});
+async function forceAppRefresh(){
+  setStatus("Refreshing app…","warn");
+  try{await swRegistration?.update?.();}catch(e){}
+  if(hasSwUpdatePending()){applySwRefresh();return;}
+  try{sessionStorage.setItem("shhh-sw-just-updated","1");}catch(e){}
+  window.location.reload();
+}
+$("app-panel-refresh").onclick=()=>void forceAppRefresh();
 function refreshAppPanel(){
   const title=$("app-panel-title"),status=$("app-panel-status"),build=$("app-panel-build");
   if(!title||!status)return;
@@ -1099,8 +1125,13 @@ function refreshAppPanel(){
       :"Up to date — you're on the latest build.";
     const btn=$("app-panel-action");
     if(btn){
-      btn.textContent=pending?"Refresh app":"Check again";
+      btn.textContent=pending?"Apply update":"Check for updates";
       btn.classList.toggle("update-ready",pending);
+    }
+    const ref=$("app-panel-refresh");
+    if(ref){
+      ref.textContent="Refresh app";
+      ref.classList.remove("hide");
     }
   }else{
     title.textContent="Install";
@@ -1120,14 +1151,30 @@ async function refreshBuildBadge(){
   if(!el)return;
   try{
     if(localStorage.getItem("shhh-hide-build-badge")==="1"){el.classList.add("hide");return;}
+    el.classList.remove("hide");
     if(!deployCommitShort){
       const h=await fetch("/api/health").then(r=>r.json()).catch(()=>({}));
       if(h&&h.commit)deployCommitShort=h.commit;
     }
-    const sha=deployCommitShort||"local";
+    const sha=deployCommitShort||"live";
     el.textContent=`v${APP_SW_BUILD} · ${sha}`;
+  }catch(e){
     el.classList.remove("hide");
-  }catch(e){el.classList.add("hide");}
+    el.textContent=`v${APP_SW_BUILD}`;
+  }
+}
+function showApiChrome(){
+  if(mode!=="api")return;
+  $("tabscrap")?.classList.remove("hide");
+  $("tabapp")?.classList.remove("hide");
+  $("build-badge")?.classList.remove("hide");
+  void refreshBuildBadge();
+  syncAppTabLabel();
+  if(appConfig?.vapidPublicKey)updatePushPill(Notification.permission==="granted"?"on":"off");
+  else{
+    const btn=$("push-alerts");
+    if(btn){btn.classList.remove("hide");btn.classList.add("push-off");btn.textContent="Enable alerts";}
+  }
 }
 $("build-badge").onclick=()=>{
   try{
@@ -1143,16 +1190,27 @@ function bindGlobalErrorToast(){
   if(bindGlobalErrorToast.done)return;
   bindGlobalErrorToast.done=true;
   window.addEventListener("error",e=>{
+    markBodyReady();
+    showAuthShell(!!name);
     if(jsErrorToastSent)return;
     jsErrorToastSent=true;
     const msg=(e.message||"Something broke").slice(0,160);
-    setStatus(`App error — refresh the page. (${msg})`,"err");
+    const note=$("note"),err=$("err");
+    const line=`App error — tap App → Refresh app. (${msg})`;
+    if(name&&note)note.textContent=line;
+    else if(err)err.textContent=line;
+    else try{alert(line);}catch(ex){}
   });
   window.addEventListener("unhandledrejection",e=>{
+    markBodyReady();
+    showAuthShell(!!name);
     if(jsErrorToastSent)return;
     jsErrorToastSent=true;
     const msg=String(e.reason?.message||e.reason||"Request failed").slice(0,160);
-    setStatus(`App error — refresh the page. (${msg})`,"err");
+    const note=$("note"),err=$("err");
+    const line=`App error — tap App → Refresh app. (${msg})`;
+    if(name&&note)note.textContent=line;
+    else if(err)err.textContent=line;
   });
 }
 function isIosPwa(){
@@ -1232,6 +1290,7 @@ function offerSwUpdate(worker){
   if(!worker||!navigator.serviceWorker.controller)return;
   swWaitingWorker=worker;
   syncAppTab();
+  refreshAppPanel();
   if(swDismissedForBuild())return;
   $("sw-update")?.classList.remove("hide");
 }
@@ -1420,12 +1479,13 @@ async function detectBackend(){
     }
     if(h&&h.ok&&h.db){
       mode="api";
-      $("tabscrap")?.classList.remove("hide");
+      showApiChrome();
       return;
     }
     if(h&&h.db===false){
       $("err").textContent="Add DATABASE_URL (Neon) in Render → astro-platform-starter → Environment.";
       mode="api";
+      showApiChrome();
       return;
     }
   }catch(e){}
@@ -1439,6 +1499,7 @@ async function detectBackend(){
     }
   }catch(e){}
   if(!mode)$("err").textContent=$("err").textContent||"Chat unavailable.";
+  showAuthShell(false);
 }
 
 (async()=>{
@@ -1469,12 +1530,18 @@ async function detectBackend(){
       if(remembered&&db&&uid)resumeApp(remembered);
       else if(!db||!uid)$("err").textContent="Sign in to claude.ai to use this chat.";
     }
+  }catch(e){
+    markBodyReady();
+    showAuthShell(!!name);
+    const err=$("err");
+    if(err&&!name)err.textContent=(e&&e.message)||"Couldn't start — refresh the page.";
   }finally{
-    document.body.classList.remove("boot");
-    document.body.classList.add("ready");
+    markBodyReady();
+    if(!name)showAuthShell(false);
     bindInstallDetectors();
     bindGlobalErrorToast();
     scheduleSyncAppTabLabelBurst();
+    if(mode==="api")showApiChrome();
     void refreshBuildBadge();
     parseHashPending();
     if(mode==="api"&&name)onInstallContextMaybeChanged();
@@ -1536,7 +1603,9 @@ function resumeApp(n,opts={}){
 }
 
 function enter(n,opts={}){
-  name=n;$("gate").classList.add("hide");$("app").classList.remove("hide");$("me").textContent="@"+n;
+  name=n;
+  showAuthShell(true);
+  $("me").textContent="@"+n;
   joinedAt=opts.joinedAt!=null?opts.joinedAt:Date.now();
   void setupPwa();
   bindInstallDetectors();
@@ -1569,6 +1638,7 @@ function enter(n,opts={}){
   $("gifb").classList.add("hide");
   unsub=db.collection("messages").orderBy("ts","desc").limit(200).onSnapshot(snap=>{lastDocs=snap.docs;lastMsgs=snap.docs.map(d=>d.data()).reverse();render(lastMsgs)},()=>{$("note").textContent="Couldn't load messages."});
   unsubMeta=db.collection("meta").doc("chat").onSnapshot(s=>{const m=s.exists&&s.data();if(m&&m.endedBy&&m.endedBy!==uid&&m.ts>joinedAt)$("note").textContent="Unsaved messages were cleared. Saved messages stay."},()=>{});
+  if(!opts.skipMainTab)setMainTab("chat");
   beginSession();
 }
 

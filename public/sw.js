@@ -1,5 +1,5 @@
 /* shhh PWA — network-first HTML so rebrands reach mobile */
-const CACHE = "shhh-v23";
+const CACHE = "shhh-v24";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
