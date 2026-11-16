@@ -402,7 +402,7 @@ html[data-theme="dark"] .scrap-item{
   transform:none;font-family:"Special Elite",Georgia,serif;font-size:14px;line-height:1.55;
 }
 .scrap-item.quote blockquote{margin:0;font-style:italic}
-.scrap-item.note{
+.scrap-item.note:not(.paper-sheet){
   transform:none;border-radius:16px;background:var(--panel);border:1px solid var(--line);
   color:var(--text);box-shadow:var(--shadow);
 }
@@ -440,15 +440,10 @@ html[data-theme="dark"] .vintage-frame{background:#1c1a16;border-color:#5a5048}
 #scrapwhen{font-size:13px;max-width:220px}
 #noteview{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 #notefeed{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
-.note-card{
-  padding:14px 16px;border-radius:18px;border:1px solid var(--line);
-  background:var(--panel);box-shadow:var(--shadow);
-}
-.note-card.unread{border-color:var(--rose);box-shadow:0 0 0 1px var(--accent-ring)}
-.note-card .from{font-size:12px;color:var(--mute);margin-bottom:6px}
+.note-card.unread{box-shadow:0 0 0 2px var(--rose),2px 5px 16px #0000001a}
+.note-card .from{color:var(--mute);margin-bottom:8px}
 .note-card .from strong{color:var(--rose);font-weight:600}
-.note-card .body{font-size:15px;line-height:1.5;color:var(--text)}
-.note-card .stamp{font-size:10px;color:var(--mute);margin-top:8px;text-align:right}
+.note-card .stamp{color:var(--mute);margin-top:10px;text-align:right;font-size:10px}
 #notebar{
   padding:12px 12px max(12px,env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;
   border-top:1px solid var(--line);background:var(--bar-bg);
@@ -538,6 +533,38 @@ body.partner-warm #app{
 #sw-update p{margin:0;flex:1;font-size:14px;line-height:1.35;min-width:160px}
 #sw-update .pill{padding:10px 14px;font-size:13px}
 #sw-update .pill.primary{border-color:var(--rose);color:var(--on-accent);background:linear-gradient(135deg,var(--wine),var(--heat))}
+.pill.update-ready{border-color:var(--gold);color:var(--champagne);background:linear-gradient(135deg,#5c452f,#9b6b7a);font-weight:700}
+html[data-theme="light"] .pill.update-ready{color:#fff}
+#notefeed{padding:18px 16px 12px;background:linear-gradient(180deg,var(--panel2) 0%,var(--bg) 70%)}
+.paper-sheet{
+  position:relative;padding:18px 18px 20px 20px;
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.92) 0%,#f7f0e4 100%),
+    repeating-linear-gradient(180deg,transparent,transparent 27px,rgba(155,107,122,.12) 28px);
+  border:1px solid #dcccb4;color:#2a2118;
+  box-shadow:2px 5px 16px #0000001a,inset 0 1px 0 #ffffffcc;
+  clip-path:polygon(0 0,100% 0,100% calc(100% - 12px),97% 100%,3% calc(100% - 5px),0 calc(100% - 9px));
+}
+html[data-theme="dark"] .paper-sheet{
+  background:
+    linear-gradient(180deg,#3d352c 0%,#2c2620 100%),
+    repeating-linear-gradient(180deg,transparent,transparent 27px,rgba(201,168,142,.15) 28px);
+  border-color:#6d5e4a;color:#f5ebe0;box-shadow:2px 6px 18px #00000055;
+}
+.note-card.paper-sheet{border-radius:4px 4px 2px 2px;margin:0}
+.note-card .from{font-family:"Outfit",sans-serif;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.note-card .body{font-family:"Libre Baskerville",Georgia,serif;font-size:16px;line-height:1.55}
+.note-card .stamp{font-family:"Outfit",sans-serif}
+#notebar.paper-compose{border-top:2px dashed var(--line);background:linear-gradient(180deg,var(--panel),var(--panel2))}
+#notebar textarea,#notebar input[type=text]{background:rgba(255,253,248,.9);border-color:#d8cbb8}
+html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input[type=text]{background:#2a2520;border-color:#5a5048}
+.scrap-item.note.paper-sheet,.scrap-item.quote.paper-sheet{transform:rotate(-.4deg)}
+.scrap-item.quote.paper-sheet blockquote{font-family:"Libre Baskerville",Georgia,serif}
+#emopinned{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+#emopinned button{
+  flex:1;min-width:120px;border:1px solid var(--rose);border-radius:12px;padding:10px 8px;
+  background:var(--tab-on-bg);font-size:13px;cursor:pointer;color:var(--text);
+}
 @media (max-width:520px){
   #gate{padding:20px 16px}
   .brand-mark{font-size:3.25rem}
@@ -582,6 +609,7 @@ body.partner-warm #app{
   <div class="hdr-actions">
     <span id="online" class="online-pill hide" title="Recently active in the room"></span>
     <span id="me"></span>
+    <button type="button" class="pill hide update-ready" id="hdr-update" title="Get the latest app">Update</button>
     <button type="button" class="pill install hide" id="install">Install</button>
     <button type="button" class="pill heart" id="think" title="Ping everyone with a heart notification">💗<span class="lbl"> Thinking of you</span></button>
     <button type="button" class="pill" id="theme" title="Light / dark mode">◐</button>
@@ -604,6 +632,7 @@ body.partner-warm #app{
   <div id="emo" class="hide">
     <input type="search" id="emoq" placeholder="Search emoji…" autocomplete="off">
     <p class="sub" style="margin:0 0 6px;font-size:11px">Tap sends to partner · hold to add to message</p>
+    <div id="emopinned"></div>
     <div id="emogrid"></div>
   </div>
   <div class="bar-tools">
@@ -672,7 +701,7 @@ body.partner-warm #app{
 </div>
 <div id="noteview" class="hide">
   <div id="notefeed"></div>
-  <div id="notebar">
+  <div id="notebar" class="paper-compose">
     <input type="text" id="noteto" placeholder="@username" autocomplete="username" maxlength="20">
     <textarea id="notebody" placeholder="Leave them a note…" maxlength="2000"></textarea>
     <button type="button" class="btn" id="notesend">Send note</button>
@@ -779,7 +808,8 @@ let shownChatHeadKey=null;
 const CHAT_HEAD_DISMISS_KEY="shhh-chat-head-dismiss";
 const PENDING_CHAT_HEAD_KEY="shhh-pending-chat-head";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="15";
+const APP_SW_BUILD="16";
+const PARTNER_PIN_EMOJI=[{e:"🦄",label:"Unicorn"},{e:"🐻",label:"Bear hug"}];
 let swRegistration=null;
 let swWaitingWorker=null;
 let swRefreshPending=false;
@@ -884,8 +914,25 @@ function swDismissedForBuild(){
 function offerSwUpdate(worker){
   if(!worker||!navigator.serviceWorker.controller)return;
   swWaitingWorker=worker;
+  $("hdr-update")?.classList.remove("hide");
   if(swDismissedForBuild())return;
   $("sw-update")?.classList.remove("hide");
+}
+function applySwRefresh(){
+  if(swRefreshPending)return;
+  swRefreshPending=true;
+  $("sw-refresh")&&( $("sw-refresh").disabled=true);
+  $("hdr-update")&&( $("hdr-update").disabled=true);
+  const w=swWaitingWorker||swRegistration?.waiting;
+  const go=()=>{
+    try{sessionStorage.setItem("shhh-sw-just-updated","1");}catch(e){}
+    window.location.href=window.location.pathname+window.location.search+(window.location.hash||"");
+    window.location.reload();
+  };
+  navigator.serviceWorker.addEventListener("controllerchange",go,{once:true});
+  if(w)w.postMessage({type:"SKIP_WAITING"});
+  else go();
+  setTimeout(go,3000);
 }
 function bindSwUpdateUiOnce(){
   if(bindSwUpdateUiOnce.done)return;
@@ -894,17 +941,8 @@ function bindSwUpdateUiOnce(){
     $("sw-update")?.classList.add("hide");
     try{localStorage.setItem(SW_DISMISS_KEY,APP_SW_BUILD);}catch(e){}
   });
-  $("sw-refresh")?.addEventListener("click",()=>{
-    if(swRefreshPending)return;
-    swRefreshPending=true;
-    $("sw-refresh").disabled=true;
-    const w=swWaitingWorker||swRegistration?.waiting;
-    const finish=()=>{swRefreshPending=false;location.reload();};
-    navigator.serviceWorker.addEventListener("controllerchange",finish,{once:true});
-    if(w)w.postMessage({type:"SKIP_WAITING"});
-    else finish();
-    setTimeout(finish,2500);
-  });
+  $("sw-refresh")?.addEventListener("click",applySwRefresh);
+  $("hdr-update")?.addEventListener("click",applySwRefresh);
 }
 async function setupPwa(){
   if(!("serviceWorker"in navigator))return;
@@ -1674,14 +1712,26 @@ async function loadEmojiList(){
   }
   return emojiList;
 }
+function renderPartnerPinRow(){
+  const row=$("emopinned");
+  if(!row)return;
+  row.textContent="";
+  PARTNER_PIN_EMOJI.forEach(({e,label})=>{
+    const b=document.createElement("button");
+    b.type="button";
+    b.textContent=e+" "+label;
+    b.onclick=()=>void sendPartnerEmoji(e);
+    row.appendChild(b);
+  });
+}
 async function sendPartnerEmoji(glyph){
   if(mode!=="api")return;
   try{
     const r=await api("/api/partner-emoji",{method:"POST",body:{emoji:glyph}});
-    $("note").textContent=(r.emoji||glyph)+" sent to your partner.";
+    setStatus((r.emoji||glyph)+" sent to your partner.","ok");
     $("emo").classList.add("hide");
     await refreshMoods();
-  }catch(e){$("note").textContent=(e.data&&e.data.error)||"Couldn't send emoji.";}
+  }catch(e){setStatus((e.data&&e.data.error)||"Couldn't send emoji.","err");}
 }
 function renderEmojiGrid(filter){
   const grid=$("emogrid");grid.textContent="";
@@ -1719,6 +1769,7 @@ function renderEmojiGrid(filter){
 $("emob").onclick=async()=>{
   $("emo").classList.toggle("hide");
   if(!$("emo").classList.contains("hide")){
+    renderPartnerPinRow();
     await loadEmojiList();
     renderEmojiGrid($("emoq").value);
   }
@@ -1771,14 +1822,32 @@ function initScrapWhenForce(){
   const el=$("scrapwhen");
   if(!el)return;
   const d=new Date();
-  d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
-  el.value=d.toISOString().slice(0,16);
+  const pad=n=>String(n).padStart(2,"0");
+  el.value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function parseDatetimeLocalValue(val){
+  if(!val||typeof val!=="string")return null;
+  const m=val.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if(!m)return null;
+  const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]),Number(m[4]),Number(m[5]),0,0);
+  const ts=d.getTime();
+  return Number.isFinite(ts)?ts:null;
+}
+
+function formatIsoDateLocal(iso){
+  if(!iso||typeof iso!=="string")return iso||"";
+  const p=iso.slice(0,10).split("-");
+  if(p.length!==3)return iso;
+  const d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]),12,0,0);
+  return d.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric",year:"numeric"});
 }
 
 function formatTimelineWhen(ts){
-  const d=new Date(Number(ts));
+  const n=Number(ts);
+  const d=Number.isFinite(n)?new Date(n):new Date();
   return{
-    line1:d.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"}),
+    line1:d.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric",timeZone:undefined}),
     line2:d.toLocaleDateString([],{year:"numeric"})+" · "+d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}),
   };
 }
@@ -2041,7 +2110,7 @@ async function refreshNotes(){
     }
     notes.forEach(n=>{
       const card=document.createElement("article");
-      card.className="note-card"+(n.readAt?"":" unread");
+      card.className="note-card paper-sheet"+(n.readAt?"":" unread");
       const from=document.createElement("div");
       from.className="from";
       from.innerHTML="From <strong>@"+n.from+"</strong>";
@@ -2186,7 +2255,7 @@ function renderCalEvents(day){
     const body=document.createElement("div");
     const st=document.createElement("strong");st.textContent=d.label;body.appendChild(st);
     const meta=document.createElement("div");meta.className="meta";
-    meta.textContent=(d.yearly?"Repeats yearly · ":"")+d.date+(d.user?" · @"+d.user:"");
+    meta.textContent=(d.yearly?"Repeats yearly · ":"")+formatIsoDateLocal(d.date)+(d.user?" · @"+d.user:"");
     body.appendChild(meta);
     if(d.note){const n=document.createElement("div");n.className="scrap-cap";n.textContent=d.note;body.appendChild(n);}
     row.appendChild(body);
@@ -2256,7 +2325,8 @@ function renderScrapItems(){
     const w=formatTimelineWhen(it.memoryAt||it.ts);
     when.innerHTML="<b>"+w.line1+"</b>"+w.line2;
     const card=document.createElement("article");
-    card.className="scrap-item "+(it.type||"note");
+    const typ=it.type||"note";
+    card.className="scrap-item "+typ+(typ==="note"||typ==="quote"?" paper-sheet":"");
     const tag=document.createElement("div");tag.className="scrap-type";
     tag.textContent=(it.type||"note")+" · @"+it.user;
     card.appendChild(tag);
@@ -2332,40 +2402,51 @@ $("scrapsave").onclick=async()=>{
   const title=$("scraptitle").value.trim();
   const dateLabel=$("scrapdatelabel").value.trim();
   const dateVal=$("scrapdate").value;
-  if(!body&&!scrapPickFile&&!dateLabel)return $("note").textContent="Write something, pick a photo, or add a date.";
+  if(!body&&!scrapPickFile&&!dateLabel)return setStatus("Write something, pick a photo, or add a date.","err");
   scrapSaving=true;$("scrapsave").disabled=true;
-  $("note").textContent="Saving…";
+  setStatus("Saving…","warn");
+  let uploadedKey=null;
   try{
     let mediaKey=null,kind=null;
     if(scrapPickFile){
       const fd=new FormData();fd.append("file",scrapPickFile);
       const up=await api("/api/upload",{method:"POST",body:fd});
-      mediaKey=up.mediaKey;kind=scrapPickFile.type;
+      mediaKey=up.mediaKey;kind=scrapPickFile.type;uploadedKey=mediaKey;
     }
     const addItem=!!(body||scrapPickFile);
     const addDate=!!(dateLabel&&dateVal);
-    let memoryAt=Date.now();
-    const whenVal=$("scrapwhen").value;
-    if(whenVal&&!Number.isNaN(new Date(whenVal).getTime()))memoryAt=new Date(whenVal).getTime();
+    const parsedWhen=parseDatetimeLocalValue($("scrapwhen").value);
+    const memoryAt=parsedWhen!=null?parsedWhen:Date.now();
+    let itemSaved=false;
     if(addItem){
       await api("/api/scrapbook/items",{method:"POST",body:{
         type:scrapItemType,title,body,mediaKey,kind,memoryAt,
       }});
+      itemSaved=true;
     }
     if(addDate){
-      await api("/api/scrapbook/dates",{method:"POST",body:{
-        label:dateLabel,date:dateVal,note:body||title,
-        mediaKey:addItem?null:mediaKey,kind:addItem?null:kind,yearly:true,
-      }});
+      try{
+        await api("/api/scrapbook/dates",{method:"POST",body:{
+          label:dateLabel,date:dateVal,note:body||title,
+          mediaKey:addItem?null:mediaKey,kind:addItem?null:kind,yearly:true,
+        }});
+      }catch(dateErr){
+        if(itemSaved){
+          setStatus("Memory saved; calendar date didn't — "+((dateErr.data&&dateErr.data.error)||dateErr.message||"try again"),"warn");
+          await refreshScrapbook();
+          return;
+        }
+        throw dateErr;
+      }
     }
-    $("scrapbody").value="";$("scraptitle").value="";$("scrapdatelabel").value="";
+    $("scrapbody").value="";$("scraptitle").value="";$("scrapdatelabel").value="";$("scrapdate").value="";
     scrapPickFile=null;$("scrapfile").value="";
     initScrapWhenForce();
-    $("note").textContent="Saved to scrapbook.";
+    setStatus("Saved to scrapbook.","ok");
     await refreshScrapbook();
   }catch(e){
     const mb=appConfig?.maxUploadMb||100;
-    $("note").textContent=(e.status===413?`File too large (max ${mb} MB).`:(e.data&&e.data.error))||e.message||"Couldn't save.";
+    setStatus((e.status===413?`File too large (max ${mb} MB).`:(e.data&&e.data.error))||e.message||"Couldn't save.","err");
   }finally{scrapSaving=false;$("scrapsave").disabled=false;}
 };
 

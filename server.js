@@ -191,6 +191,8 @@ const MOOD_PRESETS = {
   love: { emoji: "🥰", label: "Love you", tag: "mood-love" },
   miss: { emoji: "💋", label: "Missing you", tag: "mood-miss" },
   spark: { emoji: "✨", label: "You sparkle", tag: "mood-spark" },
+  unicorn: { emoji: "🦄", label: "Unicorn magic", tag: "mood-unicorn" },
+  bear: { emoji: "🐻", label: "Bear hug", tag: "mood-bear" },
 };
 
 const SCRAP_TYPES = new Set(["memory", "quote", "note"]);
@@ -1499,9 +1501,18 @@ function mapScrapItem(row) {
   };
 }
 
+function formatEventDate(d) {
+  if (d instanceof Date) {
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(d.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+  return String(d).slice(0, 10);
+}
+
 function mapScrapDate(row) {
-  const d = row.event_date;
-  const iso = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+  const iso = formatEventDate(row.event_date);
   return {
     id: row.id,
     user: row.user_name,
