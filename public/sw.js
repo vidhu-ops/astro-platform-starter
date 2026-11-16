@@ -1,5 +1,39 @@
 /* shhh PWA — network-first HTML so rebrands reach mobile */
-const CACHE = "shhh-v33";
+const CACHE = "shhh-v35";
+const PREFS_CACHE = "shhh-prefs";
+const PREFS_URL = "/__alert-prefs";
+let alertPrefs = { sound: true, vibrate: true };
+
+async function loadAlertPrefs() {
+  try {
+    const cache = await caches.open(PREFS_CACHE);
+    const res = await cache.match(PREFS_URL);
+    if (res) {
+      const data = await res.json();
+      if (typeof data.sound === "boolean") alertPrefs.sound = data.sound;
+      if (typeof data.vibrate === "boolean") alertPrefs.vibrate = data.vibrate;
+    }
+  } catch {
+    /* ignore */
+  }
+  return alertPrefs;
+}
+
+async function saveAlertPrefs(next) {
+  alertPrefs = {
+    sound: next?.sound !== false,
+    vibrate: next?.vibrate !== false,
+  };
+  try {
+    const cache = await caches.open(PREFS_CACHE);
+    await cache.put(
+      PREFS_URL,
+      new Response(JSON.stringify(alertPrefs), { headers: { "Content-Type": "application/json" } }),
+    );
+  } catch {
+    /* ignore */
+  }
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -11,15 +45,22 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))),
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => k !== CACHE && k !== PREFS_CACHE).map((k) => caches.delete(k)));
+      await loadAlertPrefs();
+      await self.clients.claim();
+    })(),
   );
-  self.clients.claim();
 });
 
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
   if (event.data?.type === "CLEAR_BADGE") {
     event.waitUntil(clearBadge());
+  }
+  if (event.data?.type === "ALERT_PREFS") {
+    event.waitUntil(saveAlertPrefs(event.data));
   }
 });
 
@@ -111,19 +152,22 @@ self.addEventListener("push", (event) => {
         if (c.visibilityState === "visible") visible = true;
       }
       if (!visible) {
+        const prefs = await loadAlertPrefs();
         const icon = new URL(data.icon || "/icons/icon.svg", self.location.origin).href;
         const badge = new URL(data.badge || "/icons/heart-badge.svg", self.location.origin).href;
-        await self.registration.showNotification(data.title || "shhh", {
+        const opts = {
           body: data.body || "New activity",
           icon,
           badge,
-          tag: data.tag || "shhh",
+          tag: data.tag || payload.chatHeadKey || payload.noteId || payload.msgId || "shhh",
           renotify: true,
           requireInteraction,
-          silent: false,
-          vibrate: requireInteraction ? [80, 40, 80, 40, 140] : [60, 30, 80],
+          silent: !prefs.sound,
+          timestamp: Date.now(),
           data: payload,
-        });
+        };
+        if (prefs.vibrate) opts.vibrate = requireInteraction ? [80, 40, 80, 40, 140] : [60, 30, 80];
+        await self.registration.showNotification(data.title || "shhh", opts);
       }
       await setBadge(1);
     })(),
