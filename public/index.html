@@ -903,7 +903,7 @@ let inboxNotes=[];
 let partnerChipTimer=null;
 const PENDING_PARTNER_KEY="shhh-pending-partner";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="27";
+const APP_SW_BUILD="28";
 let healthOkHint=false;
 const LOGIN_GRACE_MS=4000;
 let deployCommitShort="";
@@ -1066,14 +1066,26 @@ async function shouldBounceToGateOn401(){
   return true;
 }
 async function verifySessionAfterEnter(expectedUser){
-  const me=await api("/api/auth/me");
-  if(!me?.username){
-    throw Object.assign(new Error("Session didn't stick — try a normal browser window (not private), then sign in again."),{status:0});
+  let lastErr=null;
+  for(let i=0;i<5;i++){
+    try{
+      const me=await api("/api/auth/me");
+      if(me?.username){
+        if(expectedUser&&me.username!==expectedUser){
+          throw Object.assign(new Error("Session username mismatch — try signing in again."),{status:0});
+        }
+        return me;
+      }
+    }catch(e){
+      lastErr=e;
+      if(e.status&&e.status!==401)throw e;
+    }
+    await new Promise(r=>setTimeout(r,200+(i*150)));
   }
-  if(expectedUser&&me.username!==expectedUser){
-    throw Object.assign(new Error("Session username mismatch — try signing in again."),{status:0});
-  }
-  return me;
+  throw Object.assign(
+    new Error(lastErr?.message||"Session didn't stick — allow cookies for sexychat.fun and try again (not private mode)."),
+    {status:0}
+  );
 }
 async function api(path,opts={},timeoutMs=30000){
   const headers={...(opts.headers||{})};
