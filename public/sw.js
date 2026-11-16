@@ -1,5 +1,5 @@
 /* shhh PWA — network-first HTML so rebrands reach mobile */
-const CACHE = "shhh-v21";
+const CACHE = "shhh-v22";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -100,13 +100,16 @@ self.addEventListener("push", (event) => {
   const requireInteraction = shouldRequireInteraction(data);
   event.waitUntil(
     (async () => {
+      const icon = new URL(data.icon || "/icons/icon.svg", self.location.origin).href;
+      const badge = new URL(data.badge || "/icons/heart-badge.svg", self.location.origin).href;
       await self.registration.showNotification(data.title || "shhh", {
-        body: data.body,
-        icon: data.icon || "/icons/icon.svg",
-        badge: data.badge || "/icons/heart-badge.svg",
+        body: data.body || "New activity",
+        icon,
+        badge,
         tag: data.tag || "shhh",
         renotify: true,
         requireInteraction,
+        silent: false,
         vibrate: requireInteraction ? [80, 40, 80, 40, 120] : [60, 30, 60],
         data: payload,
       });

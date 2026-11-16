@@ -797,13 +797,24 @@ app.get(
   authMiddleware,
   asyncHandler(async (req, res) => {
     const { rows } = await pool.query(
-      `SELECT COUNT(*)::int AS c FROM chat_push_subscriptions WHERE user_id = $1`,
+      `SELECT endpoint FROM chat_push_subscriptions WHERE user_id = $1`,
       [req.user.user_id],
     );
+    const hosts = [];
+    for (const row of rows) {
+      try {
+        hosts.push(new URL(row.endpoint).hostname);
+      } catch {
+        /* skip */
+      }
+    }
     res.json({
       pushEnabled: isPushReady(),
-      subscribed: (rows[0]?.c || 0) > 0,
-      endpoints: rows[0]?.c || 0,
+      vapidConfigured: isPushReady(),
+      subscribed: rows.length > 0,
+      endpoints: rows.length,
+      endpointLength: rows[0]?.endpoint?.length || 0,
+      endpointHosts: [...new Set(hosts)],
     });
   }),
 );

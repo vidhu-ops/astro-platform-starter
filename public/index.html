@@ -241,6 +241,7 @@ header h2{
 #maintabs button.on{color:var(--tab-on-fg);border-top-color:var(--rose);background:var(--tab-on-bg)}
 #tabapp.update-ready{color:var(--gold);font-weight:700}
 #tabapp.install-tab{color:var(--champagne)}
+#tabapp .tab-label.hide{display:none!important}
 #pushprompt{position:fixed;inset:0;background:var(--scrim);z-index:44;display:flex;align-items:center;justify-content:center;padding:20px}
 #pushprompt .card{max-width:400px;width:100%}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
@@ -716,7 +717,10 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
   <button type="button" class="on" id="tabchat">Chat</button>
   <button type="button" id="tabdate">Updates</button>
   <button type="button" class="hide" id="tabscrap">Scrapbook</button>
-  <button type="button" class="hide" id="tabapp" title="Install or update app">Install</button>
+  <button type="button" class="hide" id="tabapp" title="Install or update app">
+    <span id="tabapp-install-label" class="tab-label">Install</span>
+    <span id="tabapp-update-label" class="tab-label hide">Update</span>
+  </button>
 </nav>
 <div id="pushprompt" class="hide" role="dialog" aria-modal="true">
   <div class="card">
@@ -845,10 +849,12 @@ let inboxNotes=[];
 let partnerChipTimer=null;
 const PENDING_PARTNER_KEY="shhh-pending-partner";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="21";
+const APP_SW_BUILD="22";
 const SCRAP_POLL_MS=45000;
 const PUSH_PROMPT_SEEN_KEY="shhh-push-prompt-seen";
+const PUSH_PROMPT_SESSION_KEY="shhh-push-prompt-session";
 const PUSH_DENY_HINT_KEY="shhh-push-deny-hint";
+let lastPushDebug=null;
 const PARTNER_PIN_EMOJI=[{e:"🦄",label:"Unicorn"},{e:"🐻",label:"Bear hug"}];
 let swRegistration=null;
 let swWaitingWorker=null;
@@ -933,44 +939,91 @@ async function api(path,opts={}){
 }
 
 let installedRelatedApp=false;
+let installDetectBound=false;
 async function probeInstalledRelated(){
   if(!navigator.getInstalledRelatedApps)return;
   try{
     const apps=await navigator.getInstalledRelatedApps();
     installedRelatedApp=!!(apps&&apps.length);
-    syncAppTab();
+    syncAppTabLabel();
   }catch(e){}
 }
-function isAppInstalled(){
+function isStandaloneDisplayMode(){
   try{
     if(window.matchMedia("(display-mode: standalone)").matches)return true;
     if(window.matchMedia("(display-mode: fullscreen)").matches)return true;
     if(window.matchMedia("(display-mode: minimal-ui)").matches)return true;
+    if(window.isSecureContext&&!window.matchMedia("(display-mode: browser)").matches)return true;
   }catch(e){}
-  return Boolean(navigator.standalone)||installedRelatedApp;
+  return false;
+}
+function isAppInstalled(){
+  if(navigator.standalone===true)return true;
+  if(isStandaloneDisplayMode())return true;
+  if(installedRelatedApp)return true;
+  try{if(sessionStorage.getItem("shhh-standalone-session")==="1")return true;}catch(e){}
+  return false;
+}
+function markStandaloneSession(){
+  if(!isAppInstalled())return;
+  try{sessionStorage.setItem("shhh-standalone-session","1");}catch(e){}
 }
 function hasSwUpdatePending(){
   return !!(swWaitingWorker||swRegistration?.waiting);
 }
-function syncAppTab(){
+function syncAppTabLabel(){
   const tab=$("tabapp"),hdrInstall=$("install"),hdrUpdate=$("hdr-update");
+  const labInstall=$("tabapp-install-label"),labUpdate=$("tabapp-update-label");
   if(!tab||mode!=="api"){
     tab?.classList.add("hide");
     return;
   }
+  markStandaloneSession();
   const installed=isAppInstalled();
   const pending=hasSwUpdatePending();
   tab.classList.remove("hide","update-ready","install-tab");
   hdrInstall?.classList.add("hide");
   hdrUpdate?.classList.add("hide");
   if(installed){
-    tab.textContent="Update";
+    labInstall?.classList.add("hide");
+    labUpdate?.classList.remove("hide");
     tab.classList.toggle("update-ready",pending);
     tab.title=pending?"Get the latest app version":"Check for app updates";
+    tab.setAttribute("aria-label","Update app");
   }else{
-    tab.textContent="Install";
+    labUpdate?.classList.add("hide");
+    labInstall?.classList.remove("hide");
     tab.classList.add("install-tab");
     tab.title="Add shhh to your home screen";
+    tab.setAttribute("aria-label","Install app");
+  }
+}
+const syncAppTab=syncAppTabLabel;
+function scheduleSyncAppTabLabelBurst(){
+  syncAppTabLabel();
+  requestAnimationFrame(syncAppTabLabel);
+  setTimeout(syncAppTabLabel,0);
+  setTimeout(syncAppTabLabel,300);
+  setTimeout(syncAppTabLabel,1200);
+}
+function onInstallContextMaybeChanged(){
+  markStandaloneSession();
+  syncAppTabLabel();
+  if(!isAppInstalled()||mode!=="api"||!name)return;
+  void ensurePushSubscription({prompt:false,resubscribe:true});
+  void maybeShowPushPrompt();
+}
+function bindInstallDetectors(){
+  if(installDetectBound)return;
+  installDetectBound=true;
+  document.addEventListener("visibilitychange",()=>{
+    if(!document.hidden)onInstallContextMaybeChanged();
+  });
+  window.addEventListener("pageshow",onInstallContextMaybeChanged);
+  for(const dm of["standalone","fullscreen","minimal-ui","browser"]){
+    try{
+      window.matchMedia(`(display-mode: ${dm})`).addEventListener("change",onInstallContextMaybeChanged);
+    }catch(e){}
   }
 }
 async function runInstallFlow(){
@@ -988,22 +1041,40 @@ async function runTabUpdateFlow(){
   try{
     await swRegistration?.update?.();
     if(swRegistration?.waiting)applySwRefresh();
-    else setStatus("You're on the latest version.","ok");
+    else setStatus("You're up to date.","ok");
   }catch(e){setStatus("Couldn't check for updates.","err");}
   syncAppTab();
 }
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;syncAppTab();});
 window.addEventListener("appinstalled",()=>{deferredInstall=null;syncAppTab();void maybeShowPushPrompt();});
-try{window.matchMedia("(display-mode: standalone)").addEventListener("change",syncAppTab);}catch(e){}
 $("install").onclick=()=>void runInstallFlow();
 $("tabapp").onclick=()=>{
   if(isAppInstalled())void runTabUpdateFlow();
   else void runInstallFlow();
 };
+function isIosPwa(){
+  return /iPad|iPhone|iPod/i.test(navigator.userAgent||"")||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+}
+function pushPromptAlreadySeen(){
+  const standalone=isAppInstalled();
+  try{
+    if(standalone)return sessionStorage.getItem(PUSH_PROMPT_SESSION_KEY)==="1";
+    return localStorage.getItem(PUSH_PROMPT_SEEN_KEY)==="1";
+  }catch(e){return false;}
+}
+function markPushPromptSeen(){
+  const standalone=isAppInstalled();
+  try{
+    if(standalone)sessionStorage.setItem(PUSH_PROMPT_SESSION_KEY,"1");
+    else localStorage.setItem(PUSH_PROMPT_SEEN_KEY,"1");
+  }catch(e){}
+}
 function maybeShowPushPrompt(){
   if(mode!=="api"||!name||!appConfig?.vapidPublicKey)return;
+  if(!window.isSecureContext)return;
   if(Notification.permission==="granted"){
     $("pushprompt")?.classList.add("hide");
+    void ensurePushSubscription({prompt:false,resubscribe:true});
     return;
   }
   if(Notification.permission==="denied"){
@@ -1011,25 +1082,28 @@ function maybeShowPushPrompt(){
       if(localStorage.getItem(PUSH_DENY_HINT_KEY))return;
       localStorage.setItem(PUSH_DENY_HINT_KEY,"1");
     }catch(e){}
-    setStatus("Notifications are off — enable them in browser/site settings, then tap Enable alerts.","warn");
+    const hint=isIosPwa()
+      ?"Notifications off — iOS: Settings → Notifications → shhh → Allow. Then reopen the app and tap Enable alerts."
+      :"Notifications are off — enable them in browser/site settings, then tap Enable alerts.";
+    setStatus(hint,"warn");
     return;
   }
-  try{if(localStorage.getItem(PUSH_PROMPT_SEEN_KEY))return;}catch(e){}
+  if(pushPromptAlreadySeen())return;
   $("pushprompt")?.classList.remove("hide");
 }
 $("pushprompt-go").onclick=async()=>{
   $("pushprompt")?.classList.add("hide");
-  try{localStorage.setItem(PUSH_PROMPT_SEEN_KEY,"1");}catch(e){}
-  await ensurePushSubscription({prompt:true});
+  markPushPromptSeen();
+  await ensurePushSubscription({prompt:true,resubscribe:true});
 };
 $("pushprompt-skip").onclick=()=>{
-  $("pushprompt")?.classList.add("hide");
-  try{localStorage.setItem(PUSH_PROMPT_SEEN_KEY,"1");}catch(e){}
+  $("pushprompt").classList.add("hide");
+  markPushPromptSeen();
 };
 $("pushprompt").onclick=e=>{
   if(e.target!==$("pushprompt"))return;
   $("pushprompt").classList.add("hide");
-  try{localStorage.setItem(PUSH_PROMPT_SEEN_KEY,"1");}catch(err){}
+  markPushPromptSeen();
 };
 
 async function loadConfig(){
@@ -1079,7 +1153,7 @@ function bindSwUpdateUiOnce(){
   $("sw-refresh")?.addEventListener("click",applySwRefresh);
   $("hdr-update")?.addEventListener("click",applySwRefresh);
 }
-function updatePushPill(state){
+function updatePushPill(state,debug=null){
   const btn=$("push-alerts");
   if(!btn||mode!=="api")return;
   btn.classList.remove("hide","push-off","push-on","push-blocked");
@@ -1088,62 +1162,102 @@ function updatePushPill(state){
     return;
   }
   btn.classList.remove("hide");
+  const dbg=debug||lastPushDebug;
+  const dbgTitle=dbg?` | perm=${dbg.permission} browserSub=${dbg.browserSubscribed} serverSub=${dbg.serverSubscribed} epLen=${dbg.endpointLength??"?"}`:"";
   if(state==="on"){
     btn.classList.add("push-on");
     btn.textContent="Alerts on";
-    btn.title="Notifications enabled for this device";
+    btn.title="Notifications enabled for this device"+dbgTitle;
   }else if(state==="blocked"){
     btn.classList.add("push-blocked");
     btn.textContent="Alerts blocked";
-    btn.title="Enable in browser settings → notifications for this site";
+    btn.title=(isIosPwa()?"iOS: Settings → Notifications → shhh":"Enable in browser settings → notifications for this site")+dbgTitle;
   }else{
     btn.classList.add("push-off");
     btn.textContent="Enable alerts";
-    btn.title="Turn on push for partner moods, messages & notes";
+    btn.title="Turn on push for partner moods, messages & notes"+dbgTitle;
   }
 }
 async function ensurePushSubscription(opts={}){
   if(mode!=="api"||!appConfig?.vapidPublicKey)return false;
+  if(!window.isSecureContext){
+    updatePushPill("off");
+    if(opts.prompt)setStatus("Alerts need HTTPS — open https://sexychat.fun.","err");
+    return false;
+  }
   if(!("serviceWorker"in navigator)||!("PushManager"in window)){
     updatePushPill("off");
+    if(opts.prompt)setStatus("This browser does not support push notifications.","err");
     return false;
   }
   try{
     const reg=await navigator.serviceWorker.ready;
     let perm=Notification.permission;
+    let serverSt=null;
+    try{serverSt=await api("/api/push/status");}catch(e){}
     if(perm==="denied"){
-      updatePushPill("blocked");
-      if(opts.prompt)setStatus("Notifications blocked — allow alerts for sexychat.fun in browser settings, then tap Enable alerts.","err");
+      lastPushDebug={permission:perm,browserSubscribed:false,serverSubscribed:!!serverSt?.subscribed,endpointLength:serverSt?.endpointLength??0,pushEnabled:!!serverSt?.pushEnabled};
+      updatePushPill("blocked",lastPushDebug);
+      if(opts.prompt){
+        const msg=isIosPwa()
+          ?"Notifications blocked — open iOS Settings → Notifications → shhh → Allow Notifications, then tap Enable alerts here."
+          :"Notifications blocked — allow alerts for this site in browser settings, then tap Enable alerts.";
+        setStatus(msg,"err");
+      }
       return false;
     }
-    let sub=await reg.pushManager.getSubscription();
-    if(!sub&&opts.prompt&&perm==="default"){
+    if(perm==="default"&&opts.prompt){
       perm=await Notification.requestPermission();
     }
-    if(!sub&&perm==="granted"){
-      sub=await reg.pushManager.subscribe({
-        userVisibleOnly:true,
-        applicationServerKey:urlBase64ToUint8Array(appConfig.vapidPublicKey),
-      });
+    let sub=await reg.pushManager.getSubscription();
+    const serverSubscribed=!!serverSt?.subscribed;
+    const needsSubscribe=perm==="granted"&&(!sub||!serverSubscribed||opts.resubscribe);
+    if(needsSubscribe){
+      if(sub&&!serverSubscribed){
+        try{await sub.unsubscribe();}catch(e){}
+        sub=null;
+      }
+      if(!sub){
+        sub=await reg.pushManager.subscribe({
+          userVisibleOnly:true,
+          applicationServerKey:urlBase64ToUint8Array(appConfig.vapidPublicKey),
+        });
+      }
     }
-    if(!sub){
-      updatePushPill("off");
-      return false;
+    if(sub&&perm==="granted"&&(needsSubscribe||!serverSubscribed)){
+      const json=sub.toJSON();
+      await api("/api/push/subscribe",{method:"POST",body:{endpoint:json.endpoint,keys:json.keys}});
+      try{serverSt=await api("/api/push/status");}catch(e){}
+    }else if(perm==="granted"&&sub){
+      try{serverSt=await api("/api/push/status");}catch(e){}
     }
-    const json=sub.toJSON();
-    await api("/api/push/subscribe",{method:"POST",body:{endpoint:json.endpoint,keys:json.keys}});
-    try{
-      const st=await api("/api/push/status");
-      updatePushPill(st.subscribed?"on":"off");
-    }catch(e){updatePushPill("on");}
-    if(opts.prompt&&Notification.permission==="granted"){
+    lastPushDebug={
+      permission:Notification.permission,
+      browserSubscribed:!!sub,
+      serverSubscribed:!!serverSt?.subscribed,
+      endpointLength:serverSt?.endpointLength??(sub?.endpoint?.length||0),
+      pushEnabled:!!serverSt?.pushEnabled,
+      vapidConfigured:!!serverSt?.vapidConfigured,
+      standalone:isAppInstalled(),
+      secureContext:!!window.isSecureContext,
+    };
+    if(serverSt?.subscribed&&Notification.permission==="granted")updatePushPill("on",lastPushDebug);
+    else if(Notification.permission==="granted"&&!sub)updatePushPill("off",lastPushDebug);
+    else if(Notification.permission==="default")updatePushPill("off",lastPushDebug);
+    else updatePushPill("off",lastPushDebug);
+    if(opts.prompt&&Notification.permission==="granted"&&serverSt?.subscribed){
       setStatus("Alerts on — you'll get partner notifications.","ok");
       $("pushprompt")?.classList.add("hide");
+      return true;
     }
-    return true;
+    if(opts.prompt&&Notification.permission==="granted"&&!serverSt?.subscribed){
+      setStatus("Permission granted but subscription failed — tap Enable alerts again.","err");
+      return false;
+    }
+    return !!serverSt?.subscribed&&!!sub;
   }catch(e){
     updatePushPill("off");
-    if(opts.prompt)setStatus((e.data&&e.data.error)||"Couldn't enable alerts.","err");
+    if(opts.prompt)setStatus((e.data&&e.data.error)||e.message||"Couldn't enable alerts.","err");
     return false;
   }
 }
@@ -1168,10 +1282,21 @@ async function setupPwa(){
     void reg.update().catch(()=>{});
   }catch(e){}
   void probeInstalledRelated();
-  syncAppTab();
-  if(mode==="api")await ensurePushSubscription({prompt:false});
+  bindInstallDetectors();
+  scheduleSyncAppTabLabelBurst();
+  syncAppTabLabel();
+  if(mode==="api")await ensurePushSubscription({prompt:false,resubscribe:true});
 }
-$("push-alerts").onclick=()=>void ensurePushSubscription({prompt:true});
+$("push-alerts").onclick=async()=>{
+  if(Notification.permission==="denied"){
+    const msg=isIosPwa()
+      ?"Open iOS Settings → Notifications → shhh → Allow Notifications. Then return here and tap Enable alerts."
+      :"Allow notifications for this site in browser settings, then tap Enable alerts.";
+    setStatus(msg,"warn");
+    return;
+  }
+  await ensurePushSubscription({prompt:true,resubscribe:true});
+};
 
 async function detectBackend(){
   await loadConfig();
@@ -1300,10 +1425,12 @@ function enter(n,opts={}){
   name=n;$("gate").classList.add("hide");$("app").classList.remove("hide");$("me").textContent="@"+n;
   joinedAt=opts.joinedAt!=null?opts.joinedAt:Date.now();
   void setupPwa();
-  void ensurePushSubscription({prompt:false});
-  syncAppTab();
+  bindInstallDetectors();
+  scheduleSyncAppTabLabelBurst();
+  onInstallContextMaybeChanged();
+  void ensurePushSubscription({prompt:false,resubscribe:true});
   if(mode==="api"){
-    window.setTimeout(()=>void maybeShowPushPrompt(),1200);
+    window.setTimeout(()=>void maybeShowPushPrompt(),900);
     if(pollTimer)clearInterval(pollTimer);
     if(pollMetaTimer)clearTimeout(pollMetaTimer);
     refreshApi();
@@ -1336,7 +1463,9 @@ function onVis(){
     void pingPresence();
     void refreshMoods();
     void refreshInboxSummary();
-    void ensurePushSubscription({prompt:false});
+    void ensurePushSubscription({prompt:false,resubscribe:true});
+    syncAppTabLabel();
+    if(isAppInstalled())void maybeShowPushPrompt();
     applyStoredPendingPartner();
   },400);
 }
