@@ -1,5 +1,5 @@
 /* shhh PWA — network-first HTML so rebrands reach mobile */
-const CACHE = "shhh-v38";
+const CACHE = "shhh-v39";
 const PREFS_CACHE = "shhh-prefs";
 const PREFS_URL = "/__alert-prefs";
 let alertPrefs = { master: true };

@@ -143,14 +143,15 @@ header{
   padding:max(10px,env(safe-area-inset-top,0px)) 12px 10px;border-bottom:1px solid var(--line);
   background:var(--header-bg);backdrop-filter:blur(16px);position:relative;z-index:20;
 }
-.hdr-brand{display:flex;align-items:baseline;gap:8px;min-width:0;flex:1}
+.hdr-brand{display:flex;align-items:baseline;gap:8px;min-width:0;flex:1 1 auto;overflow:hidden}
 header h2{
   margin:0;font-family:"Cormorant Garamond",Georgia,serif;font-size:26px;font-weight:600;font-style:italic;letter-spacing:-.03em;
   background:linear-gradient(100deg,var(--brand-a),var(--brand-b));-webkit-background-clip:text;background-clip:text;color:transparent;
 }
 .hdr-tag{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--mute);font-weight:500}
-.hdr-actions{display:flex;align-items:center;gap:4px;flex-wrap:nowrap;justify-content:flex-end;flex-shrink:0}
-.hdr-actions span{color:var(--text);opacity:.72;font-size:12px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hdr-actions{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;justify-content:flex-end;flex:0 0 auto;min-width:0;max-width:52%}
+.hdr-actions span{color:var(--text);opacity:.72;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#hdr-menu{flex-shrink:0}
 .hdr-icon{
   width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--panel);
   color:var(--text);font-size:18px;line-height:1;padding:0;cursor:pointer;display:grid;place-items:center;
@@ -243,21 +244,30 @@ header h2{
 #replybar strong{color:var(--rose);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #replybar button{margin-left:auto;background:none;border:0;color:var(--mute);cursor:pointer;font-size:16px;line-height:1;padding:2px 4px}
 #bar{
-  display:flex;flex-direction:column;gap:10px;padding:10px 12px max(10px,env(safe-area-inset-bottom,0px));
+  display:flex;flex-direction:column;gap:6px;padding:8px 10px max(8px,env(safe-area-inset-bottom,0px));
   border-top:1px solid var(--line);background:var(--bar-bg);backdrop-filter:blur(20px);position:relative;
 }
-.bar-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.bar-compose{display:flex;gap:8px;align-items:flex-end;width:100%}
+.bar-compose{display:flex;gap:6px;align-items:flex-end;width:100%}
+.bar-plus-wrap{position:relative;flex:none}
+.bar-tools{
+  position:absolute;left:0;bottom:calc(100% + 8px);z-index:8;
+  display:flex;gap:6px;align-items:center;
+  padding:6px;border-radius:16px;border:1px solid var(--line);
+  background:var(--panel);box-shadow:0 10px 28px #00000044;
+}
+.bar-tools.hide{display:none!important}
 #txt{
-  margin:0;flex:1;min-height:48px;max-height:min(168px,32vh);resize:none;
-  border-radius:20px;background:var(--input-bg);border:1px solid var(--line);
-  padding:12px 16px;font-size:16px;line-height:1.4;overflow-y:auto;
+  margin:0;flex:1;min-height:36px;max-height:min(96px,28vh);resize:none;
+  border-radius:18px;background:var(--input-bg);border:1px solid var(--line);
+  padding:8px 12px;font-size:14px;line-height:1.35;overflow-y:auto;
   -webkit-overflow-scrolling:touch;color:var(--text);
 }
 #txt::placeholder{color:var(--mute)}
 #bar input[type=text],#storybar input[type=text]{margin:0;flex:1;border-radius:20px;background:var(--input-bg);border:1px solid var(--line);padding:12px 16px;font-size:16px;color:var(--text)}
-.ic{width:44px;height:44px;flex:none;border-radius:50%;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-size:17px}
-.send{width:48px;height:44px;flex:none;border:0;border-radius:50%;background:linear-gradient(135deg,var(--wine),var(--heat));cursor:pointer;font-size:17px;color:var(--on-accent);box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.ic{width:36px;height:36px;flex:none;border-radius:50%;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-size:16px;display:grid;place-items:center;padding:0}
+#plusb{font-size:22px;line-height:1;font-weight:400;transition:transform .15s}
+#plusb.on{transform:rotate(45deg);border-color:var(--rose);color:var(--rose)}
+.send{width:36px;height:36px;flex:none;border:0;border-radius:50%;background:linear-gradient(135deg,var(--wine),var(--heat));cursor:pointer;font-size:15px;color:var(--on-accent);box-shadow:0 4px 14px rgba(0,0,0,.18);display:grid;place-items:center;padding:0}
 #maintabs{
   display:flex;border-top:1px solid var(--line);background:var(--bar-bg);
   padding-bottom:max(6px,env(safe-area-inset-bottom,0));flex-shrink:0;
@@ -418,7 +428,7 @@ header h2{
 .online-pill{
   display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;
   border:1px solid var(--line);background:var(--panel2);font-size:11px;font-weight:500;color:var(--text);
-  max-width:min(240px,42vw);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  max-width:min(160px,28vw);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;min-width:0;
 }
 .online-pill::before{content:"";width:7px;height:7px;border-radius:50%;background:#5ec469;flex:none;box-shadow:0 0 0 2px #5ec46944}
 .online-pill.empty{opacity:.65}
@@ -601,8 +611,8 @@ html[data-theme="dark"] .vintage-frame{background:#1c1a16;border-color:#5a5048}
 #moodnote{width:100%;margin:0 0 10px;border-radius:14px;border:1px solid var(--line);
   background:var(--input-bg);padding:12px;font-size:15px;color:var(--text)}
 #partner-chip{
-  max-width:min(42vw,210px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  font-size:10px;padding:6px 10px;border-color:var(--rose);color:var(--rose);cursor:pointer;
+  max-width:min(28vw,140px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:10px;padding:6px 10px;border-color:var(--rose);color:var(--rose);cursor:pointer;flex-shrink:1;min-width:0;
 }
 #attach-preview{margin:0 0 6px;border-radius:10px;overflow:hidden;max-width:140px}
 #attach-preview img,#attach-preview video{display:block;max-height:72px;max-width:100%;border-radius:8px}
@@ -647,16 +657,17 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
 @media (max-width:520px){
   #gate{padding:20px 16px}
   .brand-mark{font-size:3.25rem}
-  header{padding:12px 12px 10px}
-  header h2{font-size:1.75rem}
+  header{padding:10px 10px 8px;gap:6px}
+  header h2{font-size:1.6rem}
   .hdr-brand{flex:1;min-width:0}
-  .hdr-tag{font-size:9px;letter-spacing:.2em}
-  .hdr-actions{width:auto;justify-content:flex-end;gap:4px}
-  .hdr-actions span{order:0;width:auto;max-width:90px;margin:0;font-size:11px}
+  .hdr-tag,#build-badge{display:none!important}
+  .hdr-actions{width:auto;max-width:none;justify-content:flex-end;gap:6px}
+  #online.online-pill{max-width:22px;padding:7px;font-size:0;gap:0;color:transparent}
+  #partner-chip{display:none!important}
   .pill{padding:7px 10px;font-size:10px}
-  #bar{padding:10px 10px max(12px,env(safe-area-inset-bottom,0px));gap:6px}
-  .ic{width:44px;height:44px;font-size:16px}
-  #scrollfab{bottom:calc(108px + env(safe-area-inset-bottom,0px));right:10px}
+  #bar{padding:8px 8px max(10px,env(safe-area-inset-bottom,0px));gap:6px}
+  .ic{width:36px;height:36px;font-size:15px}
+  #scrollfab{bottom:calc(92px + env(safe-area-inset-bottom,0px));right:10px}
 }
 </style>
 </head>
@@ -751,15 +762,18 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
 </div>
 <div id="replybar" class="hide">↩ Replying to <strong id="replywho"></strong> <button type="button" id="replyx" aria-label="Cancel reply">×</button></div>
 <div id="bar">
-  <div class="bar-tools">
-    <button type="button" class="ic polish" id="polish" title="Make wording better">✦</button>
-    <button type="button" class="ic" id="gifb" title="Browse spicy & cute GIFs">GIF</button>
-    <button type="button" class="ic" id="once" title="View once">👁</button>
-    <button type="button" class="ic" id="att" title="Attach">📎</button>
-    <input type="file" id="file" class="hide" accept="image/*,video/*,.pdf,.txt,.csv,.md,.json">
-  </div>
   <div id="attach-preview" class="hide" aria-hidden="true"></div>
   <div class="bar-compose">
+    <div class="bar-plus-wrap">
+      <button type="button" class="ic" id="plusb" title="More" aria-label="More" aria-haspopup="true" aria-expanded="false" aria-controls="bar-tools">+</button>
+      <div class="bar-tools hide" id="bar-tools">
+        <button type="button" class="ic polish" id="polish" title="Make wording better">✦</button>
+        <button type="button" class="ic" id="gifb" title="Browse spicy & cute GIFs">GIF</button>
+        <button type="button" class="ic" id="once" title="View once">👁</button>
+        <button type="button" class="ic" id="att" title="Attach">📎</button>
+      </div>
+    </div>
+    <input type="file" id="file" class="hide" accept="image/*,video/*,.pdf,.txt,.csv,.md,.json">
     <textarea id="txt" placeholder="Message" autocomplete="off" rows="1"></textarea>
     <button type="button" class="send" id="send" title="Send">➤</button>
   </div>
@@ -1012,7 +1026,7 @@ let moodsAlertReady=false;
 let inboxAlertReady=false;
 const PENDING_PARTNER_KEY="shhh-pending-partner";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="38";
+const APP_SW_BUILD="39";
 const ALERT_MASTER_KEY="shhh-alerts-master";
 function alertsMasterOn(){
   try{if(localStorage.getItem(ALERT_MASTER_KEY)==="0")return false;}catch(e){}
@@ -2598,7 +2612,7 @@ function autoGrowTxt(){
   const el=$("txt");
   if(!el)return;
   el.style.height="auto";
-  el.style.height=Math.min(el.scrollHeight,168)+"px";
+  el.style.height=Math.min(el.scrollHeight,96)+"px";
 }
 function sendText(){
   const t=$("txt").value.trim();
@@ -2613,7 +2627,27 @@ $("txt").onkeydown=e=>{
   if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendText();}
 };
 
+function closeBarTools(){
+  $("bar-tools")?.classList.add("hide");
+  $("plusb")?.classList.remove("on");
+  $("plusb")?.setAttribute("aria-expanded","false");
+}
+function toggleBarTools(){
+  const tools=$("bar-tools");
+  if(!tools)return;
+  const open=tools.classList.contains("hide");
+  tools.classList.toggle("hide",!open);
+  $("plusb")?.classList.toggle("on",open);
+  $("plusb")?.setAttribute("aria-expanded",open?"true":"false");
+}
+$("plusb").onclick=e=>{e.stopPropagation();toggleBarTools();};
+document.addEventListener("click",e=>{
+  if(e.target.closest?.(".bar-plus-wrap"))return;
+  closeBarTools();
+});
+
 $("polish").onclick=async()=>{
+  closeBarTools();
   const t=$("txt").value.trim();
   if(!t||mode!=="api")return $("note").textContent=t?"":"Type something to polish.";
   $("note").textContent="Polishing…";
@@ -3769,7 +3803,7 @@ $("storypost").onclick=async()=>{
   }
 };
 $("once").onclick=()=>{sendOnce=!sendOnce;$("once").classList.toggle("on",sendOnce);$("note").textContent=sendOnce?"View once on for next photo/video.":"";};
-$("att").onclick=()=>$("file").click();
+$("att").onclick=()=>{$("file").click();closeBarTools();};
 $("file").onchange=async()=>{
   const f=$("file").files[0];
   if(!f){showAttachPreview(null);return;}
@@ -3807,6 +3841,7 @@ $("file").onchange=async()=>{
 };
 
 $("gifb").onclick=()=>{
+  closeBarTools();
   if(mode!=="api")return;
   if(!appConfig?.gifEnabled)$("gifhint").textContent="Add KLIPY_API_KEY on Render (partner.klipy.com) — paste GIF URLs anytime.";
   $("gifpanel").classList.remove("hide");
