@@ -37,13 +37,17 @@ export function encryptField(plain) {
 export function decryptField(stored) {
   if (stored == null || stored === "") return stored;
   if (!String(stored).startsWith(PREFIX)) return stored;
-  const raw = Buffer.from(String(stored).slice(PREFIX.length), "base64");
-  const iv = raw.subarray(0, 12);
-  const tag = raw.subarray(12, 28);
-  const data = raw.subarray(28);
-  const d = crypto.createDecipheriv("aes-256-gcm", key(), iv);
-  d.setAuthTag(tag);
-  return Buffer.concat([d.update(data), d.final()]).toString("utf8");
+  try {
+    const raw = Buffer.from(String(stored).slice(PREFIX.length), "base64");
+    const iv = raw.subarray(0, 12);
+    const tag = raw.subarray(12, 28);
+    const data = raw.subarray(28);
+    const d = crypto.createDecipheriv("aes-256-gcm", key(), iv);
+    d.setAuthTag(tag);
+    return Buffer.concat([d.update(data), d.final()]).toString("utf8");
+  } catch {
+    return "[Encrypted with previous key]";
+  }
 }
 
 export function timingSafeEqualString(a, b) {

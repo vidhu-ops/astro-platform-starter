@@ -6,6 +6,7 @@
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#9b6b7a">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="shhh">
 <meta name="application-name" content="shhh">
@@ -393,9 +394,15 @@ html[data-theme="light"] #scrapview .scrap-sub{color:#4a4248}
   background:var(--card-bg);border:1px solid var(--card-border);border-radius:22px;padding:16px 16px 14px;
   box-shadow:var(--shadow),0 8px 28px var(--card-elev),inset 0 1px 0 #ffffff0a;
 }
+.scrap-cal.minimized{padding:10px 14px;border-radius:16px}
 .scrap-cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
-.scrap-cal-head strong{font-family:"Cormorant Garamond",Georgia,serif;font-size:20px;font-style:italic}
-.cal-nav{border:1px solid var(--line);background:var(--panel);border-radius:999px;width:44px;height:44px;cursor:pointer;color:var(--text);font-size:20px;line-height:1}
+.scrap-cal.minimized .scrap-cal-head{margin-bottom:0}
+.cal-month-nav{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+.scrap-cal-head strong{font-family:"Cormorant Garamond",Georgia,serif;font-size:20px;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scrap-cal.minimized .scrap-cal-head strong{cursor:pointer}
+.scrap-cal.minimized .cal-nav,#scrapcal.minimized #scrapcalbody{display:none}
+.cal-nav{border:1px solid var(--line);background:var(--panel);border-radius:999px;width:38px;height:38px;cursor:pointer;color:var(--text);font-size:19px;line-height:1;flex-shrink:0}
+.scrap-min-btn{flex-shrink:0;margin-left:auto}
 .cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
 .cal-dow{font-size:10px;text-align:center;color:var(--mute);font-weight:600;letter-spacing:.06em;padding:4px 0}
 .cal-day{
@@ -498,6 +505,15 @@ html[data-theme="dark"] .vintage-frame{background:#1c1a16;border-color:#5a5048}
 #scrapbar{
   padding:10px 12px;border-top:1px solid var(--line);background:var(--bar-bg);
   display:flex;flex-direction:column;gap:8px;
+}
+#scrapbar.minimized{padding:8px 12px}
+.scrapbar-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.scrapbar-body{display:flex;flex-direction:column;gap:8px}
+#scrapbar.minimized .scrapbar-body,#scrapbar.minimized .scrap-types{display:none}
+.scrapbar-min-summary{
+  background:none;border:0;padding:4px 2px;cursor:pointer;text-align:left;
+  font-family:"Cormorant Garamond",Georgia,serif;font-size:17px;font-style:italic;
+  color:var(--gold);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 #scrapbar .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 #scrapbar input[type=text],#scrapbody{
@@ -635,7 +651,7 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
 </div>
 <div id="app" class="hide">
 <header>
-  <div class="hdr-brand">
+  <div class="hdr-brand" id="hdr-brand">
     <h2>shhh</h2><span class="hdr-tag">private</span>
     <button type="button" id="build-badge" title="Tap to hide build info">v…</button>
   </div>
@@ -710,15 +726,20 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
       <p class="scrap-intro">Our scrapbook</p>
       <p class="scrap-sub">Important dates, little memories, and lines worth keeping — tucked in vintage frames.</p>
     </header>
-    <section class="scrap-section scrap-cal" aria-label="Calendar">
+    <section class="scrap-section scrap-cal" id="scrapcal" aria-label="Calendar">
       <div class="scrap-cal-head">
-        <button type="button" class="cal-nav" id="calprev" title="Previous month">‹</button>
-        <strong id="caltitle">—</strong>
-        <button type="button" class="cal-nav" id="calnext" title="Next month">›</button>
+        <div class="cal-month-nav">
+          <button type="button" class="cal-nav" id="calprev" title="Previous month" aria-label="Previous month">‹</button>
+          <strong id="caltitle">—</strong>
+          <button type="button" class="cal-nav" id="calnext" title="Next month" aria-label="Next month">›</button>
+        </div>
+        <button type="button" class="pill scrap-min-btn" id="caltoggle" aria-expanded="true" aria-controls="scrapcalbody" title="Minimize calendar">− Minimize</button>
       </div>
-      <div class="cal-grid" id="caldow"></div>
-      <div class="cal-grid" id="calgrid"></div>
-      <div class="cal-events" id="calevents"></div>
+      <div id="scrapcalbody">
+        <div class="cal-grid" id="caldow"></div>
+        <div class="cal-grid" id="calgrid"></div>
+        <div class="cal-events" id="calevents"></div>
+      </div>
     </section>
     <section class="scrap-section" aria-label="Memories and quotes">
       <p class="scrap-section-title">Timeline</p>
@@ -726,24 +747,30 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
     </section>
   </div>
   <div id="scrapbar">
-    <div class="scrap-types" id="scraptypes">
-      <button type="button" class="pill on" data-type="memory">Memory</button>
-      <button type="button" class="pill" data-type="quote">Quote</button>
-      <button type="button" class="pill" data-type="note">Note</button>
+    <div class="scrapbar-head">
+      <div class="scrap-types" id="scraptypes">
+        <button type="button" class="pill on" data-type="memory">Memory</button>
+        <button type="button" class="pill" data-type="quote">Quote</button>
+        <button type="button" class="pill" data-type="note">Note</button>
+      </div>
+      <button type="button" class="scrapbar-min-summary hide" id="scrapbarsummary">✦ Add a memory, quote, or date…</button>
+      <button type="button" class="pill scrap-min-btn" id="scrapbartoggle" aria-expanded="true" aria-controls="scrapbarbody" title="Minimize input fields">− Minimize</button>
     </div>
-    <div class="row">
-      <input type="text" id="scraptitle" placeholder="Title (optional)" maxlength="120" autocomplete="off">
-      <button type="button" class="ic" id="scrappick" title="Vintage photo">📷</button>
-      <input type="file" id="scrapfile" class="hide" accept="image/*,video/*">
-    </div>
-    <textarea id="scrapbody" placeholder="Write a memory, quote, or note…" maxlength="2000"></textarea>
-    <div class="row">
-      <input type="datetime-local" id="scrapwhen" title="When this memory happened">
-    </div>
-    <div class="row">
-      <input type="date" id="scrapdate" title="Important date (optional)">
-      <input type="text" id="scrapdatelabel" placeholder="Date label (e.g. First trip)" maxlength="120" autocomplete="off">
-      <button type="button" class="send" id="scrapsave" title="Save to scrapbook">➤</button>
+    <div class="scrapbar-body" id="scrapbarbody">
+      <div class="row">
+        <input type="text" id="scraptitle" placeholder="Title (optional)" maxlength="120" autocomplete="off">
+        <button type="button" class="ic" id="scrappick" title="Vintage photo">📷</button>
+        <input type="file" id="scrapfile" class="hide" accept="image/*,video/*">
+      </div>
+      <textarea id="scrapbody" placeholder="Write a memory, quote, or note…" maxlength="2000"></textarea>
+      <div class="row">
+        <input type="datetime-local" id="scrapwhen" title="When this memory happened">
+      </div>
+      <div class="row">
+        <input type="date" id="scrapdate" title="Important date (optional)">
+        <input type="text" id="scrapdatelabel" placeholder="Date label (e.g. First trip)" maxlength="120" autocomplete="off">
+        <button type="button" class="send" id="scrapsave" title="Save to scrapbook">➤</button>
+      </div>
     </div>
   </div>
 </div>
@@ -912,7 +939,7 @@ let inboxNotes=[];
 let partnerChipTimer=null;
 const PENDING_PARTNER_KEY="shhh-pending-partner";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="30";
+const APP_SW_BUILD="31";
 let healthOkHint=false;
 const LOGIN_GRACE_MS=15000;
 const SESSION_TOKEN_KEY="shhh-session-token";
@@ -1065,7 +1092,13 @@ function resetToGateAfterFailedSession(msg){
   name="";
   clearSessionToken();
   if(pollTimer)clearInterval(pollTimer);
-  pollTimer=null;
+  if(pollMetaTimer)clearTimeout(pollMetaTimer);
+  if(storyPollTimer)clearInterval(storyPollTimer);
+  if(scrapPollTimer)clearInterval(scrapPollTimer);
+  if(notePollTimer)clearInterval(notePollTimer);
+  if(moodPollTimer)clearInterval(moodPollTimer);
+  if(presenceTimer)clearInterval(presenceTimer);
+  pollTimer=null;pollMetaTimer=null;storyPollTimer=null;scrapPollTimer=null;notePollTimer=null;moodPollTimer=null;presenceTimer=null;
   msgById.clear();
   showAuthShell(false);
   setGateError(msg||"Session expired — enter the shared room password to continue.");
@@ -1107,10 +1140,14 @@ async function verifySessionAfterEnter(expectedUser){
     {status:0}
   );
 }
-async function api(path,opts={},timeoutMs=30000){
-  const headers={...(opts.headers||{})};
+function authHeaders(extra={}){
+  const headers={...extra};
   const bearer=getSessionToken();
   if(bearer&&!headers.Authorization)headers.Authorization="Bearer "+bearer;
+  return headers;
+}
+async function api(path,opts={},timeoutMs=30000){
+  const headers=authHeaders(opts.headers||{});
   if(opts.body&&!(opts.body instanceof FormData)){
     headers["Content-Type"]="application/json";
     opts.body=JSON.stringify(opts.body);
@@ -1777,10 +1814,8 @@ $("go").onclick=async()=>{
     else if(e.status===409)setGateError("That username is taken.");
     else setGateError(e.message||"Couldn't sign in. Try again.");
   }finally{
-    if(!name){
-      btn.disabled=false;
-      btn.textContent=prevLabel||"Continue";
-    }
+    btn.disabled=false;
+    btn.textContent=prevLabel&&prevLabel!=="Signing in…"?prevLabel:"Continue";
   }
 };
 $("p").onkeydown=e=>{if(e.key==="Enter")$("go").click()};
@@ -2544,7 +2579,7 @@ function setMainTab(tab){
       }
     }catch(e){}
   }
-  if(tab==="scrap"){initScrapWhenForce();void refreshScrapbook();}
+  if(tab==="scrap"){initScrapWhenForce();renderCalendar({soft:true});void refreshScrapbook();}
   if(tab==="app"){
     refreshAppPanel();
     void refreshBuildBadge();
@@ -3183,6 +3218,43 @@ function scheduleScrapPoll(){
   },SCRAP_POLL_MS);
 }
 
+const SCRAP_CAL_MIN_KEY="shhh-scrap-cal-min";
+const SCRAP_BAR_MIN_KEY="shhh-scrap-bar-min";
+function setScrapCalMinimized(min){
+  const cal=$("scrapcal"),btn=$("caltoggle");
+  if(!cal||!btn)return;
+  cal.classList.toggle("minimized",!!min);
+  btn.setAttribute("aria-expanded",min?"false":"true");
+  btn.textContent=min?"+ Expand":"− Minimize";
+  btn.title=min?"Expand calendar":"Minimize calendar";
+  if(min&&calDayPanelOpen)closeCalDayPanel();
+  try{localStorage.setItem(SCRAP_CAL_MIN_KEY,min?"1":"0");}catch(e){}
+}
+function setScrapBarMinimized(min){
+  const bar=$("scrapbar"),btn=$("scrapbartoggle"),sum=$("scrapbarsummary");
+  if(!bar||!btn)return;
+  bar.classList.toggle("minimized",!!min);
+  sum?.classList.toggle("hide",!min);
+  btn.setAttribute("aria-expanded",min?"false":"true");
+  btn.textContent=min?"+ Expand":"− Minimize";
+  btn.title=min?"Expand input fields":"Minimize input fields";
+  try{localStorage.setItem(SCRAP_BAR_MIN_KEY,min?"1":"0");}catch(e){}
+}
+function initScrapCardToggles(){
+  let calMin=false,barMin=false;
+  try{
+    calMin=localStorage.getItem(SCRAP_CAL_MIN_KEY)==="1";
+    barMin=localStorage.getItem(SCRAP_BAR_MIN_KEY)==="1";
+  }catch(e){}
+  setScrapCalMinimized(calMin);
+  setScrapBarMinimized(barMin);
+}
+$("caltoggle").onclick=()=>setScrapCalMinimized(!$("scrapcal")?.classList.contains("minimized"));
+$("caltitle").onclick=()=>{if($("scrapcal")?.classList.contains("minimized"))setScrapCalMinimized(false);};
+$("scrapbartoggle").onclick=()=>setScrapBarMinimized(!$("scrapbar")?.classList.contains("minimized"));
+$("scrapbarsummary").onclick=()=>setScrapBarMinimized(false);
+initScrapCardToggles();
+
 $("calprev").onclick=()=>{
   closeCalDayPanel();
   scrapCalMonth--;
@@ -3494,7 +3566,7 @@ async function loadAuthMedia(host,url,kind,fname){
   ph.textContent="Loading…";
   host.appendChild(ph);
   try{
-    const res=await fetch(url,{credentials:"same-origin"});
+    const res=await fetch(url,{credentials:"same-origin",headers:authHeaders()});
     if(!res.ok)throw{status:res.status};
     const blob=await res.blob();
     const u=URL.createObjectURL(blob);
@@ -3531,7 +3603,7 @@ let viewerUrl=null;
 async function openViewOnce(id,kind){
   if(mode!=="api")return;
   try{
-    const res=await fetch("/api/messages/"+id+"/view-once",{method:"POST",credentials:"same-origin"});
+    const res=await fetch("/api/messages/"+id+"/view-once",{method:"POST",credentials:"same-origin",headers:authHeaders()});
     if(!res.ok)throw 0;
     const blob=await res.blob();closeViewer();
     viewerUrl=URL.createObjectURL(blob);

@@ -707,9 +707,13 @@ app.post(
     return res.status(400).json({ error: "View-once requires a valid upload" });
   }
   let replyId = null;
+  let replyParent = null;
   if (replyTo && isUuid(replyTo)) {
-    const chk = await pool.query(`SELECT id FROM chat_messages WHERE id = $1`, [replyTo]);
-    if (chk.rows[0]) replyId = replyTo;
+    const chk = await pool.query(`SELECT id, user_name, body_text FROM chat_messages WHERE id = $1`, [replyTo]);
+    if (chk.rows[0]) {
+      replyId = replyTo;
+      replyParent = chk.rows[0];
+    }
   }
   const safeKind = kind ? safeContentType(kind) : null;
   const safeFname = fname ? String(fname).slice(0, 80).replace(/[^\w.\- ]/g, "") : null;
@@ -731,6 +735,10 @@ app.post(
       replyId,
     ],
   );
+  if (replyParent) {
+    rows[0].reply_user = replyParent.user_name;
+    rows[0].reply_text = replyParent.body_text;
+  }
   const out = publicMessage(rows[0], req.user.username);
   res.status(201).json(out);
   const preview = out.text
