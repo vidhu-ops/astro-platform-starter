@@ -169,9 +169,11 @@ async function migrate() {
       from_username TEXT NOT NULL,
       to_username TEXT NOT NULL,
       body_text TEXT NOT NULL,
+      paper TEXT,
       ts BIGINT NOT NULL,
       read_at TIMESTAMPTZ
     );
+    ALTER TABLE chat_user_notes ADD COLUMN IF NOT EXISTS paper TEXT;
     CREATE INDEX IF NOT EXISTS chat_user_notes_to_idx ON chat_user_notes (to_username, ts DESC);
     CREATE TABLE IF NOT EXISTS chat_moods (
       user_id TEXT PRIMARY KEY,
@@ -196,6 +198,30 @@ const MOOD_PRESETS = {
 };
 
 const SCRAP_TYPES = new Set(["memory", "quote", "note"]);
+const PAPER_KINDS = ["lined", "legal", "kraft", "blush", "graph", "torn", "sky", "index"];
+
+function sanitizePaper(value, fallbackId) {
+  const v = String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z]/g, "");
+  if (PAPER_KINDS.includes(v)) return v;
+  const s = String(fallbackId || "");
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return PAPER_KINDS[h % PAPER_KINDS.length];
+}
+
+function mapNoteRow(r) {
+  return {
+    id: r.id,
+    from: r.from_username,
+    to: r.to_username,
+    body: decryptField(r.body_text),
+    paper: sanitizePaper(r.paper, r.id),
+    ts: Number(r.ts),
+    readAt: r.read_at,
+  };
+}
 
 function rowOwnedByUser(row, user) {
   if (!row || !user) return false;
@@ -984,36 +1010,18 @@ app.get(
     const box = String(req.query.box || "inbox");
     if (box === "sent") {
       const { rows } = await pool.query(
-        `SELECT id, from_username, to_username, body_text, ts, read_at
+        `SELECT id, from_username, to_username, body_text, paper, ts, read_at
          FROM chat_user_notes WHERE from_username = $1 ORDER BY ts DESC LIMIT 120`,
         [req.user.username],
       );
-      return res.json({
-        notes: rows.map((r) => ({
-          id: r.id,
-          from: r.from_username,
-          to: r.to_username,
-          body: decryptField(r.body_text),
-          ts: Number(r.ts),
-          readAt: r.read_at,
-        })),
-      });
+      return res.json({ notes: rows.map(mapNoteRow) });
     }
     const { rows } = await pool.query(
-      `SELECT id, from_username, to_username, body_text, ts, read_at
+      `SELECT id, from_username, to_username, body_text, paper, ts, read_at
        FROM chat_user_notes WHERE to_username = $1 ORDER BY ts DESC LIMIT 120`,
       [req.user.username],
     );
-    res.json({
-      notes: rows.map((r) => ({
-        id: r.id,
-        from: r.from_username,
-        to: r.to_username,
-        body: decryptField(r.body_text),
-        ts: Number(r.ts),
-        readAt: r.read_at,
-      })),
-    });
+    res.json({ notes: rows.map(mapNoteRow) });
   }),
 );
 
@@ -1032,11 +1040,12 @@ app.post(
     const chk = await pool.query(`SELECT username FROM chat_users WHERE username = $1`, [to]);
     if (!chk.rows[0]) return res.status(404).json({ error: "No user with that username yet" });
     const ts = Date.now();
+    const paper = sanitizePaper(req.body?.paper, `${req.user.username}:${to}:${ts}`);
     const { rows } = await pool.query(
-      `INSERT INTO chat_user_notes (from_user_id, from_username, to_username, body_text, ts)
-       VALUES ($1,$2,$3,$4,$5)
-       RETURNING id, from_username, to_username, body_text, ts`,
-      [req.user.user_id, req.user.username, to, encryptField(body), ts],
+      `INSERT INTO chat_user_notes (from_user_id, from_username, to_username, body_text, paper, ts)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       RETURNING id, from_username, to_username, body_text, paper, ts`,
+      [req.user.user_id, req.user.username, to, encryptField(body), paper, ts],
     );
     const row = rows[0];
     void broadcastPush(req.user.user_id, {
@@ -1058,13 +1067,7 @@ app.post(
         body: body.slice(0, 160),
       },
     });
-    res.status(201).json({
-      id: row.id,
-      from: row.from_username,
-      to: row.to_username,
-      body: decryptField(row.body_text),
-      ts: Number(row.ts),
-    });
+    res.status(201).json(mapNoteRow(row));
   }),
 );
 
