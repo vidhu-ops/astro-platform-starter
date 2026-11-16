@@ -282,6 +282,30 @@ header h2{
 .app-panel .status{font-size:15px;line-height:1.45;margin:0 0 10px;color:var(--text)}
 .app-panel .subline{font-size:12px;color:var(--mute);margin:0 0 14px;line-height:1.4}
 .app-panel .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+#alertprefs{position:fixed;inset:0;background:var(--scrim);z-index:45;display:flex;align-items:flex-end;justify-content:center}
+#alertprefs .sheet{
+  width:100%;max-width:480px;background:var(--panel);border:1px solid var(--line);
+  border-radius:28px 28px 0 0;padding:18px 16px calc(22px + env(safe-area-inset-bottom,0px));color:var(--text);
+}
+.alert-toggle{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:14px;
+  padding:14px 0;border-bottom:1px solid var(--line);
+}
+.alert-toggle:last-of-type{border-bottom:0}
+.alert-toggle .copy{min-width:0}
+.alert-toggle strong{display:block;font-size:15px;font-weight:600}
+.alert-toggle small{display:block;color:var(--mute);font-size:12px;line-height:1.4;margin-top:3px;font-weight:400}
+.alert-toggle input[type=checkbox]{
+  width:46px;height:28px;flex-shrink:0;appearance:none;-webkit-appearance:none;border:0;
+  background:var(--line);border-radius:999px;position:relative;cursor:pointer;margin:2px 0 0;padding:0;
+}
+.alert-toggle input[type=checkbox]::after{
+  content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px #00000033;transition:transform .16s ease;
+}
+.alert-toggle input[type=checkbox]:checked{background:var(--rose)}
+.alert-toggle input[type=checkbox]:checked::after{transform:translateX(18px)}
+.alert-toggle input[type=checkbox]:focus{box-shadow:0 0 0 3px var(--accent-ring);border-color:transparent}
 #pushprompt{position:fixed;inset:0;background:var(--scrim);z-index:44;display:flex;align-items:center;justify-content:center;padding:20px}
 #pushprompt .card{max-width:400px;width:100%}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
@@ -803,6 +827,18 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
       <button type="button" class="btn ghost" id="app-panel-alerts">Turn on notifications</button>
     </div>
   </section>
+  <section class="app-panel" aria-labelledby="alert-panel-title">
+    <h3 id="alert-panel-title">Alerts</h3>
+    <p class="subline">Choose sound and vibrate. In-app vibrate stays off — the phone buzzes when shhh is off-screen.</p>
+    <label class="alert-toggle">
+      <span class="copy"><strong>Notification sound</strong><small>System notification chime when the app is not on screen</small></span>
+      <input type="checkbox" id="alert-sound-app" checked>
+    </label>
+    <label class="alert-toggle">
+      <span class="copy"><strong>Vibrate</strong><small>Buzz for new messages when shhh is in the background. Off while you're looking at the app.</small></span>
+      <input type="checkbox" id="alert-vibrate-app" checked>
+    </label>
+  </section>
 </div>
 <div id="inapp-alert" class="hide" role="status" aria-live="polite">
   <span class="emoji" id="inapp-alert-emoji">💬</span>
@@ -817,6 +853,24 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
     <span id="tabapp-update-label" class="tab-label hide">Update</span>
   </button>
 </nav>
+<div id="alertprefs" class="hide" role="dialog" aria-modal="true" aria-labelledby="alertprefs-title">
+  <div class="sheet">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <strong id="alertprefs-title" style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:22px;color:var(--gold)">Alert settings</strong>
+      <button type="button" class="pill" id="alertprefsclose">Close</button>
+    </div>
+    <p class="sub" style="margin:0 0 8px">Notifications use the system tray — with sound and vibrate you choose here.</p>
+    <label class="alert-toggle">
+      <span class="copy"><strong>Notification sound</strong><small>Play the phone's notification sound when shhh is off-screen</small></span>
+      <input type="checkbox" id="alert-sound" checked>
+    </label>
+    <label class="alert-toggle">
+      <span class="copy"><strong>Vibrate</strong><small>Vibrate when the app is not on screen. Stays off while you're in the app.</small></span>
+      <input type="checkbox" id="alert-vibrate" checked>
+    </label>
+    <button type="button" class="btn" id="alertprefs-test" style="margin-top:12px">Send a test notification</button>
+  </div>
+</div>
 <div id="pushprompt" class="hide" role="dialog" aria-modal="true">
   <div class="card">
     <h1 style="font-size:24px;margin:0 0 8px;font-family:'Cormorant Garamond',serif;font-style:italic">Stay in the loop</h1>
@@ -960,14 +1014,15 @@ let partnerMoods=[];
 let inboxNotes=[];
 let partnerChipTimer=null;
 let inAppAlertTimer=null;
-let alertAudioCtx=null;
 let lastAlertKey="";
 let lastAlertAt=0;
 let moodsAlertReady=false;
 let inboxAlertReady=false;
 const PENDING_PARTNER_KEY="shhh-pending-partner";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="33";
+const APP_SW_BUILD="35";
+const ALERT_SOUND_KEY="shhh-alert-sound";
+const ALERT_VIBRATE_KEY="shhh-alert-vibrate";
 let healthOkHint=false;
 const LOGIN_GRACE_MS=15000;
 const SESSION_TOKEN_KEY="shhh-session-token";
@@ -1314,7 +1369,7 @@ $("app-panel-action").onclick=()=>{
   if(isAppInstalled())void runTabUpdateFlow();
   else void runInstallFlow();
 };
-$("app-panel-alerts").onclick=()=>void ensurePushSubscription({prompt:true,resubscribe:true});
+$("app-panel-alerts").onclick=()=>void $("push-alerts").onclick();
 async function forceAppRefresh(){
   setStatus("Refreshing app…","warn");
   try{await swRegistration?.update?.();}catch(e){}
@@ -1549,7 +1604,7 @@ function updatePushPill(state,debug=null){
   if(state==="on"){
     btn.classList.add("push-on");
     btn.textContent="Alerts on";
-    btn.title="Notifications enabled for this device"+dbgTitle;
+    btn.title="Tap to set notification sound & vibrate"+dbgTitle;
   }else if(state==="blocked"){
     btn.classList.add("push-blocked");
     btn.textContent="Alerts blocked";
@@ -1669,6 +1724,8 @@ async function setupPwa(){
   scheduleSyncAppTabLabelBurst();
   syncAppTabLabel();
   if(mode==="api")await ensurePushSubscription({prompt:false,resubscribe:true});
+  syncAlertToggles();
+  syncAlertPrefsToSw();
 }
 $("push-alerts").onclick=async()=>{
   if(Notification.permission==="denied"){
@@ -1678,7 +1735,33 @@ $("push-alerts").onclick=async()=>{
     setStatus(msg,"warn");
     return;
   }
-  await ensurePushSubscription({prompt:true,resubscribe:true});
+  if(Notification.permission==="granted"){
+    const ok=await ensurePushSubscription({prompt:false,resubscribe:false});
+    if(ok){openAlertPrefs();return;}
+  }
+  const subscribed=await ensurePushSubscription({prompt:true,resubscribe:true});
+  if(subscribed)openAlertPrefs();
+};
+$("alertprefsclose").onclick=()=>$("alertprefs").classList.add("hide");
+$("alertprefs").onclick=e=>{if(e.target===$("alertprefs"))$("alertprefs").classList.add("hide");};
+["alert-sound","alert-sound-app","alert-vibrate","alert-vibrate-app"].forEach(id=>{
+  $(id)?.addEventListener("change",e=>persistAlertPrefsFrom(e.target));
+});
+syncAlertToggles();
+$("alertprefs-test").onclick=async()=>{
+  if(Notification.permission!=="granted"){
+    const ok=await ensurePushSubscription({prompt:true,resubscribe:true});
+    if(!ok)return setStatus("Turn on notifications first.","warn");
+  }
+  await showBarNotification({
+    from:"shhh",
+    emoji:"🔔",
+    kind:"heart",
+    label:"Test notification",
+    body:alertSoundOn()?"Sound is on — this is a system notification.":"Sound is off — this stays silent.",
+  },{vibrate:document.hidden&&alertVibrateOn()});
+  if(document.hidden)vibrateAlert();
+  setStatus(alertSoundOn()?"Test notification sent — check the notification shade.":"Test sent silently. Turn sound on to hear it.","ok");
 };
 
 async function detectBackend(){
@@ -2749,40 +2832,46 @@ function showPartnerChip(p){
   partnerChipTimer=setTimeout(()=>chip.classList.add("hide"),9000);
 }
 
-function unlockAlertAudio(){
+function readAlertPref(key,fallback){
   try{
-    const AC=window.AudioContext||window.webkitAudioContext;
-    if(!AC)return;
-    if(!alertAudioCtx)alertAudioCtx=new AC();
-    if(alertAudioCtx.state==="suspended")void alertAudioCtx.resume();
+    const v=localStorage.getItem(key);
+    if(v==="0")return false;
+    if(v==="1")return true;
   }catch(e){}
+  return fallback;
 }
-document.addEventListener("pointerdown",unlockAlertAudio,{passive:true});
-document.addEventListener("keydown",unlockAlertAudio);
-
-function playAlertSound(){
-  unlockAlertAudio();
-  const ctx=alertAudioCtx;
-  if(!ctx)return;
-  try{
-    const now=ctx.currentTime;
-    const beep=(freq,start,dur)=>{
-      const o=ctx.createOscillator();
-      const g=ctx.createGain();
-      o.type="sine";
-      o.frequency.setValueAtTime(freq,now+start);
-      g.gain.setValueAtTime(0.0001,now+start);
-      g.gain.exponentialRampToValueAtTime(0.14,now+start+0.018);
-      g.gain.exponentialRampToValueAtTime(0.0001,now+start+dur);
-      o.connect(g);g.connect(ctx.destination);
-      o.start(now+start);o.stop(now+start+dur+0.03);
-    };
-    beep(880,0,0.12);
-    beep(1174.7,0.11,0.18);
-  }catch(e){}
+function alertSoundOn(){return readAlertPref(ALERT_SOUND_KEY,true);}
+function alertVibrateOn(){return readAlertPref(ALERT_VIBRATE_KEY,true);}
+function setAlertPref(key,on){
+  try{localStorage.setItem(key,on?"1":"0");}catch(e){}
+}
+function syncAlertToggles(){
+  const sound=alertSoundOn(),vibrate=alertVibrateOn();
+  [["alert-sound",sound],["alert-sound-app",sound],["alert-vibrate",vibrate],["alert-vibrate-app",vibrate]].forEach(([id,val])=>{
+    const el=$(id);if(el)el.checked=val;
+  });
+}
+function persistAlertPrefsFrom(el){
+  if(!el)return;
+  if(el.id==="alert-sound"||el.id==="alert-sound-app")setAlertPref(ALERT_SOUND_KEY,!!el.checked);
+  if(el.id==="alert-vibrate"||el.id==="alert-vibrate-app")setAlertPref(ALERT_VIBRATE_KEY,!!el.checked);
+  syncAlertToggles();
+  syncAlertPrefsToSw();
+}
+function syncAlertPrefsToSw(){
+  const payload={type:"ALERT_PREFS",sound:alertSoundOn(),vibrate:alertVibrateOn()};
+  try{navigator.serviceWorker?.controller?.postMessage(payload);}catch(e){}
+  navigator.serviceWorker?.ready?.then(reg=>{
+    try{reg.active?.postMessage(payload);}catch(e){}
+  }).catch(()=>{});
+}
+function openAlertPrefs(){
+  syncAlertToggles();
+  $("alertprefs")?.classList.remove("hide");
 }
 
 function vibrateAlert(){
+  if(!alertVibrateOn())return;
   try{if(navigator.vibrate)navigator.vibrate([80,40,90,40,140]);}catch(e){}
 }
 
@@ -2811,21 +2900,25 @@ function showInAppAlert(norm){
   inAppAlertTimer=setTimeout(()=>el.classList.add("hide"),7000);
 }
 
-async function showBarNotification(norm){
+async function showBarNotification(norm,optsExtra){
   if(typeof Notification==="undefined")return;
   if(Notification.permission!=="granted")return;
-  const title=(norm.emoji||"💬")+" @"+norm.from;
+  const title=(norm.emoji||"💬")+" @"+(norm.from||"shhh");
   const body=norm.body||norm.label||"New activity";
+  const sound=alertSoundOn();
+  const vibrate=alertVibrateOn()&&!!optsExtra?.vibrate;
   const opts={
     body,
     icon:"/icons/icon.svg",
     badge:"/icons/heart-badge.svg",
-    tag:alertDedupeKey(norm),
+    tag:alertDedupeKey(norm)||"shhh",
     renotify:true,
-    silent:false,
-    vibrate:[80,40,90,40,140],
+    requireInteraction:true,
+    silent:!sound,
+    timestamp:Date.now(),
     data:norm,
   };
+  if(vibrate)opts.vibrate=[80,40,90,40,140];
   try{
     const reg=await navigator.serviceWorker?.ready;
     if(reg&&reg.showNotification){await reg.showNotification(title,opts);return;}
@@ -2844,13 +2937,11 @@ function announceAlert(p){
   if(norm.kind==="message"&&activeTab!=="chat")setChatDot(true);
   if(document.hidden){
     if(norm.kind==="message")setChatDot(true);
+    vibrateAlert();
     return;
   }
   showPartnerChip(norm);
   showInAppAlert(norm);
-  playAlertSound();
-  vibrateAlert();
-  if(activeTab!=="chat"||norm.kind!=="message")void showBarNotification(norm);
 }
 
 function applyPartnerPushPayload(p){
