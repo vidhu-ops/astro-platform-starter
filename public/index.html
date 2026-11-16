@@ -180,8 +180,8 @@ header h2{
 .who{font-size:11px;color:var(--mute);margin:0 0 4px 2px;font-weight:500;letter-spacing:.01em}
 .msg-tools{display:flex;gap:5px;margin-top:8px;opacity:.7}
 .msg-tools button{
-  background:var(--tool-bg);border:0;border-radius:999px;padding:4px 9px;font-size:10px;cursor:pointer;color:inherit;
-  letter-spacing:.02em;
+  background:var(--tool-bg);border:0;border-radius:999px;padding:8px 12px;font-size:11px;cursor:pointer;color:inherit;
+  letter-spacing:.02em;min-height:36px;
 }
 .msg.me .msg-tools button{background:var(--tool-bg-me);color:var(--tool-fg-me)}
 .msg-tools button.on{opacity:1;font-weight:600}
@@ -205,7 +205,7 @@ header h2{
 #replybar strong{color:var(--rose)}
 #replybar button{margin-left:auto;background:none;border:0;color:var(--mute);cursor:pointer;font-size:20px;line-height:1}
 #bar{
-  display:flex;flex-direction:column;gap:10px;padding:10px 12px 10px;
+  display:flex;flex-direction:column;gap:10px;padding:10px 12px max(10px,env(safe-area-inset-bottom,0px));
   border-top:1px solid var(--line);background:var(--bar-bg);backdrop-filter:blur(20px);position:relative;
 }
 .bar-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -226,17 +226,20 @@ header h2{
 }
 #emo input{margin:0;font-size:14px;padding:10px 12px}
 #emogrid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;max-height:min(240px,42vh);overflow:auto}
-#emo button{background:none;border:0;font-size:22px;cursor:pointer;padding:4px;border-radius:8px}
+#emo button{background:none;border:0;font-size:22px;cursor:pointer;padding:4px;border-radius:10px;min-width:44px;min-height:44px;display:grid;place-items:center}
 #emo button:hover{background:var(--panel2)}
 #maintabs{
-  display:flex;border-top:1px solid var(--line);background:var(--bar-bg);padding-bottom:env(safe-area-inset-bottom,0);
+  display:flex;border-top:1px solid var(--line);background:var(--bar-bg);
+  padding-bottom:max(6px,env(safe-area-inset-bottom,0));flex-shrink:0;
 }
 #maintabs button{
-  flex:1;border:0;background:transparent;padding:14px 8px 12px;font-weight:600;font-size:13px;letter-spacing:.04em;
-  color:var(--mute);cursor:pointer;border-top:2px solid transparent;
+  flex:1;border:0;background:transparent;padding:14px 8px 12px;min-height:48px;
+  font-weight:600;font-size:13px;letter-spacing:.04em;
+  color:var(--mute);cursor:pointer;border-top:3px solid transparent;
+  transition:color .15s,background .15s,border-color .15s;
 }
-#maintabs button.on{color:var(--rose);border-top-color:var(--rose)}
-#chatview{flex:1;display:flex;flex-direction:column;min-height:0}
+#maintabs button.on{color:var(--tab-on-fg);border-top-color:var(--rose);background:var(--tab-on-bg)}
+#chatview{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
 #dateview{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 #storyfeed{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:16px}
 .story-card{
@@ -275,7 +278,19 @@ header h2{
 #gifgrid img{width:100%;height:100%;object-fit:cover;display:block}
 #modal{position:fixed;inset:0;background:var(--overlay);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
 #modal .card{max-width:360px}#modal p{margin:0 0 16px}#modal .btn{margin-bottom:8px}
-.note{color:var(--mute);font-size:12px;text-align:center;padding:4px 0 10px;letter-spacing:.02em}
+.note{color:var(--mute);font-size:13px;text-align:center;padding:6px 12px 8px;letter-spacing:.02em;min-height:1.4em;line-height:1.35}
+.note.status-ok{color:#5ec469;font-weight:500}
+.note.status-warn{color:var(--gold);font-weight:500}
+.note.status-err{color:var(--danger);font-weight:600}
+.empty-state{margin:auto;color:var(--mute);font-style:italic;text-align:center;padding:32px 20px;line-height:1.5;max-width:28ch;font-size:15px}
+#scrollfab{
+  position:absolute;right:14px;z-index:4;
+  bottom:calc(118px + env(safe-area-inset-bottom,0px));
+  width:44px;height:44px;border-radius:50%;border:1px solid var(--rose);
+  background:var(--panel);box-shadow:var(--shadow);cursor:pointer;font-size:18px;color:var(--text);
+  transition:opacity .2s,transform .2s;
+}
+#scrollfab:not(.hide):active{transform:scale(.96)}
 .ic.on{border-color:var(--rose);background:var(--tab-on-bg);box-shadow:0 0 0 1px var(--accent-ring)}
 .vo-chip,.view-once{
   display:flex;align-items:center;gap:10px;margin-top:6px;padding:10px 12px;border-radius:14px;
@@ -325,14 +340,16 @@ header h2{
 }
 #scrapscroll{flex:1;overflow-y:auto;padding:14px 16px 12px;display:flex;flex-direction:column;gap:18px}
 .scrap-intro{font-family:"Cormorant Garamond",Georgia,serif;font-size:22px;font-style:italic;color:var(--brand-b);margin:0 0 4px}
-.scrap-sub{font-size:12px;color:var(--mute);margin:0 0 12px;letter-spacing:.04em}
+.scrap-sub{font-size:13px;color:var(--mute);margin:0 0 12px;letter-spacing:.02em;line-height:1.45}
+html[data-theme="dark"] #scrapview .scrap-sub{color:#c9c0b8}
+html[data-theme="light"] #scrapview .scrap-sub{color:#4a4248}
 .scrap-cal{
   background:var(--card-bg);border:1px solid var(--card-border);border-radius:22px;padding:14px 14px 12px;
   box-shadow:var(--shadow),inset 0 1px 0 #ffffff0a;
 }
 .scrap-cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
 .scrap-cal-head strong{font-family:"Cormorant Garamond",Georgia,serif;font-size:20px;font-style:italic}
-.cal-nav{border:1px solid var(--line);background:var(--panel);border-radius:999px;width:36px;height:36px;cursor:pointer;color:var(--text)}
+.cal-nav{border:1px solid var(--line);background:var(--panel);border-radius:999px;width:44px;height:44px;cursor:pointer;color:var(--text);font-size:20px;line-height:1}
 .cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
 .cal-dow{font-size:10px;text-align:center;color:var(--mute);font-weight:600;letter-spacing:.06em;padding:4px 0}
 .cal-day{
@@ -398,14 +415,15 @@ html[data-theme="dark"] .scrap-item{
 }
 html[data-theme="dark"] .vintage-frame{background:#1c1a16;border-color:#5a5048}
 .vintage-frame img,.vintage-frame video{
-  display:block;width:100%;max-height:200px;object-fit:cover;
+  display:block;width:100%;max-height:min(240px,40vh);object-fit:contain;
+  background:var(--media-bg);aspect-ratio:4/3;
   filter:sepia(.12) contrast(1.02) saturate(.92);
   border:1px solid #b8aa9677;
 }
 .scrap-cap{font-size:13px;line-height:1.45;margin:0;color:inherit;opacity:.92}
 .scrap-del{
-  position:absolute;top:8px;right:8px;border:0;border-radius:999px;width:28px;height:28px;
-  background:#00000033;color:#fff;cursor:pointer;font-size:14px;line-height:1;
+  position:absolute;top:4px;right:4px;border:0;border-radius:999px;width:44px;height:44px;
+  background:#00000044;color:#fff;cursor:pointer;font-size:18px;line-height:1;
 }
 #scrapbar{
   padding:10px 12px;border-top:1px solid var(--line);background:var(--bar-bg);
@@ -432,8 +450,11 @@ html[data-theme="dark"] .vintage-frame{background:#1c1a16;border-color:#5a5048}
 .note-card .body{font-size:15px;line-height:1.5;color:var(--text)}
 .note-card .stamp{font-size:10px;color:var(--mute);margin-top:8px;text-align:right}
 #notebar{
-  padding:12px;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);background:var(--bar-bg);
+  padding:12px 12px max(12px,env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;
+  border-top:1px solid var(--line);background:var(--bar-bg);
 }
+#notebar .btn{min-height:48px}
+#notefeed .empty-state{padding:28px 12px}
 #notebar input,#notebar textarea{
   border-radius:14px;border:1px solid var(--line);background:var(--input-bg);
   padding:10px 12px;font-size:15px;color:var(--text);width:100%;
@@ -454,7 +475,7 @@ html[data-theme="dark"] .vintage-frame{background:#1c1a16;border-color:#5a5048}
   background:var(--input-bg);padding:12px;font-size:15px;color:var(--text)}
 #chat-head{
   position:fixed;z-index:45;right:16px;
-  bottom:calc(64px + env(safe-area-inset-bottom,0px));
+  bottom:calc(54px + env(safe-area-inset-bottom,0px));
   touch-action:none;pointer-events:none;
 }
 #chat-head:not(.hide){pointer-events:auto}
@@ -518,8 +539,10 @@ body.partner-warm #app{
   #think .lbl{display:none}
   #think::after{content:" thinking"}
   .pill{padding:7px 10px;font-size:10px}
-  #bar{padding:10px 10px 14px;gap:6px}
-  .ic{width:40px;height:40px;font-size:16px}
+  #bar{padding:10px 10px max(12px,env(safe-area-inset-bottom,0px));gap:6px}
+  .ic{width:44px;height:44px;font-size:16px}
+  #scrollfab{bottom:calc(124px + env(safe-area-inset-bottom,0px));right:10px}
+  #chat-head{bottom:calc(52px + env(safe-area-inset-bottom,0px));right:10px}
 }
 </style>
 </head>
@@ -554,7 +577,8 @@ body.partner-warm #app{
 </header>
 <div id="chatview">
 <div id="feed"></div>
-<div class="note" id="note"></div>
+<button type="button" id="scrollfab" class="hide" title="Jump to latest" aria-label="Jump to latest messages">↓</button>
+<div class="note" id="note" role="status" aria-live="polite"></div>
 <div id="selectbar" class="hide"><span id="selcount">0 selected</span>
   <button type="button" class="pill" id="seldel">Delete selected</button>
   <button type="button" class="pill" id="seldone">Done</button>
@@ -693,6 +717,30 @@ body.partner-warm #app{
 
 <script>
 const $=id=>document.getElementById(id);
+let statusClearTimer=null;
+function setStatus(msg,kind=""){
+  const el=$("note");
+  if(!el)return;
+  if(statusClearTimer){clearTimeout(statusClearTimer);statusClearTimer=null;}
+  el.textContent=msg||"";
+  el.classList.remove("status-ok","status-warn","status-err");
+  if(msg&&kind)el.classList.add(kind==="ok"?"status-ok":kind==="err"?"status-err":"status-warn");
+  if(msg){
+    statusClearTimer=setTimeout(()=>{
+      if(el.textContent===msg){
+        el.textContent="";
+        el.classList.remove("status-ok","status-warn","status-err");
+      }
+      statusClearTimer=null;
+    },kind==="err"?7000:4500);
+  }
+}
+function updateScrollFab(){
+  const f=$("feed"),btn=$("scrollfab");
+  if(!f||!btn||activeTab!=="chat"||$("chatview").classList.contains("hide")){btn?.classList.add("hide");return;}
+  const gap=f.scrollHeight-f.scrollTop-f.clientHeight;
+  btn.classList.toggle("hide",gap<90||!lastMsgs.length);
+}
 let emojiList=null;
 let activeTab="chat";
 let storyPollTimer=null;
@@ -778,9 +826,14 @@ async function api(path,opts={}){
     headers["Content-Type"]="application/json";
     opts.body=JSON.stringify(opts.body);
   }
-  const res=await fetch(path,{...opts,headers,credentials:"same-origin"});
+  let res;
+  try{
+    res=await fetch(path,{...opts,headers,credentials:"same-origin"});
+  }catch(e){
+    throw Object.assign(new Error("Network error — check your connection and try again."),{status:0,data:{}});
+  }
   const data=await res.json().catch(()=>({}));
-  if(!res.ok)throw Object.assign(new Error(data.error||res.statusText),{status:res.status,data});
+  if(!res.ok)throw Object.assign(new Error(data.error||res.statusText||"Request failed"),{status:res.status,data});
   return data;
 }
 
@@ -807,7 +860,7 @@ function urlBase64ToUint8Array(base64){
 async function setupPwa(){
   if(!("serviceWorker"in navigator))return;
   try{
-    const reg=await navigator.serviceWorker.register("/sw.js?v=13");
+    const reg=await navigator.serviceWorker.register("/sw.js?v=14");
     navigator.serviceWorker.addEventListener("message",onSwMessage);
     if(reg.waiting){reg.waiting.postMessage({type:"SKIP_WAITING"});}
     reg.addEventListener("updatefound",()=>{
@@ -1028,7 +1081,7 @@ async function refreshApi(){
         if(name)$("u").value=name;
         $("err").textContent="Session expired — enter the room password to continue.";
         $("p").focus();
-      }else $("note").textContent="Couldn't load messages.";
+      }else setStatus((e.data&&e.data.error)||"Couldn't load messages.","err");
     }finally{
       refreshInFlight=null;
     }
@@ -1453,6 +1506,17 @@ function createMsgEl(m,idx,list){
 function render(list){
   const f=$("feed");
   const stick=f.scrollHeight-f.scrollTop-f.clientHeight<80;
+  if(!list.length){
+    f.textContent="";
+    for(const[id,el]of[...msgById]){el.remove();msgById.delete(id);}
+    const e=document.createElement("div");
+    e.className="empty-state";
+    e.textContent="No messages yet — say hi, attach a photo, or tap 💗 Thinking of you.";
+    f.appendChild(e);
+    f.dataset.init=1;
+    updateScrollFab();
+    return;
+  }
   const seen=new Set();
   list.forEach((m,idx)=>{
     seen.add(m.id);
@@ -1496,6 +1560,16 @@ function render(list){
     }
   }
   if(stick||!f.dataset.init){f.scrollTop=f.scrollHeight;f.dataset.init=1;}
+  updateScrollFab();
+}
+$("feed").addEventListener("scroll",updateScrollFab,{passive:true});
+$("scrollfab").onclick=()=>{const f=$("feed");f.scrollTo({top:f.scrollHeight,behavior:"smooth"});};
+if(window.visualViewport){
+  window.visualViewport.addEventListener("resize",()=>{
+    const f=$("feed");
+    if(!f||activeTab!=="chat"||document.hidden)return;
+    if(f.scrollHeight-f.scrollTop-f.clientHeight<160)f.scrollTop=f.scrollHeight;
+  });
 }
 
 async function post(data){
@@ -1514,10 +1588,10 @@ async function post(data){
     }
     sending=false;
   }else await db.collection("messages").add({user:name,uid,ts:Date.now(),...data});
-  $("note").textContent="";
+  setStatus("");
   }catch(e){
     sending=false;
-    $("note").textContent="Message didn't send.";
+    setStatus((e.data&&e.data.error)||e.message||"Message didn't send.","err");
   }
 }
 
@@ -1636,6 +1710,7 @@ function setMainTab(tab){
   if(tab==="date")void refreshStories();
   if(tab==="scrap"){initScrapWhenForce();void refreshScrapbook();}
   if(tab==="notes")void refreshNotes();
+  updateScrollFab();
 }
 $("tabchat").onclick=()=>setMainTab("chat");
 $("tabdate").onclick=()=>setMainTab("date");
@@ -1909,8 +1984,8 @@ async function refreshNotes(){
     feed.textContent="";
     if(!notes.length){
       const p=document.createElement("p");
-      p.className="scrap-sub";
-      p.textContent="Notes left for you appear here. Compose below with @username.";
+      p.className="empty-state";
+      p.textContent="Inbox is quiet — leave someone a note below with their @username.";
       feed.appendChild(p);
       return;
     }
@@ -1935,7 +2010,7 @@ async function refreshNotes(){
       }
       feed.appendChild(card);
     });
-  }catch(e){$("note").textContent="Couldn't load notes.";}
+  }catch(e){setStatus((e.data&&e.data.error)||"Couldn't load notes.","err");}
 }
 function scheduleNotePoll(){
   if(notePollTimer)clearInterval(notePollTimer);
@@ -1949,14 +2024,17 @@ $("notesend").onclick=async()=>{
   if(mode!=="api")return;
   const to=$("noteto").value.trim().replace(/^@/,"").toLowerCase();
   const body=$("notebody").value.trim();
-  if(to.length<3||!body)return $("note").textContent="Need @username and a note.";
+  const userOk=/^[a-z0-9_]{3,20}$/.test(to);
+  $("noteto").style.borderColor="";
+  if(!userOk){$("noteto").style.borderColor="var(--danger)";return setStatus("Username: 3–20 letters, numbers, or _.","err");}
+  if(!body)return setStatus("Write something in the note first.","err");
   $("notesend").disabled=true;
   try{
     await api("/api/notes",{method:"POST",body:{toUsername:to,body}});
     $("noteto").value="";$("notebody").value="";
-    $("note").textContent="Note sent to @"+to+".";
+    setStatus("Note sent to @"+to+".","ok");
     if(activeTab==="notes")await refreshNotes();
-  }catch(e){$("note").textContent=(e.data&&e.data.error)||"Couldn't send note.";}
+  }catch(e){setStatus((e.data&&e.data.error)||e.message||"Couldn't send note.","err");}
   finally{$("notesend").disabled=false;}
 };
 
@@ -2355,29 +2433,31 @@ $("file").onchange=async()=>{
   if(!f)return;
   const once=sendOnce&&/^(image|video)\//.test(f.type);
   if(mode==="api"){
-    $("note").textContent="Uploading…";
+    setStatus("Uploading…","warn");
+    $("att").disabled=true;$("send").disabled=true;
     try{
       const fd=new FormData();fd.append("file",f);fd.append("viewOnce",once?"true":"false");
       const r=await api("/api/upload",{method:"POST",body:fd});
       await post({media:r.url,mediaKey:r.mediaKey,viewOnce:once,kind:f.type,fname:f.name.slice(0,80)});
-      $("note").textContent=once?"View once sent — only an icon stays in chat.":"";
+      setStatus(once?"View once sent — tap the chip to open.":"","ok");
       sendOnce=false;$("once").classList.remove("on");
     }catch(e){
       const mb=appConfig?.maxUploadMb||100;
-      $("note").textContent=e.status===413?`Upload too large (max ${mb} MB).`:"Upload failed — images, video, PDF, text.";
-    }
+      const msg=e.status===413?`Too large (max ${mb} MB).`:(e.data&&e.data.error)||e.message||"Upload failed — try another file.";
+      setStatus(msg,"err");
+    }finally{$("att").disabled=false;$("send").disabled=false;}
     return;
   }
   if(!assets)return;
-  $("note").textContent="Uploading…";
+  setStatus("Uploading…","warn");
   try{
     const r=await assets.upload(f);
     await post({media:r.url.includes("/_blob/")?"/_blob/"+r.id:r.url,kind:f.type,fname:f.name.slice(0,80),viewOnce:once});
-    $("note").textContent=once?"View once (Claude): disappears for others on leave.":"";
+    setStatus(once?"View once (Claude): disappears for others on leave.":"","ok");
     sendOnce=false;$("once").classList.remove("on");
   }catch(e){
     const mb=appConfig?.maxUploadMb||100;
-    $("note").textContent=e.status===413?`Upload too large (max ${mb} MB).`:"Upload failed.";
+    setStatus(e.status===413?`Too large (max ${mb} MB).`:"Upload failed.","err");
   }
 };
 
@@ -2438,14 +2518,20 @@ async function loadAuthMedia(host,url,kind,fname){
   const ph=document.createElement("div");ph.textContent="Loading…";ph.style.color="var(--mute)";host.appendChild(ph);
   try{
     const res=await fetch(url,{credentials:"same-origin"});
-    if(!res.ok)throw 0;
+    if(!res.ok)throw{status:res.status};
     const blob=await res.blob();const u=URL.createObjectURL(blob);mediaObjectUrls.push(u);
     host.textContent="";
     const k=String(kind||"");
     if(k.startsWith("image/")){const i=document.createElement("img");i.src=u;i.className="protected";drapeProtect(i);host.appendChild(i);}
     else if(k.startsWith("video/")||mediaIsVideo(k,url)){const v=document.createElement("video");v.src=u;v.controls=true;v.playsInline=true;v.controlsList="nodownload noremoteplayback";v.disablePictureInPicture=true;drapeProtect(v);host.appendChild(v);}
     else{const a=document.createElement("span");a.className="file";a.textContent="📄 "+(fname||"file");host.appendChild(a);}
-  }catch(e){host.textContent="";const err=document.createElement("div");err.style.color="var(--mute)";err.textContent="Media unavailable";host.appendChild(err);}
+  }catch(e){
+    host.textContent="";
+    const err=document.createElement("div");err.style.color="var(--mute)";err.style.fontSize="13px";err.style.padding="8px";
+    err.textContent=e.status===403?"Media locked — not your upload.":e.status===404?"Media not found.":"Couldn't load media.";
+    host.appendChild(err);
+    if(activeTab==="chat")setStatus("A photo or video failed to load.","err");
+  }
 }
 
 function drapeProtect(el){el.draggable=false;el.oncontextmenu=e=>e.preventDefault();el.style.webkitUserSelect="none";el.style.userSelect="none";}
