@@ -160,13 +160,13 @@ header h2{
 .pill.heart{background:linear-gradient(100deg,var(--heart-a),var(--heart-b));border-color:transparent;color:var(--heart-fg)!important}
 .pill.install{border-color:var(--gold);color:var(--gold)}
 #feed{
-  flex:1;overflow-y:auto;padding:10px 14px 8px;display:flex;flex-direction:column;gap:3px;
+  flex:1;overflow-y:auto;padding:8px 12px 6px;display:flex;flex-direction:column;gap:2px;
   -webkit-overflow-scrolling:touch;contain:layout style;
 }
 .msg{
-  max-width:min(78%,520px);padding:9px 14px 8px;border-radius:18px;
+  max-width:min(78%,520px);padding:5px 10px 4px;border-radius:14px;
   word-wrap:break-word;overflow-wrap:anywhere;position:relative;border:none;
-  font-size:16px;line-height:1.35;letter-spacing:-.01em;
+  font-size:15px;line-height:1.3;letter-spacing:-.01em;
   box-shadow:var(--shadow);
 }
 .msg.pending{opacity:.82}
@@ -180,17 +180,19 @@ header h2{
 .msg.me.stack{border-top-right-radius:6px}
 .msg.marked{box-shadow:0 0 0 2px var(--mark-ring)}
 .reply-quote{
-  font-size:12px;color:var(--reply-me);border-left:3px solid var(--quote-edge-me);padding:2px 0 6px 10px;margin-bottom:6px;line-height:1.3;
+  font-size:11px;color:var(--reply-me);border-left:2px solid var(--quote-edge-me);padding:0 0 1px 6px;margin:0 0 3px;line-height:1.2;
 }
 .msg.them .reply-quote{color:var(--reply-them);border-left-color:var(--quote-edge-them)}
-.who{font-size:11px;color:var(--mute);margin:0 0 4px 2px;font-weight:500;letter-spacing:.01em}
-.msg-tools{display:flex;gap:5px;margin-top:8px;opacity:.7}
+.who{font-size:10px;color:var(--mute);margin:0 0 1px 1px;font-weight:500;letter-spacing:.01em}
+.msg-foot{display:flex;align-items:center;gap:4px;margin-top:1px;min-height:16px}
+.msg-tools{display:flex;align-items:center;gap:0;margin:0;opacity:.78}
 .msg-tools button{
-  background:var(--tool-bg);border:0;border-radius:999px;padding:8px 12px;font-size:11px;cursor:pointer;color:inherit;
-  letter-spacing:.02em;min-height:36px;
+  background:transparent;border:0;border-radius:5px;padding:1px 3px;font-size:12px;line-height:1;
+  cursor:pointer;color:inherit;letter-spacing:0;min-height:0;min-width:18px;opacity:.75;
 }
-.msg.me .msg-tools button{background:var(--tool-bg-me);color:var(--tool-fg-me)}
-.msg-tools button.on{opacity:1;font-weight:600}
+.msg.me .msg-tools button{background:transparent;color:inherit}
+.msg-tools button.on{opacity:1}
+.msg-tools .msg-mark.on{color:var(--star-me)}
 .msg.selectable{padding-left:36px;position:relative}
 .msg .msg-pick{position:absolute;left:8px;top:50%;transform:translateY(-50%);width:18px;height:18px;accent-color:var(--rose)}
 #selectbar{
@@ -199,17 +201,17 @@ header h2{
 }
 #selectbar button{margin-left:auto}
 .pill.on{border-color:var(--rose);color:var(--rose);background:var(--panel2);font-weight:600}
-.t{font-size:10px;opacity:var(--stamp-opacity);margin-top:4px;text-align:right;letter-spacing:.02em;color:inherit}
+.t{font-size:9px;opacity:var(--stamp-opacity);margin:0 0 0 auto;text-align:right;letter-spacing:.02em;color:inherit;line-height:1.2}
 .msg img,.msg video{max-width:100%;max-height:320px;border-radius:14px;display:block;margin-top:6px}
 .msg a{color:var(--link);text-underline-offset:3px;font-weight:500}
 .file{display:inline-block;margin-top:8px;padding:8px 14px;border:1px dashed var(--rose);border-radius:12px;text-decoration:none;color:var(--file-fg)}
 .msg.them .file{color:var(--file-fg)}
 #replybar{
-  display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid var(--line);
-  background:var(--panel2);font-size:13px;color:var(--text);
+  display:flex;align-items:center;gap:6px;padding:4px 12px;border-top:1px solid var(--line);
+  background:var(--panel2);font-size:11px;color:var(--text);min-height:0;
 }
-#replybar strong{color:var(--rose)}
-#replybar button{margin-left:auto;background:none;border:0;color:var(--mute);cursor:pointer;font-size:20px;line-height:1}
+#replybar strong{color:var(--rose);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#replybar button{margin-left:auto;background:none;border:0;color:var(--mute);cursor:pointer;font-size:16px;line-height:1;padding:2px 4px}
 #bar{
   display:flex;flex-direction:column;gap:10px;padding:10px 12px max(10px,env(safe-area-inset-bottom,0px));
   border-top:1px solid var(--line);background:var(--bar-bg);backdrop-filter:blur(20px);position:relative;
@@ -362,12 +364,7 @@ header h2{
 .view-once:hover{border-color:var(--rose);color:var(--text)}
 .vo-chip.vo-done,.vo-chip.vo-sent{border-style:solid;cursor:default}
 .vo-ico{font-size:18px;line-height:1;opacity:.9}
-.msg-star{
-  position:absolute;top:2px;right:4px;border:0;background:transparent;font-size:15px;line-height:1;
-  cursor:pointer;padding:6px;opacity:.55;color:inherit;z-index:2;
-}
-.msg-star.on,.msg:hover .msg-star,.msg:focus-within .msg-star{opacity:1}
-.msg.me .msg-star.on{color:var(--star-me)}
+.msg.me .msg-mark.on{color:var(--star-me)}
 #selectbar span{color:var(--text)}
 #actionsheet{
   position:fixed;inset:0;background:var(--scrim-soft);z-index:55;display:flex;align-items:flex-end;justify-content:center;padding:16px;
@@ -967,7 +964,7 @@ let moodsAlertReady=false;
 let inboxAlertReady=false;
 const PENDING_PARTNER_KEY="shhh-pending-partner";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="33";
+const APP_SW_BUILD="36";
 let healthOkHint=false;
 const LOGIN_GRACE_MS=15000;
 const SESSION_TOKEN_KEY="shhh-session-token";
@@ -2324,13 +2321,14 @@ function applyMsgShell(el,m,idx,list){
     if(!who){who=document.createElement("div");who.className="who";el.insertBefore(who,el.firstChild);}
     who.textContent=m.user;
   }else if(who)who.remove();
-  const t=el.querySelector(":scope > .t");
+  const t=el.querySelector(".t");
   if(t)t.textContent=formatMsgTime(m);
-  const star=el.querySelector(".msg-star");
-  if(star){
-    star.textContent=m.marked?"★":"☆";
-    star.classList.toggle("on",!!m.marked);
-    star.title=m.marked?"Marked":"Mark message";
+  const mark=el.querySelector(".msg-mark");
+  if(mark){
+    mark.textContent=m.marked?"★":"☆";
+    mark.classList.toggle("on",!!m.marked);
+    mark.title=m.marked?"Marked — tap to unmark":"Mark message";
+    mark.setAttribute("aria-label",m.marked?"Unmark":"Mark");
   }
 }
 
@@ -2377,23 +2375,28 @@ function createMsgEl(m,idx,list){
     else{const a=document.createElement("a");a.className="file";a.href=url;a.target="_blank";a.rel="noopener";a.textContent="📄 "+(m.fname||"file");host.appendChild(a);}
   }
   d.appendChild(body);
-  if(mode==="api"&&!selectMode&&!String(m.id).startsWith("pending-")){
-    const star=document.createElement("button");
-    star.type="button";star.className="msg-star"+(m.marked?" on":"");star.dataset.act="mark";
-    star.textContent=m.marked?"★":"☆";star.title=m.marked?"Marked — tap to unmark":"Mark message";
-    star.onclick=e=>{e.stopPropagation();void toggleMark(m.id);};
-    d.appendChild(star);
-  }
+  const foot=document.createElement("div");foot.className="msg-foot";
   if(!selectMode){
     const tools=document.createElement("div");tools.className="msg-tools";
-    const br=document.createElement("button");br.type="button";br.textContent="Reply";br.onclick=()=>setReply(m);tools.appendChild(br);
-    if(mode==="api"){
-      const mk=document.createElement("button");mk.type="button";mk.textContent="Mark";mk.className=m.marked?"on":"";
-      mk.onclick=()=>toggleMark(m.id);tools.appendChild(mk);
+    const br=document.createElement("button");
+    br.type="button";br.className="msg-reply";br.textContent="↩";
+    br.title="Reply";br.setAttribute("aria-label","Reply");
+    br.onclick=e=>{e.stopPropagation();setReply(m);};
+    tools.appendChild(br);
+    if(mode==="api"&&!String(m.id).startsWith("pending-")){
+      const mk=document.createElement("button");
+      mk.type="button";mk.className="msg-mark"+(m.marked?" on":"");
+      mk.textContent=m.marked?"★":"☆";
+      mk.title=m.marked?"Marked — tap to unmark":"Mark message";
+      mk.setAttribute("aria-label",m.marked?"Unmark":"Mark");
+      mk.onclick=e=>{e.stopPropagation();void toggleMark(m.id);};
+      tools.appendChild(mk);
     }
-    d.appendChild(tools);
+    foot.appendChild(tools);
   }
-  const t=document.createElement("div");t.className="t";t.textContent=formatMsgTime(m);d.appendChild(t);
+  const t=document.createElement("div");t.className="t";t.textContent=formatMsgTime(m);
+  foot.appendChild(t);
+  d.appendChild(foot);
   bindMsgGestures(d,m);
   return d;
 }
@@ -2463,6 +2466,7 @@ function render(list){
       msgById.delete(id);
     }
   }
+  f.querySelectorAll(":scope > .empty-state").forEach(n=>n.remove());
   f.dataset.listFp=nextFp;
   if(stick||!f.dataset.init){f.scrollTop=f.scrollHeight;f.dataset.init=1;}
   updateScrollFab();
