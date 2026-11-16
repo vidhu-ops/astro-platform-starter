@@ -314,14 +314,19 @@ function setSessionCookie(res, token) {
   res.cookie("velvet_session", token, {
     httpOnly: true,
     secure: COOKIE_SECURE,
-    sameSite: "strict",
+    sameSite: "lax",
     maxAge: SESSION_MS,
     path: "/",
   });
 }
 
 function clearSessionCookie(res) {
-  res.clearCookie("velvet_session", { path: "/", httpOnly: true, secure: COOKIE_SECURE });
+  res.clearCookie("velvet_session", {
+    path: "/",
+    httpOnly: true,
+    secure: COOKIE_SECURE,
+    sameSite: "lax",
+  });
 }
 
 const DEVICE_COOKIE = "shhh_device";
@@ -336,7 +341,7 @@ function getOrSetDeviceId(req, res) {
     res.cookie(DEVICE_COOKIE, id, {
       httpOnly: true,
       secure: COOKIE_SECURE,
-      sameSite: "strict",
+      sameSite: "lax",
       maxAge: 400 * 24 * 60 * 60 * 1000,
       path: "/",
     });

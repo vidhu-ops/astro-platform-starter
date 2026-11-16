@@ -903,7 +903,8 @@ let inboxNotes=[];
 let partnerChipTimer=null;
 const PENDING_PARTNER_KEY="shhh-pending-partner";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="25";
+const APP_SW_BUILD="26";
+const LOGIN_GRACE_MS=4000;
 let deployCommitShort="";
 let jsErrorToastSent=false;
 const SCRAP_POLL_MS=45000;
@@ -996,11 +997,46 @@ function enableGateSignIn(){
 }
 function quickLoginTransition(n){
   name=n;
+  joinedAt=Date.now();
   markBodyReady();
   showAuthShell(true);
   $("me").textContent="@"+n;
   setMainTab("chat");
   $("err").textContent="";
+  render([]);
+}
+function resetToGateAfterFailedSession(msg){
+  name="";
+  if(pollTimer)clearInterval(pollTimer);
+  pollTimer=null;
+  msgById.clear();
+  showAuthShell(false);
+  setGateError(msg||"Session expired — enter the shared room password to continue.");
+  enableGateSignIn();
+  const remembered=savedName();
+  if(remembered)$("u").value=remembered;
+  $("p").value="";
+  $("p").focus();
+}
+async function shouldBounceToGateOn401(){
+  if(joinedAt&&Date.now()-joinedAt<LOGIN_GRACE_MS)return false;
+  try{
+    const me=await api("/api/auth/me");
+    if(me?.username)return false;
+  }catch(e){
+    if(e.status&&e.status!==401)return false;
+  }
+  return true;
+}
+async function verifySessionAfterEnter(expectedUser){
+  const me=await api("/api/auth/me");
+  if(!me?.username){
+    throw Object.assign(new Error("Session didn't stick — try a normal browser window (not private), then sign in again."),{status:0});
+  }
+  if(expectedUser&&me.username!==expectedUser){
+    throw Object.assign(new Error("Session username mismatch — try signing in again."),{status:0});
+  }
+  return me;
 }
 async function api(path,opts={},timeoutMs=30000){
   const headers={...(opts.headers||{})};
@@ -1523,6 +1559,12 @@ async function detectBackend(){
       if(h.db===false){
         setGateError("Database not configured — login may fail until DATABASE_URL is set on Render.");
       }
+      try{
+        if(new URLSearchParams(location.search).get("diag")==="1"){
+          setGateError(`Diagnostics: pushEnabled=${appConfig?.pushEnabled?"yes":"no"} · api mode on`);
+        }
+      }catch(e){}
+      enableGateSignIn();
       return;
     }
   }catch(e){
@@ -1542,6 +1584,7 @@ async function detectBackend(){
   enableGateSignIn();
 }
 
+setTimeout(()=>{if(!name)enableGateSignIn();},5000);
 (async()=>{
   try{
     await detectBackend();
@@ -1626,10 +1669,12 @@ $("go").onclick=async()=>{
   try{
     if(mode==="api"){
       await api("/api/auth/enter",{method:"POST",body:{username:n,password:pw}},30000);
+      await verifySessionAfterEnter(n);
       setSavedName(n);
       $("p").value="";
       quickLoginTransition(n);
-      resumeApp(n,{skipShell:true});
+      resumeApp(n,{skipShell:true,skipInitialRefresh:true});
+      await refreshApi();
     }else{
       const ref=db.collection("users").doc(n),s=await ref.get();
       if(s.exists&&s.data().owner!==uid){
@@ -1642,7 +1687,7 @@ $("go").onclick=async()=>{
       resumeApp(n,{skipShell:true});
     }
   }catch(e){
-    if(e.status===0)setGateError("Network error or timeout — check connection and try again.");
+    if(e.status===0)setGateError(e.message||"Network error or timeout — check connection and try again.");
     else if(mode==="api"&&e.status===403)setGateError("Wrong password — use the shared room password your partner has.");
     else if(e.status===503)setGateError("Server unavailable — try again in a moment.");
     else if(e.status===409)setGateError("That username is taken.");
@@ -1691,7 +1736,7 @@ function enter(n,opts={}){
     window.setTimeout(()=>void maybeShowPushPrompt(),900);
     if(pollTimer)clearInterval(pollTimer);
     if(pollMetaTimer)clearTimeout(pollMetaTimer);
-    refreshApi();
+    if(!opts.skipInitialRefresh)void refreshApi();
     pollTimer=setInterval(()=>{if(!document.hidden)refreshApi();},POLL_MS);
     scheduleMetaPoll();
     $("sel").classList.remove("hide");
@@ -1756,17 +1801,11 @@ async function refreshApi(){
       }
     }catch(e){
       if(e.status===401){
-        if(pollTimer)clearInterval(pollTimer);
-        if(pollMetaTimer)clearTimeout(pollMetaTimer);
-        if(storyPollTimer)clearInterval(storyPollTimer);
-        msgById.clear();
-        $("feed").textContent="";
-        $("gate").classList.remove("hide");
-        $("app").classList.add("hide");
-        if(name)setSavedName(name);
-        if(name)$("u").value=name;
-        $("err").textContent="Session expired — enter the room password to continue.";
-        $("p").focus();
+        if(await shouldBounceToGateOn401()){
+          resetToGateAfterFailedSession("Session expired — enter the shared room password to continue.");
+        }else{
+          setStatus("Still signing in…","warn");
+        }
       }else setStatus((e.data&&e.data.error)||"Couldn't load messages.","err");
     }finally{
       refreshInFlight=null;
