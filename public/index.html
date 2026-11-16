@@ -1743,7 +1743,7 @@ $("go").onclick=async()=>{
     else setGateError(e.message||"Couldn't sign in. Try again.");
   }finally{
     if(!name){
-      btn.disabled=!mode;
+      btn.disabled=false;
       btn.textContent=prevLabel||"Continue";
     }
   }
