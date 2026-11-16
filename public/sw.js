@@ -1,5 +1,35 @@
 /* shhh PWA — network-first HTML so rebrands reach mobile */
-const CACHE = "shhh-v37";
+const CACHE = "shhh-v38";
+const PREFS_CACHE = "shhh-prefs";
+const PREFS_URL = "/__alert-prefs";
+let alertPrefs = { master: true };
+
+async function loadAlertPrefs() {
+  try {
+    const cache = await caches.open(PREFS_CACHE);
+    const res = await cache.match(PREFS_URL);
+    if (res) {
+      const data = await res.json();
+      if (typeof data.master === "boolean") alertPrefs.master = data.master;
+    }
+  } catch {
+    /* ignore */
+  }
+  return alertPrefs;
+}
+
+async function saveAlertPrefs(next) {
+  if (typeof next?.master === "boolean") alertPrefs.master = next.master;
+  try {
+    const cache = await caches.open(PREFS_CACHE);
+    await cache.put(
+      PREFS_URL,
+      new Response(JSON.stringify(alertPrefs), { headers: { "Content-Type": "application/json" } }),
+    );
+  } catch {
+    /* ignore */
+  }
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -11,15 +41,22 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))),
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => k !== CACHE && k !== PREFS_CACHE).map((k) => caches.delete(k)));
+      await loadAlertPrefs();
+      await self.clients.claim();
+    })(),
   );
-  self.clients.claim();
 });
 
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
   if (event.data?.type === "CLEAR_BADGE") {
     event.waitUntil(clearBadge());
+  }
+  if (event.data?.type === "ALERT_PREFS") {
+    event.waitUntil(saveAlertPrefs(event.data));
   }
 });
 
@@ -101,27 +138,27 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     (async () => {
       const list = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-      let visible = false;
       for (const c of list) {
         try {
           c.postMessage({ type: "PARTNER_SIGNAL", payload });
         } catch {
           /* ignore */
         }
-        if (c.visibilityState === "visible") visible = true;
       }
-      if (!visible) {
+      const prefs = await loadAlertPrefs();
+      if (prefs.master !== false) {
         const icon = new URL(data.icon || "/icons/icon.svg", self.location.origin).href;
         const badge = new URL(data.badge || "/icons/heart-badge.svg", self.location.origin).href;
         await self.registration.showNotification(data.title || "shhh", {
           body: data.body || "New activity",
           icon,
           badge,
-          tag: data.tag || "shhh",
+          tag: data.tag || payload.chatHeadKey || payload.noteId || payload.msgId || "shhh",
           renotify: true,
           requireInteraction,
           silent: false,
           vibrate: requireInteraction ? [80, 40, 80, 40, 140] : [60, 30, 80],
+          timestamp: Date.now(),
           data: payload,
         });
       }
