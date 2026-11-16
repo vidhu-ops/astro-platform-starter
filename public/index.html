@@ -391,12 +391,21 @@ html[data-theme="light"] #scrapview .scrap-sub{color:#4a4248}
 .cal-day.sel{background:var(--tab-on-bg);border-color:var(--rose)}
 .cal-day:not(.off){min-height:44px}
 .cal-events{display:flex;flex-direction:column;gap:8px;margin-top:12px}
-.cal-day-panel{
-  margin-top:14px;padding:16px;border-radius:16px;border:1px solid #dcccb4;
-  background:linear-gradient(180deg,#fdf9f3,#f5ebe0);box-shadow:0 4px 14px #00000014;
+#caldayoverlay{position:fixed;inset:0;background:var(--scrim);z-index:43;display:flex;align-items:flex-end;justify-content:center}
+#caldayoverlay.hide{display:none!important}
+#caldayoverlay .sheet.cal-day-panel{
+  width:100%;max-width:520px;max-height:min(82vh,640px);overflow-y:auto;
+  margin:0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));
+  border-radius:22px 22px 0 0;border:1px solid #dcccb4;border-bottom:0;
+  background:linear-gradient(180deg,#fdf9f3,#f5ebe0);box-shadow:0 -8px 32px #00000022;
+  touch-action:pan-y;
 }
-html[data-theme="dark"] .cal-day-panel{background:linear-gradient(180deg,#342f29,#2a2520);border-color:#5a5048}
-.cal-day-panel.hide{display:none!important}
+html[data-theme="dark"] #caldayoverlay .sheet.cal-day-panel{background:linear-gradient(180deg,#342f29,#2a2520);border-color:#5a5048}
+.cal-day-panel .cal-drag{width:40px;height:4px;border-radius:999px;background:var(--line);margin:0 auto 12px;opacity:.85}
+.cal-day-close-x{
+  width:44px;height:44px;border-radius:999px;border:1px solid var(--line);background:var(--panel);
+  font-size:22px;line-height:1;cursor:pointer;color:var(--text);flex-shrink:0;
+}
 .cal-day-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
 .cal-day-head strong{font-family:"Cormorant Garamond",Georgia,serif;font-size:18px;font-style:italic}
 .cal-day-add{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
@@ -721,17 +730,6 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
       <div class="cal-grid" id="caldow"></div>
       <div class="cal-grid" id="calgrid"></div>
       <div class="cal-events" id="calevents"></div>
-      <div id="caldaypanel" class="cal-day-panel hide" aria-live="polite">
-        <div class="cal-day-head">
-          <strong id="caldaytitle">Important dates</strong>
-          <button type="button" class="pill" id="caldayclose">Close</button>
-        </div>
-        <div id="caldaylist"></div>
-        <div class="cal-day-add">
-          <input type="text" id="caldaylabel" placeholder="Label (e.g. Anniversary)" maxlength="120" autocomplete="off">
-          <button type="button" class="pill" id="caldaysave">Add for this day</button>
-        </div>
-      </div>
     </section>
     <section class="scrap-section" aria-label="Memories and quotes">
       <p class="scrap-section-title">Timeline</p>
@@ -783,6 +781,20 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
     <input type="text" id="noteto" placeholder="@username" autocomplete="username" maxlength="20">
     <textarea id="notebody" placeholder="Write something they'll keep…" maxlength="2000" rows="4" style="min-height:88px;width:100%;border-radius:14px;border:1px solid var(--line);padding:12px;background:var(--input-bg);color:var(--text);resize:vertical"></textarea>
     <button type="button" class="btn" id="notesend">Send note</button>
+  </div>
+</div>
+<div id="caldayoverlay" class="hide" role="dialog" aria-modal="true" aria-labelledby="caldaytitle">
+  <div class="sheet cal-day-panel" id="caldaypanel">
+    <div class="cal-drag" aria-hidden="true"></div>
+    <div class="cal-day-head">
+      <strong id="caldaytitle">Important dates</strong>
+      <button type="button" class="cal-day-close-x" id="caldayclose" title="Close" aria-label="Close day panel">×</button>
+    </div>
+    <div id="caldaylist" aria-live="polite"></div>
+    <div class="cal-day-add">
+      <input type="text" id="caldaylabel" placeholder="Label (e.g. Anniversary)" maxlength="120" autocomplete="off">
+      <button type="button" class="pill" id="caldaysave">Add for this day</button>
+    </div>
   </div>
 </div>
 <div id="notinboxpanel" class="hide" role="dialog" aria-modal="true">
@@ -871,6 +883,10 @@ let emojiList=null;
 let activeTab="chat";
 let storyPollTimer=null;
 let scrapPollTimer=null;
+let lastScrapItemsSig="";
+let lastScrapDatesSig="";
+let calDayPanelOpen=false;
+let calDaySwipeY=null;
 let presenceTimer=null;
 let scrapItems=[];
 let scrapDates=[];
@@ -889,7 +905,8 @@ let shownChatHeadKey=null;
 const CHAT_HEAD_DISMISS_KEY="shhh-chat-head-dismiss";
 const PENDING_CHAT_HEAD_KEY="shhh-pending-chat-head";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="19";
+const APP_SW_BUILD="20";
+const SCRAP_POLL_MS=45000;
 const PUSH_PROMPT_SEEN_KEY="shhh-push-prompt-seen";
 const PUSH_DENY_HINT_KEY="shhh-push-deny-hint";
 const PARTNER_PIN_EMOJI=[{e:"🦄",label:"Unicorn"},{e:"🐻",label:"Bear hug"}];
@@ -2466,49 +2483,54 @@ function datesOnDay(y,m,day){
   });
 }
 
-function renderCalendar(){
-  const dow=$("caldow"),grid=$("calgrid"),title=$("caltitle");
-  if(!dow||!grid)return;
-  dow.textContent="";
-  ["Su","Mo","Tu","We","Th","Fr","Sa"].forEach(l=>{
-    const s=document.createElement("div");s.className="cal-dow";s.textContent=l;dow.appendChild(s);
-  });
-  grid.textContent="";
-  const first=new Date(scrapCalYear,scrapCalMonth,1);
-  const startDay=first.getDay();
-  const daysInMonth=new Date(scrapCalYear,scrapCalMonth+1,0).getDate();
-  const monthName=first.toLocaleString([],{month:"long",year:"numeric"});
-  title.textContent=monthName;
-  const today=new Date();
-  for(let i=0;i<startDay;i++){
-    const b=document.createElement("div");b.className="cal-day off";grid.appendChild(b);
-  }
-  for(let day=1;day<=daysInMonth;day++){
-    const b=document.createElement("button");
-    b.type="button";
-    const ev=datesOnDay(scrapCalYear,scrapCalMonth,day);
-    b.className="cal-day"+(ev.length?" has-event":"")+
-      (scrapCalSel===day?" sel":"")+
-      (today.getFullYear()===scrapCalYear&&today.getMonth()===scrapCalMonth&&today.getDate()===day?" today":"");
-    b.textContent=String(day);
-    b.onclick=()=>{scrapCalSel=day;openCalDayPanel(day);renderCalendar();};
-    grid.appendChild(b);
-  }
-  if(scrapCalSel)openCalDayPanel(scrapCalSel);
-  else{$("caldaypanel")?.classList.add("hide");renderCalEvents(null);}
+function scrapItemsSig(items){
+  return JSON.stringify((items||[]).map(i=>[i.id,i.ts,i.memoryAt,i.type,i.title,i.body,i.media,i.kind,i.user]));
+}
+function scrapDatesSig(dates){
+  return JSON.stringify((dates||[]).map(d=>[d.id,d.date,d.label,d.yearly,!!d.marked,d.note,d.user,d.media,d.kind]));
 }
 
-function openCalDayPanel(day){
+function calDayButtonClass(day){
+  const ev=datesOnDay(scrapCalYear,scrapCalMonth,day);
+  const today=new Date();
+  return "cal-day"+
+    (ev.length?" has-event":"")+
+    (scrapCalSel===day&&calDayPanelOpen?" sel":"")+
+    (today.getFullYear()===scrapCalYear&&today.getMonth()===scrapCalMonth&&today.getDate()===day?" today":"");
+}
+
+function updateCalDaySelectionClasses(){
+  const grid=$("calgrid");
+  if(!grid)return;
+  grid.querySelectorAll("button.cal-day").forEach(b=>{
+    const day=Number(b.dataset.day);
+    if(day)b.className=calDayButtonClass(day);
+  });
+}
+
+function closeCalDayPanel(){
+  calDayPanelOpen=false;
+  scrapCalSel=null;
+  $("caldayoverlay")?.classList.add("hide");
+  $("caldaylabel")?.blur();
+  renderCalEvents(null);
+  updateCalDaySelectionClasses();
+}
+
+function fillCalDayPanel(day,opts={}){
   if(day==null)return;
-  const panel=$("caldaypanel"),list=$("caldaylist"),title=$("caldaytitle");
-  if(!panel||!list)return;
+  const list=$("caldaylist"),titleEl=$("caldaytitle"),panel=$("caldaypanel");
+  if(!list||!titleEl||!panel)return;
   const pad=n=>String(n).padStart(2,"0");
   const iso=`${scrapCalYear}-${pad(scrapCalMonth+1)}-${pad(day)}`;
   const localDate=new Date(scrapCalYear,scrapCalMonth,day,12,0,0);
-  title.textContent=localDate.toLocaleDateString([],{weekday:"long",month:"long",day:"numeric",year:"numeric"});
-  panel.classList.remove("hide");
-  list.textContent="";
+  titleEl.textContent=localDate.toLocaleDateString([],{weekday:"long",month:"long",day:"numeric",year:"numeric"});
   const ev=datesOnDay(scrapCalYear,scrapCalMonth,day);
+  const nextSig=JSON.stringify(ev.map(d=>[d.id,d.label,d.marked,d.note]));
+  if(panel.dataset.dayContentSig===nextSig&&panel.dataset.day===String(day))return;
+  panel.dataset.day=String(day);
+  panel.dataset.dayContentSig=nextSig;
+  list.textContent="";
   if(!ev.length){
     const p=document.createElement("p");
     p.className="scrap-sub";p.style.margin="0";
@@ -2529,20 +2551,92 @@ function openCalDayPanel(day){
     });
   }
   $("scrapdate").value=iso;
-  $("caldaylabel").value="";
-  panel.dataset.day=String(day);
-  panel.scrollIntoView({block:"nearest",behavior:"smooth"});
+  if(!opts.keepLabel)$("caldaylabel").value="";
+}
+
+function openCalDayPanel(day){
+  if(day==null)return;
+  scrapCalSel=day;
+  calDayPanelOpen=true;
+  fillCalDayPanel(day,{keepLabel:true});
+  $("caldayoverlay")?.classList.remove("hide");
+  updateCalDaySelectionClasses();
   renderCalEvents(day);
 }
-$("caldayclose").onclick=()=>{
-  scrapCalSel=null;
-  $("caldaypanel")?.classList.add("hide");
-  renderCalendar();
-};
+
+function bindCalDayOverlayOnce(){
+  const ov=$("caldayoverlay"),sheet=$("caldaypanel");
+  if(!ov||ov._shhhBound)return;
+  ov._shhhBound=true;
+  ov.onclick=e=>{if(e.target===ov)closeCalDayPanel();};
+  $("caldayclose").onclick=()=>closeCalDayPanel();
+  document.addEventListener("keydown",e=>{
+    if(e.key==="Escape"&&calDayPanelOpen)closeCalDayPanel();
+  });
+  if(!sheet)return;
+  sheet.addEventListener("touchstart",e=>{calDaySwipeY=e.touches[0]?.clientY??null;},{passive:true});
+  sheet.addEventListener("touchend",e=>{
+    if(calDaySwipeY==null)return;
+    const dy=(e.changedTouches[0]?.clientY??calDaySwipeY)-calDaySwipeY;
+    calDaySwipeY=null;
+    if(dy>70)closeCalDayPanel();
+  },{passive:true});
+}
+
+function renderCalendar(opts={}){
+  bindCalDayOverlayOnce();
+  const dow=$("caldow"),grid=$("calgrid"),title=$("caltitle");
+  if(!dow||!grid)return;
+  const monthKey=`${scrapCalYear}-${scrapCalMonth}`;
+  const first=new Date(scrapCalYear,scrapCalMonth,1);
+  const startDay=first.getDay();
+  const daysInMonth=new Date(scrapCalYear,scrapCalMonth+1,0).getDate();
+  const monthName=first.toLocaleString([],{month:"long",year:"numeric"});
+  if(title)title.textContent=monthName;
+  const soft=opts.soft&&grid.dataset.monthKey===monthKey;
+  if(!soft){
+    if(!dow.childElementCount){
+      ["Su","Mo","Tu","We","Th","Fr","Sa"].forEach(l=>{
+        const s=document.createElement("div");s.className="cal-dow";s.textContent=l;dow.appendChild(s);
+      });
+    }
+    grid.textContent="";
+    for(let i=0;i<startDay;i++){
+      const b=document.createElement("div");b.className="cal-day off";grid.appendChild(b);
+    }
+    for(let day=1;day<=daysInMonth;day++){
+      const b=document.createElement("button");
+      b.type="button";
+      b.dataset.day=String(day);
+      b.className=calDayButtonClass(day);
+      b.textContent=String(day);
+      b.onclick=()=>openCalDayPanel(day);
+      grid.appendChild(b);
+    }
+    grid.dataset.monthKey=monthKey;
+  }else{
+    grid.querySelectorAll("button.cal-day").forEach(b=>{
+      const day=Number(b.dataset.day);
+      if(!day)return;
+      const ev=datesOnDay(scrapCalYear,scrapCalMonth,day);
+      b.className=calDayButtonClass(day);
+      b.toggleAttribute("aria-pressed",scrapCalSel===day&&calDayPanelOpen);
+      void ev;
+    });
+  }
+  if(calDayPanelOpen&&scrapCalSel!=null){
+    fillCalDayPanel(scrapCalSel,{keepLabel:true});
+    $("caldayoverlay")?.classList.remove("hide");
+    renderCalEvents(scrapCalSel);
+  }else if(!calDayPanelOpen){
+    $("caldayoverlay")?.classList.add("hide");
+    if(!scrapCalSel)renderCalEvents(null);
+  }
+}
 $("caldaysave").onclick=async()=>{
   if(mode!=="api")return;
   const panel=$("caldaypanel");
-  const day=Number(panel?.dataset.day);
+  const day=Number(panel?.dataset.day||scrapCalSel);
   if(!day)return;
   const label=$("caldaylabel").value.trim();
   if(label.length<2)return setStatus("Add a short label for this date.","err");
@@ -2559,6 +2653,10 @@ $("caldaysave").onclick=async()=>{
 function renderCalEvents(day){
   const host=$("calevents");
   if(!host)return;
+  if(calDayPanelOpen){
+    host.textContent="";
+    return;
+  }
   host.textContent="";
   if(day==null){
     const hint=document.createElement("p");
@@ -2639,6 +2737,10 @@ function appendVintageMedia(host,url,kind){
 function renderScrapItems(){
   const feed=$("scrapfeed");
   if(!feed)return;
+  if(feed.dataset.renderSig===lastScrapItemsSig&&feed.childElementCount>0){
+    return;
+  }
+  feed.dataset.renderSig=lastScrapItemsSig;
   feed.textContent="";
   const sorted=[...scrapItems].sort((a,b)=>(b.memoryAt||b.ts)-(a.memoryAt||a.ts));
   if(!sorted.length){
@@ -2683,35 +2785,58 @@ function renderScrapItems(){
   });
 }
 
-async function refreshScrapbook(){
+async function refreshScrapbook(opts={}){
   if(mode!=="api")return;
   try{
     const [itemsRes,datesRes]=await Promise.all([
       api("/api/scrapbook/items"),
       api("/api/scrapbook/dates"),
     ]);
-    scrapItems=itemsRes.items||[];
-    scrapDates=datesRes.dates||[];
-    renderScrapItems();
-    renderCalendar();
+    const nextItems=itemsRes.items||[];
+    const nextDates=datesRes.dates||[];
+    const itemsSig=scrapItemsSig(nextItems);
+    const datesSig=scrapDatesSig(nextDates);
+    const itemsChanged=itemsSig!==lastScrapItemsSig;
+    const datesChanged=datesSig!==lastScrapDatesSig;
+    if(!opts.force&&!itemsChanged&&!datesChanged)return;
+    scrapItems=nextItems;
+    scrapDates=nextDates;
+    if(itemsChanged||opts.force){
+      lastScrapItemsSig=itemsSig;
+      renderScrapItems();
+    }
+    if(datesChanged||opts.force){
+      lastScrapDatesSig=datesSig;
+      const panel=$("caldaypanel");
+      if(panel&&calDayPanelOpen)panel.dataset.dayContentSig="";
+      const monthKey=`${scrapCalYear}-${scrapCalMonth}`;
+      const grid=$("calgrid");
+      renderCalendar({soft:!opts.force&&grid?.dataset.monthKey===monthKey});
+    }else if(calDayPanelOpen&&scrapCalSel!=null){
+      $("caldaypanel").dataset.dayContentSig="";
+      fillCalDayPanel(scrapCalSel,{keepLabel:true});
+    }
   }catch(e){$("note").textContent="Couldn't load scrapbook.";}
 }
 
 function scheduleScrapPoll(){
   if(scrapPollTimer)clearInterval(scrapPollTimer);
-  scrapPollTimer=setInterval(()=>{if(activeTab==="scrap"&&!document.hidden)void refreshScrapbook();},20000);
+  scrapPollTimer=setInterval(()=>{
+    if(activeTab!=="scrap"||document.hidden||calDayPanelOpen)return;
+    void refreshScrapbook();
+  },SCRAP_POLL_MS);
 }
 
 $("calprev").onclick=()=>{
+  closeCalDayPanel();
   scrapCalMonth--;
   if(scrapCalMonth<0){scrapCalMonth=11;scrapCalYear--;}
-  scrapCalSel=null;
   renderCalendar();
 };
 $("calnext").onclick=()=>{
+  closeCalDayPanel();
   scrapCalMonth++;
   if(scrapCalMonth>11){scrapCalMonth=0;scrapCalYear++;}
-  scrapCalSel=null;
   renderCalendar();
 };
 $("scraptypes").onclick=e=>{
