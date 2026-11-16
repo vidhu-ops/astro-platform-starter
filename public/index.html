@@ -258,11 +258,21 @@ header h2{
   position:fixed;left:16px;right:16px;top:max(10px,env(safe-area-inset-top,0px));
   z-index:72;max-width:520px;margin:0 auto;
   display:flex;align-items:center;gap:10px;
-  padding:12px 14px;border-radius:16px;border:1px solid var(--line);
+  padding:16px 14px 12px;border-radius:16px;border:1px solid var(--line);
   background:var(--panel);color:var(--text);box-shadow:0 12px 36px #00000055;
-  font-size:14px;line-height:1.35;cursor:pointer;
+  font-size:14px;line-height:1.35;cursor:grab;touch-action:none;
+  -webkit-user-select:none;user-select:none;
+  transition:transform .22s ease,opacity .22s ease;
+}
+#inapp-alert::before{
+  content:"";position:absolute;top:7px;left:50%;width:36px;height:4px;margin-left:-18px;
+  border-radius:99px;background:var(--mute);opacity:.45;
 }
 #inapp-alert.hide{display:none!important}
+#inapp-alert.dragging{transition:none;cursor:grabbing}
+#inapp-alert.toss{pointer-events:none}
+#inapp-alert.drop{animation:alertDrop .28s ease-out}
+@keyframes alertDrop{from{transform:translateY(-120%);opacity:0}to{transform:none;opacity:1}}
 #inapp-alert .emoji{font-size:18px;flex-shrink:0}
 #inapp-alert .body{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #tabapp.update-ready{color:var(--gold);font-weight:700}
@@ -964,7 +974,7 @@ let moodsAlertReady=false;
 let inboxAlertReady=false;
 const PENDING_PARTNER_KEY="shhh-pending-partner";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="36";
+const APP_SW_BUILD="37";
 let healthOkHint=false;
 const LOGIN_GRACE_MS=15000;
 const SESSION_TOKEN_KEY="shhh-session-token";
@@ -2634,7 +2644,7 @@ function setMainTab(tab){
   if(tab==="chat"){
     setChatDot(false);
     void syncAppBadge(false);
-    $("inapp-alert")?.classList.add("hide");
+    hideInAppAlert();
   }
   if(tab==="date"){
     void refreshStories();
@@ -2803,16 +2813,96 @@ function alertDedupeKey(norm){
   return (norm.kind||"x")+":"+(norm.from||"")+":"+(norm.body||"").slice(0,32);
 }
 
+function hideInAppAlert(){
+  const el=$("inapp-alert");
+  if(!el)return;
+  if(inAppAlertTimer){clearTimeout(inAppAlertTimer);inAppAlertTimer=null;}
+  el.classList.add("hide");
+  el.classList.remove("dragging","toss","drop");
+  el.style.transform="";
+  el.style.opacity="";
+  el._alertNorm=null;
+}
+function dismissInAppAlert(){
+  const el=$("inapp-alert");
+  if(!el||el.classList.contains("hide"))return;
+  if(inAppAlertTimer){clearTimeout(inAppAlertTimer);inAppAlertTimer=null;}
+  el.classList.remove("dragging","drop");
+  el.classList.add("toss");
+  el.style.transform="translateY(-140%)";
+  el.style.opacity="0";
+  const finish=()=>hideInAppAlert();
+  el.addEventListener("transitionend",finish,{once:true});
+  setTimeout(finish,280);
+}
+function armInAppAlertTimer(){
+  if(inAppAlertTimer)clearTimeout(inAppAlertTimer);
+  inAppAlertTimer=setTimeout(()=>dismissInAppAlert(),7000);
+}
+function bindInAppAlertGestures(){
+  const el=$("inapp-alert");
+  if(!el||el._gest)return;
+  el._gest=true;
+  let startY=0,startX=0,dy=0,dragging=false,moved=false;
+  const start=(y,x)=>{
+    if(el.classList.contains("hide")||el.classList.contains("toss"))return;
+    startY=y;startX=x;dy=0;dragging=true;moved=false;
+    el.classList.add("dragging");
+    el.classList.remove("drop");
+    if(inAppAlertTimer){clearTimeout(inAppAlertTimer);inAppAlertTimer=null;}
+  };
+  const move=(y,x)=>{
+    if(!dragging)return;
+    dy=y-startY;
+    const dx=x-startX;
+    if(Math.abs(dy)>8||Math.abs(dx)>8)moved=true;
+    const lift=Math.min(12,dy);
+    el.style.transform="translateY("+lift+"px)";
+    el.style.opacity=String(Math.max(0.2,1+Math.min(0,lift)/110));
+  };
+  const end=()=>{
+    if(!dragging)return;
+    dragging=false;
+    el.classList.remove("dragging");
+    if(dy<-36){dismissInAppAlert();return true;}
+    el.style.transform="";
+    el.style.opacity="";
+    if(!el.classList.contains("hide"))armInAppAlertTimer();
+    return moved;
+  };
+  el.addEventListener("pointerdown",e=>{
+    if(e.pointerType==="mouse"&&e.button!==0)return;
+    start(e.clientY,e.clientX);
+    try{el.setPointerCapture(e.pointerId);}catch(err){}
+  });
+  el.addEventListener("pointermove",e=>{if(dragging){e.preventDefault();move(e.clientY,e.clientX);}});
+  el.addEventListener("pointerup",end);
+  el.addEventListener("pointercancel",end);
+  el.addEventListener("click",e=>{
+    if(moved){e.preventDefault();e.stopPropagation();moved=false;return;}
+    const norm=el._alertNorm;
+    hideInAppAlert();
+    if(norm)routePartnerSignal(norm);
+  });
+}
+bindInAppAlertGestures();
+
 function showInAppAlert(norm){
   const el=$("inapp-alert");
   if(!el)return;
+  bindInAppAlertGestures();
   const emoji=$("inapp-alert-emoji"),text=$("inapp-alert-text");
   if(emoji)emoji.textContent=norm.emoji||"💬";
   if(text)text.textContent="@"+norm.from+" · "+(norm.body||norm.label||"New message");
-  el.classList.remove("hide");
-  el.onclick=()=>{el.classList.add("hide");routePartnerSignal(norm);};
-  if(inAppAlertTimer)clearTimeout(inAppAlertTimer);
-  inAppAlertTimer=setTimeout(()=>el.classList.add("hide"),7000);
+  el._alertNorm=norm;
+  el.style.transform="";
+  el.style.opacity="";
+  el.classList.remove("hide","dragging","toss");
+  el.classList.remove("drop");
+  void el.offsetWidth;
+  el.classList.add("drop");
+  el.addEventListener("animationend",()=>el.classList.remove("drop"),{once:true});
+  armInAppAlertTimer();
 }
 
 async function showBarNotification(norm){
