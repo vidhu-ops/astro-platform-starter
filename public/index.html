@@ -245,6 +245,24 @@ header h2{
   transition:color .15s,background .15s,border-color .15s;
 }
 #maintabs button.on{color:var(--tab-on-fg);border-top-color:var(--rose);background:var(--tab-on-bg)}
+#tabchat{position:relative}
+.tab-dot{
+  display:inline-block;width:8px;height:8px;border-radius:50%;
+  background:var(--heat);margin-left:7px;vertical-align:middle;
+  box-shadow:0 0 0 2px var(--bar-bg),0 0 8px var(--heat);
+}
+.tab-dot.hide{display:none!important}
+#inapp-alert{
+  position:fixed;left:16px;right:16px;top:max(10px,env(safe-area-inset-top,0px));
+  z-index:72;max-width:520px;margin:0 auto;
+  display:flex;align-items:center;gap:10px;
+  padding:12px 14px;border-radius:16px;border:1px solid var(--line);
+  background:var(--panel);color:var(--text);box-shadow:0 12px 36px #00000055;
+  font-size:14px;line-height:1.35;cursor:pointer;
+}
+#inapp-alert.hide{display:none!important}
+#inapp-alert .emoji{font-size:18px;flex-shrink:0}
+#inapp-alert .body{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #tabapp.update-ready{color:var(--gold);font-weight:700}
 #tabapp.install-tab{color:var(--champagne)}
 #tabapp .tab-label.hide{display:none!important}
@@ -786,8 +804,12 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
     </div>
   </section>
 </div>
+<div id="inapp-alert" class="hide" role="status" aria-live="polite">
+  <span class="emoji" id="inapp-alert-emoji">💬</span>
+  <span class="body" id="inapp-alert-text"></span>
+</div>
 <nav id="maintabs" aria-label="Sections">
-  <button type="button" class="on" id="tabchat">Chat</button>
+  <button type="button" class="on" id="tabchat">Chat<span id="chat-dot" class="tab-dot hide" aria-label="New messages"></span></button>
   <button type="button" id="tabdate">Updates</button>
   <button type="button" class="hide" id="tabscrap">Scrapbook</button>
   <button type="button" class="hide" id="tabapp" title="Install or update app">
@@ -937,9 +959,15 @@ let moodPollTimer=null;
 let partnerMoods=[];
 let inboxNotes=[];
 let partnerChipTimer=null;
+let inAppAlertTimer=null;
+let alertAudioCtx=null;
+let lastAlertKey="";
+let lastAlertAt=0;
+let moodsAlertReady=false;
+let inboxAlertReady=false;
 const PENDING_PARTNER_KEY="shhh-pending-partner";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="32";
+const APP_SW_BUILD="33";
 let healthOkHint=false;
 const LOGIN_GRACE_MS=15000;
 const SESSION_TOKEN_KEY="shhh-session-token";
@@ -1911,14 +1939,15 @@ async function refreshApi(){
         render(messages);
       }
       const nextPartner=[...messages].reverse().find(m=>m.user!==name&&!String(m.id).startsWith("pending"));
-      const animate=!!(nextPartner&&nextPartner.id!==prevMsgId);
-      if(animate&&!document.hidden&&nextPartner){
-        showPartnerChip({
+      const animate=!!(prevMsgId&&nextPartner&&nextPartner.id!==prevMsgId);
+      if(animate&&nextPartner){
+        announceAlert({
           from:nextPartner.user,
           kind:"message",
           emoji:nextPartner.kind?.startsWith?.("video/")?"🎬":nextPartner.media||nextPartner.hasMedia?"📷":"💬",
           label:"New message",
           body:messagePreview(nextPartner),
+          msgId:nextPartner.id,
         });
       }
     }catch(e){
@@ -2598,6 +2627,11 @@ function setMainTab(tab){
   }
   $("sel").classList.toggle("hide",tab!=="chat"||mode!=="api");
   $("sv").classList.toggle("hide",tab==="scrap");
+  if(tab==="chat"){
+    setChatDot(false);
+    void syncAppBadge(false);
+    $("inapp-alert")?.classList.add("hide");
+  }
   if(tab==="date"){
     void refreshStories();
     void refreshNotes();
@@ -2715,11 +2749,113 @@ function showPartnerChip(p){
   partnerChipTimer=setTimeout(()=>chip.classList.add("hide"),9000);
 }
 
-function applyPartnerPushPayload(p){
+function unlockAlertAudio(){
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC)return;
+    if(!alertAudioCtx)alertAudioCtx=new AC();
+    if(alertAudioCtx.state==="suspended")void alertAudioCtx.resume();
+  }catch(e){}
+}
+document.addEventListener("pointerdown",unlockAlertAudio,{passive:true});
+document.addEventListener("keydown",unlockAlertAudio);
+
+function playAlertSound(){
+  unlockAlertAudio();
+  const ctx=alertAudioCtx;
+  if(!ctx)return;
+  try{
+    const now=ctx.currentTime;
+    const beep=(freq,start,dur)=>{
+      const o=ctx.createOscillator();
+      const g=ctx.createGain();
+      o.type="sine";
+      o.frequency.setValueAtTime(freq,now+start);
+      g.gain.setValueAtTime(0.0001,now+start);
+      g.gain.exponentialRampToValueAtTime(0.14,now+start+0.018);
+      g.gain.exponentialRampToValueAtTime(0.0001,now+start+dur);
+      o.connect(g);g.connect(ctx.destination);
+      o.start(now+start);o.stop(now+start+dur+0.03);
+    };
+    beep(880,0,0.12);
+    beep(1174.7,0.11,0.18);
+  }catch(e){}
+}
+
+function vibrateAlert(){
+  try{if(navigator.vibrate)navigator.vibrate([80,40,90,40,140]);}catch(e){}
+}
+
+function setChatDot(on){
+  const dot=$("chat-dot");
+  if(!dot)return;
+  dot.classList.toggle("hide",!on);
+  $("tabchat")?.setAttribute("aria-label",on?"Chat, new messages":"Chat");
+}
+
+function alertDedupeKey(norm){
+  if(norm.msgId)return "msg:"+norm.msgId;
+  if(norm.noteId)return "note:"+norm.noteId;
+  return (norm.kind||"x")+":"+(norm.from||"")+":"+(norm.body||"").slice(0,32);
+}
+
+function showInAppAlert(norm){
+  const el=$("inapp-alert");
+  if(!el)return;
+  const emoji=$("inapp-alert-emoji"),text=$("inapp-alert-text");
+  if(emoji)emoji.textContent=norm.emoji||"💬";
+  if(text)text.textContent="@"+norm.from+" · "+(norm.body||norm.label||"New message");
+  el.classList.remove("hide");
+  el.onclick=()=>{el.classList.add("hide");routePartnerSignal(norm);};
+  if(inAppAlertTimer)clearTimeout(inAppAlertTimer);
+  inAppAlertTimer=setTimeout(()=>el.classList.add("hide"),7000);
+}
+
+async function showBarNotification(norm){
+  if(typeof Notification==="undefined")return;
+  if(Notification.permission!=="granted")return;
+  const title=(norm.emoji||"💬")+" @"+norm.from;
+  const body=norm.body||norm.label||"New activity";
+  const opts={
+    body,
+    icon:"/icons/icon.svg",
+    badge:"/icons/heart-badge.svg",
+    tag:alertDedupeKey(norm),
+    renotify:true,
+    silent:false,
+    vibrate:[80,40,90,40,140],
+    data:norm,
+  };
+  try{
+    const reg=await navigator.serviceWorker?.ready;
+    if(reg&&reg.showNotification){await reg.showNotification(title,opts);return;}
+  }catch(e){}
+  try{new Notification(title,opts);}catch(e){}
+}
+
+function announceAlert(p){
   const norm=normalizePartnerPayload(p);
-  if(!norm)return;
-  if(document.hidden)return;
+  if(!norm||!norm.from)return;
+  const key=alertDedupeKey(norm);
+  const now=Date.now();
+  if(key===lastAlertKey&&now-lastAlertAt<5000)return;
+  lastAlertKey=key;
+  lastAlertAt=now;
+  if(norm.kind==="message"&&activeTab!=="chat")setChatDot(true);
+  if(document.hidden){
+    if(norm.kind==="message")setChatDot(true);
+    return;
+  }
   showPartnerChip(norm);
+  showInAppAlert(norm);
+  playAlertSound();
+  vibrateAlert();
+  if(activeTab!=="chat"||norm.kind!=="message")void showBarNotification(norm);
+}
+
+function applyPartnerPushPayload(p){
+  if(mode!=="api"||!name)return;
+  announceAlert(p);
 }
 
 function applyStoredPendingPartner(){
@@ -2766,8 +2902,22 @@ async function refreshInboxSummary(){
   if(mode!=="api")return;
   try{
     const r=await api("/api/notes?box=inbox");
+    const prevUnread=(inboxNotes||[]).filter(x=>!x.readAt).map(x=>x.id).join(",");
     inboxNotes=r.notes||[];
     updateInboxBadge();
+    const newest=(inboxNotes.filter(x=>!x.readAt).sort((a,b)=>Number(b.ts)-Number(a.ts))[0]);
+    const unreadIds=inboxNotes.filter(x=>!x.readAt).map(x=>x.id).join(",");
+    if(inboxAlertReady&&newest&&unreadIds&&unreadIds!==prevUnread&&newest.from!==name){
+      announceAlert({
+        from:newest.from,
+        kind:"note",
+        emoji:"📝",
+        label:"Left you a note",
+        body:newest.body||"",
+        noteId:newest.id,
+      });
+    }
+    inboxAlertReady=true;
   }catch(e){}
 }
 
@@ -2779,8 +2929,8 @@ async function refreshMoods(){
     partnerMoods=(r.moods||[]).sort((a,b)=>b.ts-a.ts);
     const m=partnerMoods[0];
     const animate=m&&m.ts>prev;
-    if(animate&&!document.hidden&&m&&m.user!==name){
-      showPartnerChip({
+    if(moodsAlertReady&&animate&&m&&m.user!==name){
+      announceAlert({
         from:m.user,
         kind:"mood",
         emoji:m.emoji||"💗",
@@ -2788,6 +2938,7 @@ async function refreshMoods(){
         body:m.note||"",
       });
     }
+    moodsAlertReady=true;
   }catch(e){}
 }
 function scheduleMoodPoll(){

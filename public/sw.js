@@ -1,5 +1,5 @@
 /* shhh PWA — network-first HTML so rebrands reach mobile */
-const CACHE = "shhh-v32";
+const CACHE = "shhh-v33";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -100,19 +100,31 @@ self.addEventListener("push", (event) => {
   const requireInteraction = shouldRequireInteraction(data);
   event.waitUntil(
     (async () => {
-      const icon = new URL(data.icon || "/icons/icon.svg", self.location.origin).href;
-      const badge = new URL(data.badge || "/icons/heart-badge.svg", self.location.origin).href;
-      await self.registration.showNotification(data.title || "shhh", {
-        body: data.body || "New activity",
-        icon,
-        badge,
-        tag: data.tag || "shhh",
-        renotify: true,
-        requireInteraction,
-        silent: false,
-        vibrate: requireInteraction ? [80, 40, 80, 40, 120] : [60, 30, 60],
-        data: payload,
-      });
+      const list = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      let visible = false;
+      for (const c of list) {
+        try {
+          c.postMessage({ type: "PARTNER_SIGNAL", payload });
+        } catch {
+          /* ignore */
+        }
+        if (c.visibilityState === "visible") visible = true;
+      }
+      if (!visible) {
+        const icon = new URL(data.icon || "/icons/icon.svg", self.location.origin).href;
+        const badge = new URL(data.badge || "/icons/heart-badge.svg", self.location.origin).href;
+        await self.registration.showNotification(data.title || "shhh", {
+          body: data.body || "New activity",
+          icon,
+          badge,
+          tag: data.tag || "shhh",
+          renotify: true,
+          requireInteraction,
+          silent: false,
+          vibrate: requireInteraction ? [80, 40, 80, 40, 140] : [60, 30, 80],
+          data: payload,
+        });
+      }
       await setBadge(1);
     })(),
   );
