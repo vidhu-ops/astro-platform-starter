@@ -752,7 +752,7 @@ app.post(
     body: preview,
     icon: "/icons/icon.svg",
     badge: "/icons/heart-badge.svg",
-    tag: "velvet-msg",
+    tag: `msg:${rows[0].id}`,
     data: {
       url: "/",
       kind: "message",
@@ -851,7 +851,7 @@ function moodPayload(from, moodKey, note, ts = Date.now()) {
     body,
     icon: "/icons/icon.svg",
     badge: "/icons/heart-badge.svg",
-    tag: preset.tag,
+    tag: `mood:${from}:${ts}`,
     data: {
       url: "/",
       kind: "mood",
@@ -1020,7 +1020,7 @@ app.post(
       body: `Note for @${to}: ${body.slice(0, 100)}`,
       icon: "/icons/icon.svg",
       badge: "/icons/heart-badge.svg",
-      tag: "shhh-note",
+      tag: `note:${row.id}`,
       data: {
         url: "/",
         kind: "note",

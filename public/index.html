@@ -1020,13 +1020,11 @@ let inboxNotes=[];
 let partnerChipTimer=null;
 let inAppAlertTimer=null;
 let alertAudioCtx=null;
-let lastAlertKey="";
-let lastAlertAt=0;
 let moodsAlertReady=false;
 let inboxAlertReady=false;
 const PENDING_PARTNER_KEY="shhh-pending-partner";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="39";
+const APP_SW_BUILD="40";
 const ALERT_MASTER_KEY="shhh-alerts-master";
 function alertsMasterOn(){
   try{if(localStorage.getItem(ALERT_MASTER_KEY)==="0")return false;}catch(e){}
@@ -1068,7 +1066,8 @@ let storyPosting=false;
 let lastStoriesFp="";
 let mode=null,uid=null,nativeDb=null,db=null,assets=null,room=null,name=null;
 let unsub=null,unsubMeta=null,pollTimer=null,pollMetaTimer=null,refreshInFlight=null,lastMsgs=[],lastDocs=[],joinedAt=0,sendOnce=false,mediaObjectUrls=[];
-const POLL_MS=8000;
+const POLL_MS=1500;
+const seenAlertKeys=new Set();
 const msgById=new Map();
 let sending=false;
 let selectMode=false;
@@ -1974,7 +1973,7 @@ function enter(n,opts={}){
     if(pollTimer)clearInterval(pollTimer);
     if(pollMetaTimer)clearTimeout(pollMetaTimer);
     if(!opts.skipInitialRefresh)void refreshApi();
-    pollTimer=setInterval(()=>{if(!document.hidden)refreshApi();},POLL_MS);
+    pollTimer=setInterval(()=>void refreshApi(),POLL_MS);
     scheduleMetaPoll();
     $("sel").classList.remove("hide");
     scheduleStoryPoll();
@@ -2014,8 +2013,12 @@ function onVis(){
   },400);
 }
 
+let refreshQueued=false;
 async function refreshApi(){
-  if(refreshInFlight)return refreshInFlight;
+  if(refreshInFlight){
+    refreshQueued=true;
+    return refreshInFlight;
+  }
   refreshInFlight=(async()=>{
     const prevPartnerMsg=[...lastMsgs].reverse().find(m=>m.user!==name&&!String(m.id).startsWith("pending"));
     const prevMsgId=prevPartnerMsg?.id;
@@ -2037,7 +2040,7 @@ async function refreshApi(){
           label:"New message",
           body:messagePreview(nextPartner),
           msgId:nextPartner.id,
-        });
+        },{fromPoll:true});
       }
     }catch(e){
       if(e.status===401){
@@ -2049,6 +2052,10 @@ async function refreshApi(){
       }else setStatus((e.data&&e.data.error)||"Couldn't load messages.","err");
     }finally{
       refreshInFlight=null;
+      if(refreshQueued){
+        refreshQueued=false;
+        void refreshApi();
+      }
     }
   })();
   return refreshInFlight;
@@ -2828,6 +2835,8 @@ function normalizePartnerPayload(p){
     body:String(p.body||p.note||"").slice(0,120),
     msgId:p.msgId,
     noteId:p.noteId,
+    ts:p.ts,
+    chatHeadKey:p.chatHeadKey,
   };
 }
 
@@ -2899,7 +2908,18 @@ function setChatDot(on){
 function alertDedupeKey(norm){
   if(norm.msgId)return "msg:"+norm.msgId;
   if(norm.noteId)return "note:"+norm.noteId;
+  if(norm.chatHeadKey)return String(norm.chatHeadKey);
+  if(norm.kind==="mood")return "mood:"+(norm.from||"")+":"+(norm.ts||"");
   return (norm.kind||"x")+":"+(norm.from||"")+":"+(norm.body||"").slice(0,32);
+}
+function rememberAlertKey(key){
+  if(!key||seenAlertKeys.has(key))return false;
+  seenAlertKeys.add(key);
+  if(seenAlertKeys.size>120){
+    const first=seenAlertKeys.values().next().value;
+    seenAlertKeys.delete(first);
+  }
+  return true;
 }
 
 function hideInAppAlert(){
@@ -2997,50 +3017,54 @@ function showInAppAlert(norm){
 async function showBarNotification(norm){
   if(typeof Notification==="undefined")return;
   if(Notification.permission!=="granted")return;
+  try{
+    const reg=await navigator.serviceWorker?.getRegistration?.();
+    if(reg)return;
+  }catch(e){}
+  if(navigator.serviceWorker?.controller)return;
   const title=(norm.emoji||"💬")+" @"+norm.from;
   const body=norm.body||norm.label||"New activity";
+  const tag=norm.chatHeadKey||(norm.msgId?"msg:"+norm.msgId:norm.noteId?"note:"+norm.noteId:alertDedupeKey(norm));
   const opts={
     body,
     icon:"/icons/icon.svg",
     badge:"/icons/heart-badge.svg",
-    tag:norm.noteId||norm.msgId||norm.kind+":"+norm.from,
-    renotify:true,
+    tag,
+    renotify:false,
     silent:false,
     vibrate:[80,40,90,40,140],
     data:norm,
   };
-  try{
-    const reg=await navigator.serviceWorker?.ready;
-    if(reg&&reg.showNotification){await reg.showNotification(title,opts);return;}
-  }catch(e){}
   try{new Notification(title,opts);}catch(e){}
 }
 
-function announceAlert(p){
+function announceAlert(p,opts={}){
   const norm=normalizePartnerPayload(p);
   if(!norm||!norm.from)return;
   if(!alertsMasterOn())return;
   const key=alertDedupeKey(norm);
-  const now=Date.now();
-  if(key===lastAlertKey&&now-lastAlertAt<5000)return;
-  lastAlertKey=key;
-  lastAlertAt=now;
+  if(!rememberAlertKey(key))return;
   if(norm.kind==="message"&&activeTab!=="chat")setChatDot(true);
+  const watchingChat=!document.hidden&&activeTab==="chat"&&norm.kind==="message";
+  if(watchingChat)return;
   if(document.hidden){
     if(norm.kind==="message")setChatDot(true);
-    void showBarNotification(norm);
+    if(!opts.fromPush)void showBarNotification(norm);
     return;
   }
   showPartnerChip(norm);
   showInAppAlert(norm);
   playAlertSound();
   vibrateAlert();
-  void showBarNotification(norm);
+  if(!opts.fromPush)void showBarNotification(norm);
 }
 
 function applyPartnerPushPayload(p){
   if(mode!=="api"||!name)return;
-  announceAlert(p);
+  announceAlert(p,{fromPush:true});
+  const kind=p.kind||"";
+  if(kind==="message"||p.msgId)void refreshApi();
+  else if(kind==="note"||p.noteId)void refreshInboxSummary();
 }
 
 function applyStoredPendingPartner(){
@@ -3100,7 +3124,7 @@ async function refreshInboxSummary(){
         label:"Left you a note",
         body:newest.body||"",
         noteId:newest.id,
-      });
+      },{fromPoll:true});
     }
     inboxAlertReady=true;
   }catch(e){}
@@ -3121,7 +3145,9 @@ async function refreshMoods(){
         emoji:m.emoji||"💗",
         label:m.label||"Thinking of you",
         body:m.note||"",
-      });
+        ts:m.ts,
+        chatHeadKey:"mood:"+m.user+":"+m.ts,
+      },{fromPoll:true});
     }
     moodsAlertReady=true;
   }catch(e){}

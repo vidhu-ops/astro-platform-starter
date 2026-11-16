@@ -1,5 +1,5 @@
 /* shhh PWA — network-first HTML so rebrands reach mobile */
-const CACHE = "shhh-v39";
+const CACHE = "shhh-v40";
 const PREFS_CACHE = "shhh-prefs";
 const PREFS_URL = "/__alert-prefs";
 let alertPrefs = { master: true };
@@ -146,21 +146,31 @@ self.addEventListener("push", (event) => {
         }
       }
       const prefs = await loadAlertPrefs();
-      if (prefs.master !== false) {
-        const icon = new URL(data.icon || "/icons/icon.svg", self.location.origin).href;
-        const badge = new URL(data.badge || "/icons/heart-badge.svg", self.location.origin).href;
-        await self.registration.showNotification(data.title || "shhh", {
-          body: data.body || "New activity",
-          icon,
-          badge,
-          tag: data.tag || payload.chatHeadKey || payload.noteId || payload.msgId || "shhh",
-          renotify: true,
-          requireInteraction,
-          silent: false,
-          vibrate: requireInteraction ? [80, 40, 80, 40, 140] : [60, 30, 80],
-          timestamp: Date.now(),
-          data: payload,
-        });
+      const visible = list.some((c) => c.visibilityState === "visible");
+      const kind = payload.kind || data.data?.kind || "";
+      const tag =
+        payload.chatHeadKey ||
+        (payload.msgId ? "msg:" + payload.msgId : payload.noteId ? "note:" + payload.noteId : data.tag) ||
+        "shhh";
+      const skipOs = prefs.master === false || (visible && kind === "message");
+      if (!skipOs) {
+        const existing = await self.registration.getNotifications({ tag });
+        if (!existing.length) {
+          const icon = new URL(data.icon || "/icons/icon.svg", self.location.origin).href;
+          const badge = new URL(data.badge || "/icons/heart-badge.svg", self.location.origin).href;
+          await self.registration.showNotification(data.title || "shhh", {
+            body: data.body || "New activity",
+            icon,
+            badge,
+            tag,
+            renotify: false,
+            requireInteraction,
+            silent: false,
+            vibrate: requireInteraction ? [80, 40, 80, 40, 140] : [60, 30, 80],
+            timestamp: Date.now(),
+            data: payload,
+          });
+        }
       }
       await setBadge(1);
     })(),
