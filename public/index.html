@@ -258,14 +258,6 @@ header h2{
 #bar input[type=text],#storybar input[type=text]{margin:0;flex:1;border-radius:20px;background:var(--input-bg);border:1px solid var(--line);padding:12px 16px;font-size:16px;color:var(--text)}
 .ic{width:44px;height:44px;flex:none;border-radius:50%;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-size:17px}
 .send{width:48px;height:44px;flex:none;border:0;border-radius:50%;background:linear-gradient(135deg,var(--wine),var(--heat));cursor:pointer;font-size:17px;color:var(--on-accent);box-shadow:0 4px 14px rgba(0,0,0,.18)}
-#emo{
-  position:absolute;bottom:calc(100% + 4px);left:0;right:0;max-width:420px;background:var(--panel);border:1px solid var(--line);
-  border-radius:20px;padding:10px 12px 12px;z-index:5;box-shadow:0 12px 40px rgba(0,0,0,.22);display:flex;flex-direction:column;gap:8px;color:var(--text);
-}
-#emo input{margin:0;font-size:14px;padding:10px 12px}
-#emogrid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;max-height:min(240px,42vh);overflow:auto}
-#emo button{background:none;border:0;font-size:22px;cursor:pointer;padding:4px;border-radius:10px;min-width:44px;min-height:44px;display:grid;place-items:center}
-#emo button:hover{background:var(--panel2)}
 #maintabs{
   display:flex;border-top:1px solid var(--line);background:var(--bar-bg);
   padding-bottom:max(6px,env(safe-area-inset-bottom,0));flex-shrink:0;
@@ -661,7 +653,6 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
   .hdr-tag{font-size:9px;letter-spacing:.2em}
   .hdr-actions{width:auto;justify-content:flex-end;gap:4px}
   .hdr-actions span{order:0;width:auto;max-width:90px;margin:0;font-size:11px}
-  #think .lbl,#think::after{display:none;content:none}
   .pill{padding:7px 10px;font-size:10px}
   #bar{padding:10px 10px max(12px,env(safe-area-inset-bottom,0px));gap:6px}
   .ic{width:44px;height:44px;font-size:16px}
@@ -708,12 +699,12 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
     <span id="online" class="online-pill hide" title="Recently active in the room"></span>
     <button type="button" class="pill hide" id="partner-chip" title="Partner activity"></button>
     <span id="me" class="hide"></span>
-    <button type="button" class="hdr-icon heart" id="think" title="Send thinking of you">💗</button>
-    <button type="button" class="hdr-icon push-on" id="push-alerts" aria-label="Alerts on" title="Alerts on — tap to mute all">🔔</button>
     <button type="button" class="hdr-icon" id="hdr-menu" aria-label="Menu" aria-haspopup="true" aria-controls="appmenu">☰</button>
   </div>
 </header>
 <div class="hdr-legacy hide" aria-hidden="true">
+  <button type="button" class="hdr-icon heart" id="think" title="Send thinking of you">💗</button>
+  <button type="button" class="hdr-icon push-on" id="push-alerts" aria-label="Alerts on" title="Alerts on — tap to mute all">🔔</button>
   <button type="button" class="pill hide update-ready" id="hdr-update">Update</button>
   <button type="button" class="pill install hide" id="install">Install</button>
   <button type="button" class="pill" id="theme">Theme</button>
@@ -728,24 +719,24 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
       <strong id="appmenu-name">@you</strong>
       <span id="appmenu-online">—</span>
     </div>
+    <p class="appmenu-kicker">You</p>
+    <button type="button" id="menu-alerts">🔔 Alerts on</button>
+    <button type="button" id="menu-think">💗 Thinking of you</button>
+    <button type="button" id="menu-moods">💌 More moods</button>
+    <button type="button" id="menu-sv">Save</button>
+    <button type="button" id="menu-theme">◐ Light / dark</button>
     <p class="appmenu-kicker">Go to</p>
     <button type="button" id="menu-chat">💬 Chat</button>
     <button type="button" id="menu-updates">📷 Updates</button>
     <button type="button" id="menu-scrap">📒 Scrapbook</button>
     <button type="button" id="menu-app">⚙️ App</button>
-    <p class="appmenu-kicker">Alerts</p>
-    <button type="button" id="menu-think">💗 Thinking of you</button>
-    <button type="button" id="menu-moods">💌 More moods</button>
     <button type="button" id="menu-note">📝 Leave a note</button>
     <button type="button" id="menu-inbox">📥 Inbox</button>
-    <button type="button" id="menu-alerts">🔔 Alert settings</button>
     <p class="appmenu-kicker">Chat</p>
-    <button type="button" id="menu-sv">Save</button>
     <button type="button" id="menu-sel">Select</button>
     <button type="button" id="menu-del">Delete</button>
     <button type="button" id="menu-out" class="danger">Leave</button>
     <p class="appmenu-kicker">More</p>
-    <button type="button" id="menu-theme">◐ Light / dark</button>
     <button type="button" id="menu-install">Install app</button>
     <button type="button" id="menu-update">Check for updates</button>
   </div>
@@ -760,12 +751,7 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
 </div>
 <div id="replybar" class="hide">↩ Replying to <strong id="replywho"></strong> <button type="button" id="replyx" aria-label="Cancel reply">×</button></div>
 <div id="bar">
-  <div id="emo" class="hide">
-    <input type="search" id="emoq" placeholder="Search emoji…" autocomplete="off">
-    <div id="emogrid"></div>
-  </div>
   <div class="bar-tools">
-    <button type="button" class="ic" id="emob" title="Emoji">😘</button>
     <button type="button" class="ic polish" id="polish" title="Make wording better">✦</button>
     <button type="button" class="ic" id="gifb" title="Browse spicy & cute GIFs">GIF</button>
     <button type="button" class="ic" id="once" title="View once">👁</button>
@@ -997,7 +983,6 @@ function updateScrollFab(){
   const gap=f.scrollHeight-f.scrollTop-f.clientHeight;
   btn.classList.toggle("hide",gap<90||!lastMsgs.length);
 }
-let emojiList=null;
 let activeTab="chat";
 let storyPollTimer=null;
 let scrapPollTimer=null;
@@ -1112,6 +1097,8 @@ function applyTheme(t){
   if(meta)meta.content=t==="light"?"#e8eaef":"#9b6b7a";
   const btn=$("theme");
   if(btn)btn.textContent=t==="light"?"☀":"◐";
+  const menuTheme=$("menu-theme");
+  if(menuTheme)menuTheme.textContent=t==="light"?"☀ Light mode":"◐ Dark mode";
 }
 function initTheme(){
   let t="dark";
@@ -2514,7 +2501,7 @@ function render(list){
     msgById.clear();
     const e=document.createElement("div");
     e.className="empty-state";
-    e.textContent="No messages yet — say hi, attach a photo, or tap 💗 Thinking of you.";
+    e.textContent="No messages yet — say hi, attach a photo, or send 💗 Thinking of you from the menu.";
     f.appendChild(e);
     f.dataset.init=1;
     f.dataset.listFp="empty";
@@ -2626,43 +2613,6 @@ $("txt").onkeydown=e=>{
   if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendText();}
 };
 
-async function loadEmojiList(){
-  if(emojiList)return emojiList;
-  try{
-    const res=await fetch("/emoji-list.json");
-    emojiList=await res.json();
-  }catch(e){
-    emojiList="😀😃😄😁😆😅🤣😂🙂😉😊😇🥰😍🤩😘😗😚😙🥲😋😛😜🤪😝🤑🤗🤭🫢🤫🤔🤐🤨😐😑😶🫥😏😒🙄😬🤥😌😔😪🤤😴😷🤒🤕🤢🤮🥵🥶🥴😵🤯🤠🥳🥸😎🤓🧐😕🫤😟🙁☹️😮😯😲😳🥺🥹😦😧😨😰😥😢😭😱😖😣😞😓😩😫🥱😤😡😠🤬👿💀☠️💩🤡👹👺👻👽👾🤖❤️🧡💛💚💙💜🖤🤍🤎💔❣️💕💞💓💗💖💘💝🔥✨💋🍑🍒🌹".split("");
-  }
-  return emojiList;
-}
-function insertComposerEmoji(glyph){
-  $("txt").value+=glyph;
-  autoGrowTxt();
-  $("txt").focus();
-}
-function renderEmojiGrid(filter){
-  const grid=$("emogrid");grid.textContent="";
-  const q=String(filter||"").trim().toLowerCase();
-  const list=emojiList||[];
-  let n=0;
-  for(const e of list){
-    if(q&&!e.includes(q)&&!e.toLowerCase().includes(q))continue;
-    const b=document.createElement("button");b.type="button";b.textContent=e;
-    b.onclick=()=>insertComposerEmoji(e);
-    grid.appendChild(b);
-    if(++n>600)break;
-  }
-  if(!n){grid.textContent="No emoji match.";}
-}
-$("emob").onclick=async()=>{
-  $("emo").classList.toggle("hide");
-  if(!$("emo").classList.contains("hide")){
-    await loadEmojiList();
-    renderEmojiGrid($("emoq").value);
-  }
-};
-$("emoq").oninput=()=>renderEmojiGrid($("emoq").value);
 $("polish").onclick=async()=>{
   const t=$("txt").value.trim();
   if(!t||mode!=="api")return $("note").textContent=t?"":"Type something to polish.";
