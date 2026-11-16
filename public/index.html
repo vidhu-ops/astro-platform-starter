@@ -241,6 +241,23 @@ header h2{
 #maintabs button.on{color:var(--tab-on-fg);border-top-color:var(--rose);background:var(--tab-on-bg)}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
 #dateview{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.updates-toolbar{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:14px 16px 10px;border-bottom:1px solid var(--line);background:var(--panel2);
+}
+.updates-kicker{margin:0;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.updates-title{margin:2px 0 0;font-family:"Cormorant Garamond",Georgia,serif;font-size:22px;font-style:italic;color:var(--brand-b)}
+.updates-actions{display:flex;gap:8px;flex-wrap:wrap}
+.inbox-badge{
+  display:inline-block;min-width:18px;padding:0 5px;border-radius:999px;background:var(--rose);
+  color:#fff;font-size:10px;font-weight:700;margin-left:4px;
+}
+#notepanel,#notinboxpanel{position:fixed;inset:0;background:var(--scrim);z-index:43;display:flex;align-items:flex-end;justify-content:center}
+#notepanel .sheet,#notinboxpanel .sheet{
+  width:100%;max-width:520px;max-height:min(82vh,640px);background:var(--panel);border:1px solid var(--line);
+  border-radius:28px 28px 0 0;padding:18px 16px 28px;display:flex;flex-direction:column;gap:10px;
+}
+#notinboxpanel #notefeed{flex:1;overflow-y:auto;max-height:min(52vh,420px);padding:4px 2px;display:flex;flex-direction:column;gap:12px}
 #storyfeed{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:16px}
 .story-card{
   background:var(--panel);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:var(--shadow);
@@ -338,19 +355,22 @@ header h2{
     radial-gradient(900px 420px at 0% 0%,var(--gate-glow),transparent),
     linear-gradient(180deg,var(--panel2) 0%,var(--bg) 48%);
 }
-#scrapscroll{flex:1;overflow-y:auto;padding:14px 16px 12px;display:flex;flex-direction:column;gap:18px}
-.scrap-intro{font-family:"Cormorant Garamond",Georgia,serif;font-size:22px;font-style:italic;color:var(--brand-b);margin:0 0 4px}
+#scrapscroll{flex:1;overflow-y:auto;padding:16px 18px 20px;display:flex;flex-direction:column;gap:22px}
+.scrap-hero{padding:4px 2px 8px;border-bottom:1px solid var(--line)}
+.scrap-intro{font-family:"Cormorant Garamond",Georgia,serif;font-size:26px;font-style:italic;color:var(--brand-b);margin:0 0 6px;line-height:1.15}
 .scrap-sub{font-size:13px;color:var(--mute);margin:0 0 12px;letter-spacing:.02em;line-height:1.45}
 html[data-theme="dark"] #scrapview .scrap-sub{color:#c9c0b8}
 html[data-theme="light"] #scrapview .scrap-sub{color:#4a4248}
+.scrap-section{margin:0;padding:0}
+.scrap-section-title{font-family:"Cormorant Garamond",Georgia,serif;font-size:18px;font-style:italic;color:var(--gold);margin:0 0 10px}
 .scrap-cal{
-  background:var(--card-bg);border:1px solid var(--card-border);border-radius:22px;padding:14px 14px 12px;
-  box-shadow:var(--shadow),inset 0 1px 0 #ffffff0a;
+  background:var(--card-bg);border:1px solid var(--card-border);border-radius:22px;padding:16px 16px 14px;
+  box-shadow:var(--shadow),0 8px 28px var(--card-elev),inset 0 1px 0 #ffffff0a;
 }
 .scrap-cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
 .scrap-cal-head strong{font-family:"Cormorant Garamond",Georgia,serif;font-size:20px;font-style:italic}
 .cal-nav{border:1px solid var(--line);background:var(--panel);border-radius:999px;width:44px;height:44px;cursor:pointer;color:var(--text);font-size:20px;line-height:1}
-.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
 .cal-dow{font-size:10px;text-align:center;color:var(--mute);font-weight:600;letter-spacing:.06em;padding:4px 0}
 .cal-day{
   aspect-ratio:1;border-radius:12px;border:1px solid transparent;background:var(--panel);
@@ -368,9 +388,10 @@ html[data-theme="light"] #scrapview .scrap-sub{color:#4a4248}
 .cal-day:not(.off){min-height:44px}
 .cal-events{display:flex;flex-direction:column;gap:8px;margin-top:12px}
 .cal-day-panel{
-  margin-top:12px;padding:14px;border-radius:18px;border:1px solid var(--line);
-  background:var(--panel);box-shadow:var(--shadow);
+  margin-top:14px;padding:16px;border-radius:16px;border:1px solid #dcccb4;
+  background:linear-gradient(180deg,#fdf9f3,#f5ebe0);box-shadow:0 4px 14px #00000014;
 }
+html[data-theme="dark"] .cal-day-panel{background:linear-gradient(180deg,#342f29,#2a2520);border-color:#5a5048}
 .cal-day-panel.hide{display:none!important}
 .cal-day-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
 .cal-day-head strong{font-family:"Cormorant Garamond",Georgia,serif;font-size:18px;font-style:italic}
@@ -390,21 +411,22 @@ html[data-theme="light"] #scrapview .scrap-sub{color:#4a4248}
 .cal-chip .acts button{font-size:10px;padding:5px 9px}
 #scrapfeed{display:flex;flex-direction:column;gap:0}
 .timeline-row{
-  display:flex;gap:14px;padding:16px 4px 18px;border-bottom:1px solid var(--line);
+  display:flex;gap:16px;padding:18px 6px 20px;border-bottom:1px dashed var(--line);
   align-items:flex-start;
 }
-.timeline-row:last-child{border-bottom:0}
+.timeline-row:last-child{border-bottom:0;padding-bottom:8px}
 .timeline-when{
-  flex:0 0 92px;font-size:11px;line-height:1.35;color:var(--mute);font-weight:600;
-  letter-spacing:.03em;padding-top:4px;
+  flex:0 0 96px;font-size:11px;line-height:1.4;color:var(--mute);font-weight:600;
+  letter-spacing:.04em;padding-top:6px;border-right:2px solid var(--gold);padding-right:10px;
 }
 .timeline-when b{display:block;font-size:13px;color:var(--gold);font-weight:600;margin-bottom:2px}
 .scrap-item{
-  position:relative;flex:1;border-radius:14px;padding:14px 14px 16px;
-  background:linear-gradient(145deg,#fdf8ef,#efe6d6);
-  border:1px solid #c9b89a66;box-shadow:0 6px 18px #00000014;
+  position:relative;flex:1;border-radius:12px;padding:16px 16px 18px;
+  background:linear-gradient(160deg,#fff9f0 0%,#f3e8d6 55%,#ebe0cc 100%);
+  border:1px solid #d4c4a8;box-shadow:0 5px 16px #00000012, inset 0 1px 0 #fff8;
   color:#2a2118;
 }
+.scrap-item.memory{transform:rotate(-.25deg)}
 html[data-theme="dark"] .scrap-item{
   background:linear-gradient(145deg,#35302a,#2a2520);border-color:#6d5e4a;color:#f2ebe0;
 }
@@ -422,9 +444,9 @@ html[data-theme="dark"] .scrap-item{
 .scrap-type{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin-bottom:6px}
 .scrap-title{font-family:"Cormorant Garamond",Georgia,serif;font-size:17px;font-style:italic;margin:0 0 6px}
 .vintage-frame{
-  margin:6px auto 8px;padding:8px 8px 20px;background:#faf6ee;
-  border:1px solid #d8cfc0;box-shadow:0 3px 12px #00000026,inset 0 0 0 1px #fff;
-  max-width:100%;
+  margin:10px auto 4px;padding:10px 10px 22px;background:linear-gradient(180deg,#faf6ee,#f0e8dc);
+  border:1px solid #d8cfc0;box-shadow:0 4px 14px #00000028,inset 0 0 0 1px #fff;
+  max-width:min(100%,360px);border-radius:3px;
 }
 html[data-theme="dark"] .vintage-frame{background:#1c1a16;border-color:#5a5048}
 .vintage-frame img,.vintage-frame video{
@@ -451,8 +473,7 @@ html[data-theme="dark"] .vintage-frame{background:#1c1a16;border-color:#5a5048}
 .scrap-types{display:flex;gap:6px;flex-wrap:wrap}
 .scrap-types button.on{border-color:var(--rose);color:var(--rose);background:var(--tab-on-bg)}
 #scrapwhen{font-size:13px;max-width:220px}
-#noteview{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
-#notefeed{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+#notefeed{display:flex;flex-direction:column;gap:12px}
 .note-card.unread{box-shadow:0 0 0 2px var(--rose),2px 5px 16px #0000001a}
 .note-card .from{color:var(--mute);margin-bottom:8px}
 .note-card .from strong{color:var(--rose);font-weight:600}
@@ -548,7 +569,6 @@ body.partner-warm #app{
 #sw-update .pill.primary{border-color:var(--rose);color:var(--on-accent);background:linear-gradient(135deg,var(--wine),var(--heat))}
 .pill.update-ready{border-color:var(--gold);color:var(--champagne);background:linear-gradient(135deg,#5c452f,#9b6b7a);font-weight:700}
 html[data-theme="light"] .pill.update-ready{color:#fff}
-#notefeed{padding:18px 16px 12px;background:linear-gradient(180deg,var(--panel2) 0%,var(--bg) 70%)}
 .paper-sheet{
   position:relative;padding:18px 18px 20px 20px;
   background:
@@ -664,6 +684,16 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
 </div>
 </div>
 <div id="dateview" class="hide">
+  <div class="updates-toolbar">
+    <div>
+      <p class="updates-kicker">Between you two</p>
+      <h3 class="updates-title">Updates</h3>
+    </div>
+    <div class="updates-actions">
+      <button type="button" class="pill" id="updates-leavenote">📝 Leave a note</button>
+      <button type="button" class="pill" id="updates-inbox">Inbox<span id="inbox-badge" class="inbox-badge hide"></span></button>
+    </div>
+  </div>
   <div id="storyfeed"></div>
   <div id="storybar">
     <button type="button" class="ic" id="storypick" title="Choose photo">📷</button>
@@ -674,9 +704,11 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
 </div>
 <div id="scrapview" class="hide">
   <div id="scrapscroll">
-    <p class="scrap-intro">Our scrapbook</p>
-    <p class="scrap-sub">Important dates, little memories, and lines worth keeping — in vintage frames.</p>
-    <section class="scrap-cal" aria-label="Calendar">
+    <header class="scrap-hero">
+      <p class="scrap-intro">Our scrapbook</p>
+      <p class="scrap-sub">Important dates, little memories, and lines worth keeping — tucked in vintage frames.</p>
+    </header>
+    <section class="scrap-section scrap-cal" aria-label="Calendar">
       <div class="scrap-cal-head">
         <button type="button" class="cal-nav" id="calprev" title="Previous month">‹</button>
         <strong id="caltitle">—</strong>
@@ -697,8 +729,8 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
         </div>
       </div>
     </section>
-    <section aria-label="Memories and quotes">
-      <p class="scrap-sub" style="margin:4px 0 10px">Pins &amp; quotes</p>
+    <section class="scrap-section" aria-label="Memories and quotes">
+      <p class="scrap-section-title">Timeline</p>
       <div id="scrapfeed"></div>
     </section>
   </div>
@@ -724,20 +756,31 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
     </div>
   </div>
 </div>
-<div id="noteview" class="hide">
-  <div id="notefeed"></div>
-  <div id="notebar" class="paper-compose">
-    <input type="text" id="noteto" placeholder="@username" autocomplete="username" maxlength="20">
-    <textarea id="notebody" placeholder="Leave them a note…" maxlength="2000"></textarea>
-    <button type="button" class="btn" id="notesend">Send note</button>
-  </div>
-</div>
 <nav id="maintabs" aria-label="Sections">
   <button type="button" class="on" id="tabchat">Chat</button>
   <button type="button" id="tabdate">Updates</button>
   <button type="button" class="hide" id="tabscrap">Scrapbook</button>
-  <button type="button" class="hide" id="tabnotes">Leave a note</button>
 </nav>
+<div id="notepanel" class="hide" role="dialog" aria-modal="true">
+  <div class="sheet paper-compose">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <strong style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:22px;color:var(--gold)">Leave a note</strong>
+      <button type="button" class="pill" id="notepanelclose">Close</button>
+    </div>
+    <input type="text" id="noteto" placeholder="@username" autocomplete="username" maxlength="20">
+    <textarea id="notebody" placeholder="Write something they'll keep…" maxlength="2000" rows="4" style="min-height:88px;width:100%;border-radius:14px;border:1px solid var(--line);padding:12px;background:var(--input-bg);color:var(--text);resize:vertical"></textarea>
+    <button type="button" class="btn" id="notesend">Send note</button>
+  </div>
+</div>
+<div id="notinboxpanel" class="hide" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <strong style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:22px;color:var(--gold)">Notes for you</strong>
+      <button type="button" class="pill" id="notinboxclose">Close</button>
+    </div>
+    <div id="notefeed"></div>
+  </div>
+</div>
 <div id="moodpanel" class="hide" role="dialog" aria-modal="true">
   <div class="sheet">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -833,7 +876,7 @@ let shownChatHeadKey=null;
 const CHAT_HEAD_DISMISS_KEY="shhh-chat-head-dismiss";
 const PENDING_CHAT_HEAD_KEY="shhh-pending-chat-head";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="17";
+const APP_SW_BUILD="18";
 const PARTNER_PIN_EMOJI=[{e:"🦄",label:"Unicorn"},{e:"🐻",label:"Bear hug"}];
 let swRegistration=null;
 let swWaitingWorker=null;
@@ -872,7 +915,11 @@ function clearSavedName(){
 function savedTab(){
   try{
     const t=localStorage.getItem(TAB_KEY);
-    return t==="date"||t==="chat"||t==="scrap"||t==="notes"?t:null;
+    if(t==="notes"){
+      try{sessionStorage.setItem("shhh-open-inbox","1");}catch(e){}
+      return "date";
+    }
+    return t==="date"||t==="chat"||t==="scrap"?t:null;
   }catch(e){return null;}
 }
 function applyTheme(t){
@@ -1072,7 +1119,6 @@ async function detectBackend(){
     if(h&&h.ok&&h.db){
       mode="api";
       $("tabscrap")?.classList.remove("hide");
-      $("tabnotes")?.classList.remove("hide");
       return;
     }
     if(h&&h.db===false){
@@ -1872,33 +1918,56 @@ $("polish").onclick=async()=>{
 };
 
 function setMainTab(tab){
+  if(tab==="notes")tab="date";
   activeTab=tab;
   try{localStorage.setItem(TAB_KEY,tab);}catch(e){}
   $("tabchat").classList.toggle("on",tab==="chat");
   $("tabdate").classList.toggle("on",tab==="date");
   $("tabscrap").classList.toggle("on",tab==="scrap");
-  $("tabnotes").classList.toggle("on",tab==="notes");
   $("chatview").classList.toggle("hide",tab!=="chat");
   $("dateview").classList.toggle("hide",tab!=="date");
   $("scrapview").classList.toggle("hide",tab!=="scrap");
-  $("noteview").classList.toggle("hide",tab!=="notes");
   const tag=$("hdr-brand")?.querySelector(".hdr-tag");
   if(tag){
-    const tags={date:"updates board",scrap:"scrapbook",notes:"leave a note"};
+    const tags={date:"updates",scrap:"scrapbook"};
     tag.textContent=tags[tab]||"private";
   }
   $("sel").classList.toggle("hide",tab!=="chat"||mode!=="api");
-  $("sv").classList.toggle("hide",tab==="scrap"||tab==="notes");
-  $("del").classList.toggle("hide",tab==="notes");
-  if(tab==="date")void refreshStories();
+  $("sv").classList.toggle("hide",tab==="scrap");
+  if(tab==="date"){
+    void refreshStories();
+    void refreshNotes();
+    try{
+      if(sessionStorage.getItem("shhh-open-inbox")){
+        sessionStorage.removeItem("shhh-open-inbox");
+        openNoteInbox();
+      }
+    }catch(e){}
+  }
   if(tab==="scrap"){initScrapWhenForce();void refreshScrapbook();}
-  if(tab==="notes")void refreshNotes();
   updateScrollFab();
 }
+function openNoteCompose(){$("notepanel")?.classList.remove("hide");$("noteto")?.focus();}
+function openNoteInbox(){
+  void refreshNotes();
+  $("notinboxpanel")?.classList.remove("hide");
+}
+function updateInboxBadge(){
+  const badge=$("inbox-badge");
+  if(!badge)return;
+  const n=(inboxNotes||[]).filter(x=>!x.readAt).length;
+  if(n>0){badge.textContent=String(n);badge.classList.remove("hide");}
+  else badge.classList.add("hide");
+}
+$("updates-leavenote").onclick=openNoteCompose;
+$("updates-inbox").onclick=openNoteInbox;
+$("notepanelclose").onclick=()=>$("notepanel").classList.add("hide");
+$("notinboxclose").onclick=()=>$("notinboxpanel").classList.add("hide");
+$("notepanel").onclick=e=>{if(e.target===$("notepanel"))$("notepanel").classList.add("hide");};
+$("notinboxpanel").onclick=e=>{if(e.target===$("notinboxpanel"))$("notinboxpanel").classList.add("hide");};
 $("tabchat").onclick=()=>setMainTab("chat");
 $("tabdate").onclick=()=>setMainTab("date");
 $("tabscrap").onclick=()=>setMainTab("scrap");
-$("tabnotes").onclick=()=>setMainTab("notes");
 
 function initScrapWhenForce(){
   const el=$("scrapwhen");
@@ -2049,7 +2118,10 @@ function parseHashPending(){
   }catch(e){}
 }
 function onSwMessage(e){
-  if(e.data?.type==="CHAT_HEAD_PENDING")applyPendingFromPushPayload(e.data.payload||{});
+  if(e.data?.type!=="CHAT_HEAD_PENDING")return;
+  const p=e.data.payload||{};
+  try{sessionStorage.setItem(PENDING_CHAT_HEAD_KEY,JSON.stringify(p));}catch(err){}
+  if(mode==="api"&&name)applyPendingFromPushPayload(p);
 }
 async function syncAppBadge(show){
   try{
@@ -2151,6 +2223,7 @@ async function refreshInboxForChatHead(){
   try{
     const r=await api("/api/notes?box=inbox");
     inboxNotes=r.notes||[];
+    updateInboxBadge();
     updateChatHead({animate:false});
   }catch(e){}
 }
@@ -2210,6 +2283,7 @@ async function refreshNotes(){
       }
       feed.appendChild(card);
     });
+    updateInboxBadge();
   }catch(e){setStatus((e.data&&e.data.error)||"Couldn't load notes.","err");}
 }
 function scheduleNotePoll(){
@@ -2217,7 +2291,8 @@ function scheduleNotePoll(){
   notePollTimer=setInterval(()=>{
     if(document.hidden)return;
     void refreshInboxForChatHead();
-    if(activeTab==="notes")void refreshNotes();
+    if(activeTab==="date"&&!$("notinboxpanel").classList.contains("hide"))void refreshNotes();
+    else updateInboxBadge();
   },12000);
 }
 $("notesend").onclick=async()=>{
@@ -2233,7 +2308,8 @@ $("notesend").onclick=async()=>{
     await api("/api/notes",{method:"POST",body:{toUsername:to,body}});
     $("noteto").value="";$("notebody").value="";
     setStatus("Note sent to @"+to+".","ok");
-    if(activeTab==="notes")await refreshNotes();
+    $("notepanel").classList.add("hide");
+    await refreshNotes();
   }catch(e){setStatus((e.data&&e.data.error)||e.message||"Couldn't send note.","err");}
   finally{$("notesend").disabled=false;}
 };
@@ -2465,7 +2541,7 @@ function renderScrapItems(){
     when.innerHTML="<b>"+w.line1+"</b>"+w.line2;
     const card=document.createElement("article");
     const typ=it.type||"note";
-    card.className="scrap-item "+typ+(typ==="note"||typ==="quote"?" paper-sheet":"");
+    card.className="scrap-item "+typ+(typ==="memory"?" memory":"")+(typ==="note"||typ==="quote"?" paper-sheet":"");
     const tag=document.createElement("div");tag.className="scrap-type";
     tag.textContent=(it.type||"note")+" · @"+it.user;
     card.appendChild(tag);
