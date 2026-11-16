@@ -912,7 +912,7 @@ let inboxNotes=[];
 let partnerChipTimer=null;
 const PENDING_PARTNER_KEY="shhh-pending-partner";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="29";
+const APP_SW_BUILD="30";
 let healthOkHint=false;
 const LOGIN_GRACE_MS=15000;
 const SESSION_TOKEN_KEY="shhh-session-token";
@@ -2277,6 +2277,7 @@ function createMsgEl(m,idx,list){
   if(soloImg){
     const host=document.createElement("div");host.className="media-host";host.dataset.mediaUrl=soloImg;
     appendInlineImage(host,soloImg);body.appendChild(host);
+  }
   const mediaOnlyCaption=!textTrim||textTrim==="📎 Sent media"||textTrim==="Sent media";
   if(textTrim&&!m.viewOnce&&!(m.media&&mediaOnlyCaption)&&!(m.media&&textTrim===String(m.media))){
     const p=document.createElement("div");p.className="bubble-text";linkify(p,String(m.text));body.appendChild(p);
