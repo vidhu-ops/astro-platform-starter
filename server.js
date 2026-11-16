@@ -604,14 +604,18 @@ async function broadcastPush(excludeUserId, payload) {
     `SELECT endpoint, p256dh, auth FROM chat_push_subscriptions WHERE user_id IS DISTINCT FROM $1`,
     [excludeUserId],
   );
+  if (!rows.length) return 0;
   let sent = 0;
   await Promise.all(
     rows.map(async (sub) => {
       try {
         await sendPush(sub, payload);
         sent++;
-      } catch {
-        await pool.query(`DELETE FROM chat_push_subscriptions WHERE endpoint = $1`, [sub.endpoint]);
+      } catch (err) {
+        const code = err?.statusCode || err?.status;
+        if (code === 404 || code === 410) {
+          await pool.query(`DELETE FROM chat_push_subscriptions WHERE endpoint = $1`, [sub.endpoint]);
+        }
       }
     }),
   );
@@ -785,6 +789,22 @@ app.post(
     [req.user.user_id, endpoint, keys.p256dh, keys.auth],
   );
   res.json({ ok: true });
+  }),
+);
+
+app.get(
+  "/api/push/status",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    const { rows } = await pool.query(
+      `SELECT COUNT(*)::int AS c FROM chat_push_subscriptions WHERE user_id = $1`,
+      [req.user.user_id],
+    );
+    res.json({
+      pushEnabled: isPushReady(),
+      subscribed: (rows[0]?.c || 0) > 0,
+      endpoints: rows[0]?.c || 0,
+    });
   }),
 );
 

@@ -1,5 +1,5 @@
 /* shhh PWA — network-first HTML so rebrands reach mobile */
-const CACHE = "shhh-v16";
+const CACHE = "shhh-v17";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -85,7 +85,14 @@ function shouldRequireInteraction(data) {
 self.addEventListener("push", (event) => {
   let data = { title: "shhh", body: "New whisper", icon: "/icons/icon.svg", badge: "/icons/heart-badge.svg" };
   try {
-    if (event.data) data = { ...data, ...event.data.json() };
+    if (event.data) {
+      try {
+        data = { ...data, ...event.data.json() };
+      } catch {
+        const t = event.data.text();
+        if (t) data = { ...data, ...JSON.parse(t) };
+      }
+    }
   } catch {
     /* ignore */
   }
@@ -128,7 +135,8 @@ self.addEventListener("notificationclick", (event) => {
       const focused = await focusClientWithPayload(payload);
       if (!focused && clients.openWindow) {
         const enc = encodeURIComponent(btoa(JSON.stringify(payload)));
-        await clients.openWindow("/#ch=" + enc);
+        const url = new URL("/#ch=" + enc, self.location.origin).href;
+        await clients.openWindow(url);
       }
       await clearBadge();
     })(),

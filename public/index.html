@@ -365,7 +365,20 @@ html[data-theme="light"] #scrapview .scrap-sub{color:#4a4248}
 }
 .cal-day.today{outline:2px solid var(--gold);outline-offset:1px}
 .cal-day.sel{background:var(--tab-on-bg);border-color:var(--rose)}
+.cal-day:not(.off){min-height:44px}
 .cal-events{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.cal-day-panel{
+  margin-top:12px;padding:14px;border-radius:18px;border:1px solid var(--line);
+  background:var(--panel);box-shadow:var(--shadow);
+}
+.cal-day-panel.hide{display:none!important}
+.cal-day-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.cal-day-head strong{font-family:"Cormorant Garamond",Georgia,serif;font-size:18px;font-style:italic}
+.cal-day-add{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+.cal-day-add input{flex:1;min-width:140px;margin:0;border-radius:12px;padding:10px 12px;font-size:14px}
+.pill.push-off{border-color:var(--gold);color:var(--gold)}
+.pill.push-on{border-color:#5ec469;color:#5ec469;opacity:.9}
+.pill.push-blocked{border-color:var(--danger);color:var(--danger)}
 .cal-chip{
   display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:14px;
   border:1px solid var(--line);background:var(--panel);font-size:13px;
@@ -610,6 +623,7 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
     <span id="online" class="online-pill hide" title="Recently active in the room"></span>
     <span id="me"></span>
     <button type="button" class="pill hide update-ready" id="hdr-update" title="Get the latest app">Update</button>
+    <button type="button" class="pill hide push-off" id="push-alerts" title="Enable notifications">Alerts</button>
     <button type="button" class="pill install hide" id="install">Install</button>
     <button type="button" class="pill heart" id="think" title="Ping everyone with a heart notification">💗<span class="lbl"> Thinking of you</span></button>
     <button type="button" class="pill" id="theme" title="Light / dark mode">◐</button>
@@ -671,6 +685,17 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
       <div class="cal-grid" id="caldow"></div>
       <div class="cal-grid" id="calgrid"></div>
       <div class="cal-events" id="calevents"></div>
+      <div id="caldaypanel" class="cal-day-panel hide" aria-live="polite">
+        <div class="cal-day-head">
+          <strong id="caldaytitle">Important dates</strong>
+          <button type="button" class="pill" id="caldayclose">Close</button>
+        </div>
+        <div id="caldaylist"></div>
+        <div class="cal-day-add">
+          <input type="text" id="caldaylabel" placeholder="Label (e.g. Anniversary)" maxlength="120" autocomplete="off">
+          <button type="button" class="pill" id="caldaysave">Add for this day</button>
+        </div>
+      </div>
     </section>
     <section aria-label="Memories and quotes">
       <p class="scrap-sub" style="margin:4px 0 10px">Pins &amp; quotes</p>
@@ -808,7 +833,7 @@ let shownChatHeadKey=null;
 const CHAT_HEAD_DISMISS_KEY="shhh-chat-head-dismiss";
 const PENDING_CHAT_HEAD_KEY="shhh-pending-chat-head";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="16";
+const APP_SW_BUILD="17";
 const PARTNER_PIN_EMOJI=[{e:"🦄",label:"Unicorn"},{e:"🐻",label:"Bear hug"}];
 let swRegistration=null;
 let swWaitingWorker=null;
@@ -926,7 +951,6 @@ function applySwRefresh(){
   const w=swWaitingWorker||swRegistration?.waiting;
   const go=()=>{
     try{sessionStorage.setItem("shhh-sw-just-updated","1");}catch(e){}
-    window.location.href=window.location.pathname+window.location.search+(window.location.hash||"");
     window.location.reload();
   };
   navigator.serviceWorker.addEventListener("controllerchange",go,{once:true});
@@ -944,13 +968,81 @@ function bindSwUpdateUiOnce(){
   $("sw-refresh")?.addEventListener("click",applySwRefresh);
   $("hdr-update")?.addEventListener("click",applySwRefresh);
 }
+function updatePushPill(state){
+  const btn=$("push-alerts");
+  if(!btn||mode!=="api")return;
+  btn.classList.remove("hide","push-off","push-on","push-blocked");
+  if(!appConfig?.vapidPublicKey){
+    btn.classList.add("hide");
+    return;
+  }
+  btn.classList.remove("hide");
+  if(state==="on"){
+    btn.classList.add("push-on");
+    btn.textContent="Alerts on";
+    btn.title="Notifications enabled for this device";
+  }else if(state==="blocked"){
+    btn.classList.add("push-blocked");
+    btn.textContent="Alerts blocked";
+    btn.title="Enable in browser settings → notifications for this site";
+  }else{
+    btn.classList.add("push-off");
+    btn.textContent="Enable alerts";
+    btn.title="Turn on push for partner moods, messages & notes";
+  }
+}
+async function ensurePushSubscription(opts={}){
+  if(mode!=="api"||!appConfig?.vapidPublicKey)return false;
+  if(!("serviceWorker"in navigator)||!("PushManager"in window)){
+    updatePushPill("off");
+    return false;
+  }
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    let perm=Notification.permission;
+    if(perm==="denied"){
+      updatePushPill("blocked");
+      if(opts.prompt)setStatus("Notifications blocked — allow alerts for sexychat.fun in browser settings, then tap Enable alerts.","err");
+      return false;
+    }
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub&&opts.prompt&&perm==="default"){
+      perm=await Notification.requestPermission();
+    }
+    if(!sub&&perm==="granted"){
+      sub=await reg.pushManager.subscribe({
+        userVisibleOnly:true,
+        applicationServerKey:urlBase64ToUint8Array(appConfig.vapidPublicKey),
+      });
+    }
+    if(!sub){
+      updatePushPill("off");
+      return false;
+    }
+    const json=sub.toJSON();
+    await api("/api/push/subscribe",{method:"POST",body:{endpoint:json.endpoint,keys:json.keys}});
+    try{
+      const st=await api("/api/push/status");
+      updatePushPill(st.subscribed?"on":"off");
+    }catch(e){updatePushPill("on");}
+    if(opts.prompt&&Notification.permission==="granted")setStatus("Alerts on — you'll get partner notifications.","ok");
+    return true;
+  }catch(e){
+    updatePushPill("off");
+    if(opts.prompt)setStatus((e.data&&e.data.error)||"Couldn't enable alerts.","err");
+    return false;
+  }
+}
 async function setupPwa(){
   if(!("serviceWorker"in navigator))return;
   bindSwUpdateUiOnce();
+  if(!navigator.serviceWorker._shhhMsgBound){
+    navigator.serviceWorker._shhhMsgBound=true;
+    navigator.serviceWorker.addEventListener("message",onSwMessage);
+  }
   try{
     const reg=await navigator.serviceWorker.register("/sw.js?v="+APP_SW_BUILD);
     swRegistration=reg;
-    navigator.serviceWorker.addEventListener("message",onSwMessage);
     if(reg.waiting&&navigator.serviceWorker.controller)offerSwUpdate(reg.waiting);
     reg.addEventListener("updatefound",()=>{
       const w=reg.installing;
@@ -961,22 +1053,9 @@ async function setupPwa(){
     });
     void reg.update().catch(()=>{});
   }catch(e){}
-  if(mode!=="api"||!appConfig?.vapidPublicKey)return;
-  try{
-    const reg=await navigator.serviceWorker.ready;
-    let sub=await reg.pushManager.getSubscription();
-    if(!sub){
-      const perm=await Notification.requestPermission();
-      if(perm!=="granted")return;
-      sub=await reg.pushManager.subscribe({
-        userVisibleOnly:true,
-        applicationServerKey:urlBase64ToUint8Array(appConfig.vapidPublicKey),
-      });
-    }
-    const json=sub.toJSON();
-    await api("/api/push/subscribe",{method:"POST",body:{endpoint:json.endpoint,keys:json.keys}});
-  }catch(e){}
+  if(mode==="api")await ensurePushSubscription({prompt:false});
 }
+$("push-alerts").onclick=()=>void ensurePushSubscription({prompt:true});
 
 async function detectBackend(){
   await loadConfig();
@@ -1105,7 +1184,8 @@ function resumeApp(n,opts={}){
 function enter(n,opts={}){
   name=n;$("gate").classList.add("hide");$("app").classList.remove("hide");$("me").textContent="@"+n;
   joinedAt=opts.joinedAt!=null?opts.joinedAt:Date.now();
-  window.setTimeout(()=>{void setupPwa();},2000);
+  void setupPwa();
+  void ensurePushSubscription({prompt:false});
   if(mode==="api"){
     if(pollTimer)clearInterval(pollTimer);
     if(pollMetaTimer)clearTimeout(pollMetaTimer);
@@ -1140,7 +1220,9 @@ function onVis(){
     void pingPresence();
     void refreshMoods();
     void refreshInboxForChatHead();
-  },500);
+    void ensurePushSubscription({prompt:false});
+    applyStoredPendingChatHead();
+  },400);
 }
 
 async function refreshApi(){
@@ -1359,9 +1441,9 @@ function renderMoodGrid(){
       try{
         const r=await api("/api/moods",{method:"POST",body:{mood:key,note:$("moodnote").value.trim()}});
         $("moodpanel").classList.add("hide");
-        if(!r.pushEnabled)$("note").textContent="Mood set — add VAPID for push alerts.";
-        else if(!r.sent)$("note").textContent=(r.emoji||"💗")+" Sent (partner may need to allow notifications).";
-        else $("note").textContent=(r.emoji||"💗")+" "+(r.label||"Sent")+"!";
+        if(!r.pushEnabled)setStatus("Mood saved — server needs VAPID keys for push.","warn");
+        else if(!r.sent)setStatus((r.emoji||"💗")+" Sent in-app — partner should tap Enable alerts.","warn");
+        else setStatus((r.emoji||"💗")+" "+(r.label||"Sent")+"!","ok");
       }catch(e){$("note").textContent=(e.data&&e.data.error)||"Couldn't send mood.";}
     };
     grid.appendChild(b);
@@ -1874,19 +1956,18 @@ function buildChatHeadCandidates(){
       body:m.note||"",
     });
   }
-  const partnerMsg=[...lastMsgs].reverse().find(m=>{
-    if(m.user===name||String(m.id).startsWith("pending"))return false;
-    return Number(m.ts)>=joinedAt-3000;
-  });
+  const partnerMsg=[...lastMsgs].reverse().find(m=>m.user!==name&&!String(m.id).startsWith("pending"));
   if(partnerMsg){
+    const body=messagePreview(partnerMsg);
+    const em=/^https:\/\//.test(String(partnerMsg.text||"").trim())?"📷":"💬";
     events.push({
-      kind:"msg",
+      kind:"message",
       key:`msg:${partnerMsg.id}`,
       ts:Number(partnerMsg.ts),
       user:partnerMsg.user,
-      emoji:"💬",
+      emoji:em,
       label:"New message",
-      body:messagePreview(partnerMsg),
+      body,
     });
   }
   const unread=inboxNotes.find(n=>!n.readAt&&n.from!==name);
@@ -2088,7 +2169,7 @@ function scheduleMoodPoll(){
   if(moodPollTimer)clearInterval(moodPollTimer);
   if(mode!=="api")return;
   void refreshMoods();
-  moodPollTimer=setInterval(()=>{if(!document.hidden)void refreshMoods();},8000);
+  moodPollTimer=setInterval(()=>{if(!document.hidden){void refreshMoods();void refreshInboxForChatHead();}},5000);
 }
 
 async function refreshNotes(){
@@ -2220,12 +2301,70 @@ function renderCalendar(){
       (scrapCalSel===day?" sel":"")+
       (today.getFullYear()===scrapCalYear&&today.getMonth()===scrapCalMonth&&today.getDate()===day?" today":"");
     b.textContent=String(day);
-    b.onclick=()=>{scrapCalSel=day;renderCalendar();renderCalEvents(day);};
+    b.onclick=()=>{scrapCalSel=day;openCalDayPanel(day);renderCalendar();};
     grid.appendChild(b);
   }
-  if(scrapCalSel)renderCalEvents(scrapCalSel);
-  else renderCalEvents(null);
+  if(scrapCalSel)openCalDayPanel(scrapCalSel);
+  else{$("caldaypanel")?.classList.add("hide");renderCalEvents(null);}
 }
+
+function openCalDayPanel(day){
+  if(day==null)return;
+  const panel=$("caldaypanel"),list=$("caldaylist"),title=$("caldaytitle");
+  if(!panel||!list)return;
+  const pad=n=>String(n).padStart(2,"0");
+  const iso=`${scrapCalYear}-${pad(scrapCalMonth+1)}-${pad(day)}`;
+  const localDate=new Date(scrapCalYear,scrapCalMonth,day,12,0,0);
+  title.textContent=localDate.toLocaleDateString([],{weekday:"long",month:"long",day:"numeric",year:"numeric"});
+  panel.classList.remove("hide");
+  list.textContent="";
+  const ev=datesOnDay(scrapCalYear,scrapCalMonth,day);
+  if(!ev.length){
+    const p=document.createElement("p");
+    p.className="scrap-sub";p.style.margin="0";
+    p.textContent="Nothing saved for this day yet — add a label below.";
+    list.appendChild(p);
+  }else{
+    ev.forEach(d=>{
+      const row=document.createElement("div");
+      row.className="cal-chip"+(d.marked?"":" unmarked");
+      const body=document.createElement("div");
+      const st=document.createElement("strong");st.textContent=d.label;body.appendChild(st);
+      const meta=document.createElement("div");meta.className="meta";
+      meta.textContent=(d.yearly?"Repeats yearly · ":"")+"@"+(d.user||"?");
+      body.appendChild(meta);
+      if(d.note){const n=document.createElement("div");n.className="scrap-cap";n.textContent=d.note;body.appendChild(n);}
+      row.appendChild(body);
+      list.appendChild(row);
+    });
+  }
+  $("scrapdate").value=iso;
+  $("caldaylabel").value="";
+  panel.dataset.day=String(day);
+  panel.scrollIntoView({block:"nearest",behavior:"smooth"});
+  renderCalEvents(day);
+}
+$("caldayclose").onclick=()=>{
+  scrapCalSel=null;
+  $("caldaypanel")?.classList.add("hide");
+  renderCalendar();
+};
+$("caldaysave").onclick=async()=>{
+  if(mode!=="api")return;
+  const panel=$("caldaypanel");
+  const day=Number(panel?.dataset.day);
+  if(!day)return;
+  const label=$("caldaylabel").value.trim();
+  if(label.length<2)return setStatus("Add a short label for this date.","err");
+  const pad=n=>String(n).padStart(2,"0");
+  const iso=`${scrapCalYear}-${pad(scrapCalMonth+1)}-${pad(day)}`;
+  try{
+    await api("/api/scrapbook/dates",{method:"POST",body:{label,date:iso,yearly:true,note:$("scrapdatelabel").value.trim()||undefined}});
+    setStatus("Important date saved.","ok");
+    await refreshScrapbook();
+    openCalDayPanel(day);
+  }catch(e){setStatus((e.data&&e.data.error)||"Couldn't save date.","err");}
+};
 
 function renderCalEvents(day){
   const host=$("calevents");
