@@ -953,30 +953,6 @@ app.post(
   }),
 );
 
-app.post(
-  "/api/partner-emoji",
-  authMiddleware,
-  asyncHandler(async (req, res) => {
-    const emoji = String(req.body?.emoji || "").trim();
-    if (!emoji) return res.status(400).json({ error: "Pick an emoji" });
-    const glyph = [...emoji][0] || emoji.slice(0, 8);
-    const ts = Date.now();
-    await pool.query(
-      `INSERT INTO chat_moods (user_id, username, mood_key, mood_note, ts)
-       VALUES ($1,$2,'emoji',$3,$4)
-       ON CONFLICT (user_id) DO UPDATE SET
-         username = EXCLUDED.username,
-         mood_key = EXCLUDED.mood_key,
-         mood_note = EXCLUDED.mood_note,
-         ts = EXCLUDED.ts`,
-      [req.user.user_id, req.user.username, encryptField(glyph), ts],
-    );
-    const payload = moodPayload(req.user.username, "emoji", glyph, ts);
-    const sent = await broadcastPush(req.user.user_id, payload);
-    res.json({ ok: true, emoji: glyph, ts, sent, pushEnabled: isPushReady() });
-  }),
-);
-
 app.get(
   "/api/notes",
   authMiddleware,

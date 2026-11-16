@@ -652,11 +652,6 @@ html[data-theme="dark"] .paper-sheet{
 html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input[type=text]{background:#2a2520;border-color:#5a5048}
 .scrap-item.note.paper-sheet,.scrap-item.quote.paper-sheet{transform:rotate(-.4deg)}
 .scrap-item.quote.paper-sheet blockquote{font-family:"Libre Baskerville",Georgia,serif}
-#emopinned{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px}
-#emopinned button{
-  flex:1;min-width:120px;border:1px solid var(--rose);border-radius:12px;padding:10px 8px;
-  background:var(--tab-on-bg);font-size:13px;cursor:pointer;color:var(--text);
-}
 @media (max-width:520px){
   #gate{padding:20px 16px}
   .brand-mark{font-size:3.25rem}
@@ -767,8 +762,6 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
 <div id="bar">
   <div id="emo" class="hide">
     <input type="search" id="emoq" placeholder="Search emoji…" autocomplete="off">
-    <p class="sub" style="margin:0 0 6px;font-size:11px">Tap sends to partner · hold to add to message</p>
-    <div id="emopinned"></div>
     <div id="emogrid"></div>
   </div>
   <div class="bar-tools">
@@ -1068,7 +1061,6 @@ const PUSH_PROMPT_SEEN_KEY="shhh-push-prompt-seen";
 const PUSH_PROMPT_SESSION_KEY="shhh-push-prompt-session";
 const PUSH_DENY_HINT_KEY="shhh-push-deny-hint";
 let lastPushDebug=null;
-const PARTNER_PIN_EMOJI=[{e:"🦄",label:"Unicorn"},{e:"🐻",label:"Bear hug"}];
 let swRegistration=null;
 let swWaitingWorker=null;
 let swRefreshPending=false;
@@ -1993,7 +1985,6 @@ function enter(n,opts={}){
     void refreshBuildBadge();
     bindGlobalErrorToast();
     if(!opts.skipMainTab)setMainTab(opts.tab||savedTab()||"chat");
-    renderPartnerPinRow();
     document.addEventListener("visibilitychange",onVis);
     return;
   }
@@ -2645,26 +2636,10 @@ async function loadEmojiList(){
   }
   return emojiList;
 }
-function renderPartnerPinRow(){
-  const row=$("emopinned");
-  if(!row)return;
-  row.textContent="";
-  PARTNER_PIN_EMOJI.forEach(({e,label})=>{
-    const b=document.createElement("button");
-    b.type="button";
-    b.textContent=e+" "+label;
-    b.onclick=()=>void sendPartnerEmoji(e);
-    row.appendChild(b);
-  });
-}
-async function sendPartnerEmoji(glyph){
-  if(mode!=="api")return;
-  try{
-    const r=await api("/api/partner-emoji",{method:"POST",body:{emoji:glyph}});
-    setStatus((r.emoji||glyph)+" sent to your partner.","ok");
-    $("emo").classList.add("hide");
-    await refreshMoods();
-  }catch(e){setStatus((e.data&&e.data.error)||"Couldn't send emoji.","err");}
+function insertComposerEmoji(glyph){
+  $("txt").value+=glyph;
+  autoGrowTxt();
+  $("txt").focus();
 }
 function renderEmojiGrid(filter){
   const grid=$("emogrid");grid.textContent="";
@@ -2674,26 +2649,7 @@ function renderEmojiGrid(filter){
   for(const e of list){
     if(q&&!e.includes(q)&&!e.toLowerCase().includes(q))continue;
     const b=document.createElement("button");b.type="button";b.textContent=e;
-    let pressTimer=null;
-    let longPress=false;
-    b.addEventListener("pointerdown",()=>{
-      longPress=false;
-      pressTimer=setTimeout(()=>{
-        longPress=true;
-        $("txt").value+=e;
-        autoGrowTxt();
-        $("txt").focus();
-        $("note").textContent="Added to message.";
-      },480);
-    });
-    const end=()=>{
-      if(pressTimer)clearTimeout(pressTimer);
-      pressTimer=null;
-      if(!longPress)void sendPartnerEmoji(e);
-      longPress=false;
-    };
-    b.addEventListener("pointerup",end);
-    b.addEventListener("pointercancel",end);
+    b.onclick=()=>insertComposerEmoji(e);
     grid.appendChild(b);
     if(++n>600)break;
   }
@@ -2702,7 +2658,6 @@ function renderEmojiGrid(filter){
 $("emob").onclick=async()=>{
   $("emo").classList.toggle("hide");
   if(!$("emo").classList.contains("hide")){
-    renderPartnerPinRow();
     await loadEmojiList();
     renderEmojiGrid($("emoq").value);
   }
