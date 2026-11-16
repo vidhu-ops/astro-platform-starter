@@ -2153,6 +2153,7 @@ function createMsgEl(m,idx,list){
   if(soloImg){
     const host=document.createElement("div");host.className="media-host";host.dataset.mediaUrl=soloImg;
     appendInlineImage(host,soloImg);body.appendChild(host);
+  }
   const mediaOnlyCaption=!textTrim||textTrim==="📎 Sent media"||textTrim==="Sent media";
   if(textTrim&&!m.viewOnce&&!(m.media&&mediaOnlyCaption)&&!(m.media&&textTrim===String(m.media))){
     const p=document.createElement("div");p.className="bubble-text";linkify(p,String(m.text));body.appendChild(p);
