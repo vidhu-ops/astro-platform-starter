@@ -1,5 +1,5 @@
 /* shhh PWA — network-first HTML so rebrands reach mobile */
-const CACHE = "shhh-v20";
+const CACHE = "shhh-v21";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -120,7 +120,7 @@ async function focusClientWithPayload(payload) {
   for (const c of list) {
     if ("focus" in c) {
       await c.focus();
-      c.postMessage({ type: "CHAT_HEAD_PENDING", payload });
+      c.postMessage({ type: "PARTNER_SIGNAL", payload });
       return true;
     }
   }
