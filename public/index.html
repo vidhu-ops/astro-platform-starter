@@ -139,18 +139,48 @@ input::placeholder{color:var(--mute)}
 #go:disabled{opacity:.65;cursor:wait}
 #app{min-height:0;height:100%;display:flex;flex-direction:column;max-width:820px;margin:0 auto;width:100%}
 header{
-  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
-  padding:max(12px,env(safe-area-inset-top,0px)) 16px 14px;border-bottom:1px solid var(--line);
-  background:var(--header-bg);backdrop-filter:blur(16px);
+  display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:nowrap;
+  padding:max(10px,env(safe-area-inset-top,0px)) 12px 10px;border-bottom:1px solid var(--line);
+  background:var(--header-bg);backdrop-filter:blur(16px);position:relative;z-index:20;
 }
-.hdr-brand{display:flex;align-items:baseline;gap:8px;min-width:0}
+.hdr-brand{display:flex;align-items:baseline;gap:8px;min-width:0;flex:1}
 header h2{
   margin:0;font-family:"Cormorant Garamond",Georgia,serif;font-size:26px;font-weight:600;font-style:italic;letter-spacing:-.03em;
   background:linear-gradient(100deg,var(--brand-a),var(--brand-b));-webkit-background-clip:text;background-clip:text;color:transparent;
 }
 .hdr-tag{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--mute);font-weight:500}
-.hdr-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.hdr-actions{display:flex;align-items:center;gap:4px;flex-wrap:nowrap;justify-content:flex-end;flex-shrink:0}
 .hdr-actions span{color:var(--text);opacity:.72;font-size:12px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hdr-icon{
+  width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--panel);
+  color:var(--text);font-size:18px;line-height:1;padding:0;cursor:pointer;display:grid;place-items:center;
+}
+.hdr-icon.heart{background:linear-gradient(100deg,var(--heart-a),var(--heart-b));border-color:transparent;color:var(--heart-fg)!important;font-size:16px}
+#push-alerts.hdr-icon{font-size:18px}
+#push-alerts.push-on{border-color:var(--rose);color:var(--rose);background:var(--tab-on-bg);opacity:1}
+#push-alerts.push-off{opacity:.45;color:var(--mute)}
+#push-alerts.push-blocked{opacity:.45;color:var(--danger);border-color:var(--danger)}
+#appmenu{
+  position:fixed;inset:0;z-index:80;background:var(--scrim);display:flex;justify-content:flex-end;align-items:flex-start;
+  padding:max(56px,calc(env(safe-area-inset-top,0px) + 48px)) 10px 16px;
+}
+#appmenu .appmenu-sheet{
+  width:min(100%,320px);max-height:min(88vh,720px);overflow:auto;
+  background:var(--panel);border:1px solid var(--line);border-radius:18px;
+  padding:6px;box-shadow:0 16px 40px #00000055;color:var(--text);
+}
+.appmenu-user{padding:8px 12px 6px;border-bottom:1px solid var(--line);margin-bottom:2px}
+.appmenu-user strong{display:block;font-size:15px}
+.appmenu-user span{font-size:11px;color:var(--mute)}
+.appmenu-sheet button{
+  width:100%;text-align:left;border:0;background:transparent;color:var(--text);
+  padding:8px 12px;border-radius:10px;cursor:pointer;font-size:13.5px;font-weight:500;
+}
+.appmenu-sheet button:hover,.appmenu-sheet button:focus{background:var(--panel2)}
+.appmenu-sheet .danger{color:var(--danger)}
+.appmenu-kicker{
+  margin:6px 12px 0;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);
+}
 .pill{
   border:1px solid var(--line);border-radius:999px;padding:8px 13px;cursor:pointer;
   background:var(--panel);color:var(--mute);font-size:11px;font-weight:500;white-space:nowrap;
@@ -255,7 +285,7 @@ header h2{
 }
 .tab-dot.hide{display:none!important}
 #inapp-alert{
-  position:fixed;left:16px;right:16px;top:max(10px,env(safe-area-inset-top,0px));
+  position:fixed;left:16px;right:16px;top:max(58px,calc(env(safe-area-inset-top,0px) + 52px));
   z-index:72;max-width:520px;margin:0 auto;
   display:flex;align-items:center;gap:10px;
   padding:16px 14px 12px;border-radius:16px;border:1px solid var(--line);
@@ -634,10 +664,9 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
   header h2{font-size:1.75rem}
   .hdr-brand{flex:1;min-width:0}
   .hdr-tag{font-size:9px;letter-spacing:.2em}
-  .hdr-actions{width:100%;justify-content:flex-start;gap:5px}
-  .hdr-actions span{order:-1;width:100%;max-width:none;margin-bottom:2px;font-size:11px}
-  #think .lbl{display:none}
-  #think::after{content:" thinking"}
+  .hdr-actions{width:auto;justify-content:flex-end;gap:4px}
+  .hdr-actions span{order:0;width:auto;max-width:90px;margin:0;font-size:11px}
+  #think .lbl,#think::after{display:none;content:none}
   .pill{padding:7px 10px;font-size:10px}
   #bar{padding:10px 10px max(12px,env(safe-area-inset-bottom,0px));gap:6px}
   .ic{width:44px;height:44px;font-size:16px}
@@ -683,18 +712,49 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
   <div class="hdr-actions">
     <span id="online" class="online-pill hide" title="Recently active in the room"></span>
     <button type="button" class="pill hide" id="partner-chip" title="Partner activity"></button>
-    <span id="me"></span>
-    <button type="button" class="pill hide update-ready" id="hdr-update" title="Get the latest app">Update</button>
-    <button type="button" class="pill hide push-off" id="push-alerts" title="Enable notifications">Alerts</button>
-    <button type="button" class="pill install hide" id="install">Install</button>
-    <button type="button" class="pill heart" id="think" title="Ping everyone with a heart notification">💗<span class="lbl"> Thinking of you</span></button>
-    <button type="button" class="pill" id="theme" title="Light / dark mode">◐</button>
-    <button type="button" class="pill" id="sv">Save</button>
-    <button type="button" class="pill hide" id="sel">Select</button>
-    <button type="button" class="pill" id="del">Delete</button>
-    <button type="button" class="pill" id="out">Leave</button>
+    <span id="me" class="hide"></span>
+    <button type="button" class="hdr-icon heart" id="think" title="Send thinking of you">💗</button>
+    <button type="button" class="hdr-icon push-on" id="push-alerts" aria-label="Alerts on" title="Alerts on — tap to mute all">🔔</button>
+    <button type="button" class="hdr-icon" id="hdr-menu" aria-label="Menu" aria-haspopup="true" aria-controls="appmenu">☰</button>
   </div>
 </header>
+<div class="hdr-legacy hide" aria-hidden="true">
+  <button type="button" class="pill hide update-ready" id="hdr-update">Update</button>
+  <button type="button" class="pill install hide" id="install">Install</button>
+  <button type="button" class="pill" id="theme">Theme</button>
+  <button type="button" class="pill" id="sv">Save</button>
+  <button type="button" class="pill hide" id="sel">Select</button>
+  <button type="button" class="pill" id="del">Delete</button>
+  <button type="button" class="pill" id="out">Leave</button>
+</div>
+<div id="appmenu" class="hide" role="dialog" aria-modal="true" aria-labelledby="appmenu-name">
+  <div class="appmenu-sheet">
+    <div class="appmenu-user">
+      <strong id="appmenu-name">@you</strong>
+      <span id="appmenu-online">—</span>
+    </div>
+    <p class="appmenu-kicker">Go to</p>
+    <button type="button" id="menu-chat">💬 Chat</button>
+    <button type="button" id="menu-updates">📷 Updates</button>
+    <button type="button" id="menu-scrap">📒 Scrapbook</button>
+    <button type="button" id="menu-app">⚙️ App</button>
+    <p class="appmenu-kicker">Alerts</p>
+    <button type="button" id="menu-think">💗 Thinking of you</button>
+    <button type="button" id="menu-moods">💌 More moods</button>
+    <button type="button" id="menu-note">📝 Leave a note</button>
+    <button type="button" id="menu-inbox">📥 Inbox</button>
+    <button type="button" id="menu-alerts">🔔 Alert settings</button>
+    <p class="appmenu-kicker">Chat</p>
+    <button type="button" id="menu-sv">Save</button>
+    <button type="button" id="menu-sel">Select</button>
+    <button type="button" id="menu-del">Delete</button>
+    <button type="button" id="menu-out" class="danger">Leave</button>
+    <p class="appmenu-kicker">More</p>
+    <button type="button" id="menu-theme">◐ Light / dark</button>
+    <button type="button" id="menu-install">Install app</button>
+    <button type="button" id="menu-update">Check for updates</button>
+  </div>
+</div>
 <div id="chatview">
 <div id="feed"></div>
 <button type="button" id="scrollfab" class="hide" title="Jump to latest" aria-label="Jump to latest messages">↓</button>
@@ -974,7 +1034,21 @@ let moodsAlertReady=false;
 let inboxAlertReady=false;
 const PENDING_PARTNER_KEY="shhh-pending-partner";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="37";
+const APP_SW_BUILD="38";
+const ALERT_MASTER_KEY="shhh-alerts-master";
+function alertsMasterOn(){
+  try{if(localStorage.getItem(ALERT_MASTER_KEY)==="0")return false;}catch(e){}
+  return true;
+}
+function setAlertsMaster(on){
+  try{localStorage.setItem(ALERT_MASTER_KEY,on?"1":"0");}catch(e){}
+  syncAlertPrefsToSw();
+}
+function syncAlertPrefsToSw(){
+  const payload={type:"ALERT_PREFS",master:alertsMasterOn()};
+  try{navigator.serviceWorker?.controller?.postMessage(payload);}catch(e){}
+  navigator.serviceWorker?.ready?.then(reg=>{try{reg.active?.postMessage(payload);}catch(e){}}).catch(()=>{});
+}
 let healthOkHint=false;
 const LOGIN_GRACE_MS=15000;
 const SESSION_TOKEN_KEY="shhh-session-token";
@@ -1321,7 +1395,7 @@ $("app-panel-action").onclick=()=>{
   if(isAppInstalled())void runTabUpdateFlow();
   else void runInstallFlow();
 };
-$("app-panel-alerts").onclick=()=>void ensurePushSubscription({prompt:true,resubscribe:true});
+$("app-panel-alerts").onclick=()=>$("push-alerts")?.click();
 async function forceAppRefresh(){
   setStatus("Refreshing app…","warn");
   try{await swRegistration?.update?.();}catch(e){}
@@ -1361,8 +1435,9 @@ function refreshAppPanel(){
   const alerts=$("app-panel-alerts");
   if(alerts){
     const perm=Notification.permission;
-    alerts.textContent=perm==="granted"?"Alerts on ✓":perm==="denied"?"Open iOS Settings for alerts":"Turn on notifications";
-    alerts.disabled=perm==="granted"&&lastPushDebug?.serverSubscribed;
+    const on=alertsMasterOn()&&perm!=="denied";
+    alerts.textContent=on&&perm==="granted"?"Alerts on ✓":perm==="denied"?"Open iOS Settings for alerts":on?"Alerts on":"Alerts off";
+    alerts.disabled=perm==="denied";
   }
 }
 async function refreshBuildBadge(){
@@ -1389,11 +1464,11 @@ function showApiChrome(){
   $("build-badge")?.classList.remove("hide");
   void refreshBuildBadge();
   syncAppTabLabel();
-  if(appConfig?.vapidPublicKey)updatePushPill(Notification.permission==="granted"?"on":"off");
-  else{
-    const btn=$("push-alerts");
-    if(btn){btn.classList.remove("hide");btn.classList.add("push-off");btn.textContent="Enable alerts";}
-  }
+  updatePushPill(
+    !alertsMasterOn()?"off":
+    Notification.permission==="denied"?"blocked":
+    Notification.permission==="granted"?"on":"off"
+  );
 }
 $("build-badge").onclick=()=>{
   try{
@@ -1546,25 +1621,27 @@ function updatePushPill(state,debug=null){
   const btn=$("push-alerts");
   if(!btn||mode!=="api")return;
   btn.classList.remove("hide","push-off","push-on","push-blocked");
-  if(!appConfig?.vapidPublicKey){
-    btn.classList.add("hide");
+  btn.classList.remove("hide");
+  btn.textContent="🔔";
+  const master=alertsMasterOn();
+  const dbg=debug||lastPushDebug;
+  const dbgTitle=dbg?` | perm=${dbg.permission} browserSub=${dbg.browserSubscribed} serverSub=${dbg.serverSubscribed}`:"";
+  const menuAlerts=$("menu-alerts");
+  if(menuAlerts)menuAlerts.textContent=master?"🔔 Alerts on":"🔕 Alerts off";
+  if(state==="blocked"||Notification.permission==="denied"){
+    btn.classList.add(master?"push-blocked":"push-off");
+    btn.setAttribute("aria-label","Alerts blocked");
+    btn.title="Notifications blocked in system settings"+dbgTitle;
     return;
   }
-  btn.classList.remove("hide");
-  const dbg=debug||lastPushDebug;
-  const dbgTitle=dbg?` | perm=${dbg.permission} browserSub=${dbg.browserSubscribed} serverSub=${dbg.serverSubscribed} epLen=${dbg.endpointLength??"?"}`:"";
-  if(state==="on"){
+  if(master){
     btn.classList.add("push-on");
-    btn.textContent="Alerts on";
-    btn.title="Notifications enabled for this device"+dbgTitle;
-  }else if(state==="blocked"){
-    btn.classList.add("push-blocked");
-    btn.textContent="Alerts blocked";
-    btn.title=(isIosPwa()?"iOS: Settings → Notifications → shhh":"Enable in browser settings → notifications for this site")+dbgTitle;
+    btn.setAttribute("aria-label","Alerts on");
+    btn.title="Alerts on — tap to mute all"+dbgTitle;
   }else{
     btn.classList.add("push-off");
-    btn.textContent="Enable alerts";
-    btn.title="Turn on push for partner moods, messages & notes"+dbgTitle;
+    btn.setAttribute("aria-label","Alerts off");
+    btn.title="Alerts off — tap to turn all alerts on"+dbgTitle;
   }
 }
 async function ensurePushSubscription(opts={}){
@@ -1676,16 +1753,28 @@ async function setupPwa(){
   scheduleSyncAppTabLabelBurst();
   syncAppTabLabel();
   if(mode==="api")await ensurePushSubscription({prompt:false,resubscribe:true});
+  syncAlertPrefsToSw();
+  updatePushPill(alertsMasterOn()&&Notification.permission==="granted"?"on":"off");
 }
 $("push-alerts").onclick=async()=>{
+  if(alertsMasterOn()){
+    setAlertsMaster(false);
+    updatePushPill("off");
+    setStatus("All alerts off.","ok");
+    return;
+  }
   if(Notification.permission==="denied"){
+    updatePushPill("blocked");
     const msg=isIosPwa()
-      ?"Open iOS Settings → Notifications → shhh → Allow Notifications. Then return here and tap Enable alerts."
-      :"Allow notifications for this site in browser settings, then tap Enable alerts.";
+      ?"Open iOS Settings → Notifications → shhh → Allow Notifications, then tap the bell."
+      :"Allow notifications for this site in browser settings, then tap the bell.";
     setStatus(msg,"warn");
     return;
   }
-  await ensurePushSubscription({prompt:true,resubscribe:true});
+  setAlertsMaster(true);
+  if(appConfig?.vapidPublicKey)await ensurePushSubscription({prompt:true,resubscribe:true});
+  updatePushPill("on");
+  setStatus("All alerts on.","ok");
 };
 
 async function detectBackend(){
@@ -1879,6 +1968,7 @@ function enter(n,opts={}){
   if(!opts.skipShell){
     showAuthShell(true);
     $("me").textContent="@"+n;
+    syncAppMenuUser();
   }
   joinedAt=opts.joinedAt!=null?opts.joinedAt:Date.now();
   void setupPwa();
@@ -2163,13 +2253,25 @@ function renderMoodGrid(){
     grid.appendChild(b);
   });
 }
-$("think").onclick=()=>{
+async function sendThinkingOfYou(){
+  if(mode!=="api")return;
+  try{
+    const r=await api("/api/moods",{method:"POST",body:{mood:"thinking"}});
+    if(!r.pushEnabled)setStatus("💗 Thinking of you sent — OS alerts need VAPID on the server.","warn");
+    else if(!r.sent)setStatus("💗 Sent — partner should tap the bell to allow alerts.","warn");
+    else setStatus("💗 Thinking of you sent!","ok");
+  }catch(e){
+    setStatus((e.data&&e.data.error)||"Couldn't send.","err");
+  }
+}
+function openMoodPanel(){
   if(mode!=="api")return;
   if(!appConfig?.moods)loadConfig().then(renderMoodGrid);
   else renderMoodGrid();
   $("moodpanel").classList.remove("hide");
   $("moodnote").value="";
-};
+}
+$("think").onclick=()=>void sendThinkingOfYou();
 $("moodclose").onclick=()=>$("moodpanel").classList.add("hide");
 $("moodpanel").addEventListener("click",e=>{if(e.target===$("moodpanel"))$("moodpanel").classList.add("hide");});
 
@@ -2644,7 +2746,8 @@ function setMainTab(tab){
   if(tab==="chat"){
     setChatDot(false);
     void syncAppBadge(false);
-    hideInAppAlert();
+    const kind=$("inapp-alert")?._alertNorm?.kind;
+    if(kind==="message")hideInAppAlert();
   }
   if(tab==="date"){
     void refreshStories();
@@ -2685,6 +2788,53 @@ $("notinboxpanel").onclick=e=>{if(e.target===$("notinboxpanel"))$("notinboxpanel
 $("tabchat").onclick=()=>setMainTab("chat");
 $("tabdate").onclick=()=>setMainTab("date");
 $("tabscrap").onclick=()=>setMainTab("scrap");
+
+function closeAppMenu(){
+  $("appmenu")?.classList.add("hide");
+  $("hdr-menu")?.setAttribute("aria-expanded","false");
+}
+function syncAppMenuUser(){
+  const n=$("appmenu-name");
+  const o=$("appmenu-online");
+  if(n)n.textContent=$("me")?.textContent||(name?"@"+name:"@you");
+  if(o){
+    const online=$("online");
+    o.textContent=online&&!online.classList.contains("hide")?(online.textContent||"partner online"):"private room";
+  }
+  const alerts=$("menu-alerts");
+  if(alerts)alerts.textContent=alertsMasterOn()?"🔔 Alerts on":"🔕 Alerts off";
+}
+function openAppMenu(){
+  syncAppMenuUser();
+  $("appmenu")?.classList.remove("hide");
+  $("hdr-menu")?.setAttribute("aria-expanded","true");
+}
+function toggleAppMenu(){
+  if($("appmenu")?.classList.contains("hide"))openAppMenu();
+  else closeAppMenu();
+}
+function menuGo(fn){
+  return()=>{closeAppMenu();fn();};
+}
+$("hdr-menu").onclick=()=>toggleAppMenu();
+$("appmenu").addEventListener("click",e=>{if(e.target===$("appmenu"))closeAppMenu();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeAppMenu();});
+$("menu-chat").onclick=menuGo(()=>setMainTab("chat"));
+$("menu-updates").onclick=menuGo(()=>setMainTab("date"));
+$("menu-scrap").onclick=menuGo(()=>setMainTab("scrap"));
+$("menu-app").onclick=menuGo(()=>setMainTab("app"));
+$("menu-think").onclick=menuGo(()=>void sendThinkingOfYou());
+$("menu-moods").onclick=menuGo(()=>openMoodPanel());
+$("menu-note").onclick=menuGo(()=>{setMainTab("date");openNoteCompose();});
+$("menu-inbox").onclick=menuGo(()=>{setMainTab("date");openNoteInbox();});
+$("menu-alerts").onclick=menuGo(()=>$("push-alerts")?.click());
+$("menu-sv").onclick=menuGo(()=>$("sv")?.click());
+$("menu-sel").onclick=menuGo(()=>$("sel")?.click());
+$("menu-del").onclick=menuGo(()=>$("del")?.click());
+$("menu-out").onclick=menuGo(()=>$("out")?.click());
+$("menu-theme").onclick=menuGo(()=>$("theme")?.click());
+$("menu-install").onclick=menuGo(()=>$("install")?.click());
+$("menu-update").onclick=menuGo(()=>applySwRefresh());
 
 function initScrapWhenForce(){
   const el=$("scrapwhen");
@@ -2914,7 +3064,7 @@ async function showBarNotification(norm){
     body,
     icon:"/icons/icon.svg",
     badge:"/icons/heart-badge.svg",
-    tag:alertDedupeKey(norm),
+    tag:norm.noteId||norm.msgId||norm.kind+":"+norm.from,
     renotify:true,
     silent:false,
     vibrate:[80,40,90,40,140],
@@ -2930,6 +3080,7 @@ async function showBarNotification(norm){
 function announceAlert(p){
   const norm=normalizePartnerPayload(p);
   if(!norm||!norm.from)return;
+  if(!alertsMasterOn())return;
   const key=alertDedupeKey(norm);
   const now=Date.now();
   if(key===lastAlertKey&&now-lastAlertAt<5000)return;
@@ -2938,13 +3089,14 @@ function announceAlert(p){
   if(norm.kind==="message"&&activeTab!=="chat")setChatDot(true);
   if(document.hidden){
     if(norm.kind==="message")setChatDot(true);
+    void showBarNotification(norm);
     return;
   }
   showPartnerChip(norm);
   showInAppAlert(norm);
   playAlertSound();
   vibrateAlert();
-  if(activeTab!=="chat"||norm.kind!=="message")void showBarNotification(norm);
+  void showBarNotification(norm);
 }
 
 function applyPartnerPushPayload(p){
@@ -3039,7 +3191,7 @@ function scheduleMoodPoll(){
   if(moodPollTimer)clearInterval(moodPollTimer);
   if(mode!=="api")return;
   void refreshMoods();
-  moodPollTimer=setInterval(()=>{if(!document.hidden){void refreshMoods();void refreshInboxSummary();}},5000);
+  moodPollTimer=setInterval(()=>{void refreshMoods();if(!document.hidden)void refreshInboxSummary();},5000);
 }
 
 async function refreshNotes(){
@@ -3085,10 +3237,8 @@ async function refreshNotes(){
 function scheduleNotePoll(){
   if(notePollTimer)clearInterval(notePollTimer);
   notePollTimer=setInterval(()=>{
-    if(document.hidden)return;
     void refreshInboxSummary();
-    if(activeTab==="date"&&!$("notinboxpanel").classList.contains("hide"))void refreshNotes();
-    else updateInboxBadge();
+    if(!document.hidden && activeTab==="date"&&!$("notinboxpanel")?.classList.contains("hide"))void refreshNotes();
   },12000);
 }
 $("notesend").onclick=async()=>{
