@@ -615,7 +615,7 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
   <input id="u" type="text" placeholder="Username" autocomplete="username" maxlength="20">
   <label class="gate-label" for="p">Password <span class="sub">(shared with your partner)</span></label>
   <input id="p" type="password" placeholder="Enter your shared room password" autocomplete="current-password" required>
-  <button type="button" class="btn" id="go" disabled>Loading…</button>
+  <button type="button" class="btn" id="go">Continue</button>
   <div class="err" id="err" role="alert" aria-live="assertive"></div>
 </div></div>
 
@@ -903,7 +903,8 @@ let inboxNotes=[];
 let partnerChipTimer=null;
 const PENDING_PARTNER_KEY="shhh-pending-partner";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="26";
+const APP_SW_BUILD="27";
+let healthOkHint=false;
 const LOGIN_GRACE_MS=4000;
 let deployCommitShort="";
 let jsErrorToastSent=false;
@@ -983,17 +984,53 @@ function setGateError(msg){
   if(!el)return;
   el.textContent=msg||"";
 }
+async function fetchHealthQuick(timeoutMs=8000){
+  const ac=new AbortController();
+  const timer=setTimeout(()=>ac.abort(),timeoutMs);
+  try{
+    const res=await fetch("/api/health",{credentials:"same-origin",signal:ac.signal});
+    const raw=await res.text();
+    let h=null;
+    try{h=JSON.parse(raw);}catch(e){}
+    return{res,h,raw};
+  }finally{
+    clearTimeout(timer);
+  }
+}
+async function ensureApiModeForLogin(){
+  if(mode==="api"||mode==="claude")return true;
+  if(healthOkHint){
+    mode="api";
+    return true;
+  }
+  try{
+    const{h}=await fetchHealthQuick(8000);
+    if(h&&h.ok===true){
+      mode="api";
+      healthOkHint=true;
+      void loadConfig();
+      return true;
+    }
+  }catch(e){}
+  setGateError("Couldn't reach the server — check connection and tap Continue to retry.");
+  return false;
+}
+function unlockGateContinue(opts={}){
+  const btn=$("go");
+  if(!btn||name)return;
+  btn.disabled=false;
+  btn.textContent="Continue";
+  if(opts.forceApi&&healthOkHint)mode="api";
+}
 function enableGateSignIn(){
   const btn=$("go");
   if(!btn||name)return;
-  if(mode==="api"||mode==="claude"){
-    btn.disabled=false;
-    btn.textContent="Continue";
-    return;
-  }
-  btn.disabled=true;
+  btn.disabled=false;
   btn.textContent="Continue";
-  setGateError($("err").textContent||"Chat unavailable — refresh the page or try again in a moment.");
+  if(mode!=="api"&&mode!=="claude"&&!healthOkHint){
+    const msg=$("err").textContent;
+    if(!msg)setGateError("Tap Continue to sign in — we'll verify the server when you submit.");
+  }
 }
 function quickLoginTransition(n){
   name=n;
@@ -1348,7 +1385,11 @@ $("pushprompt").onclick=e=>{
 };
 
 async function loadConfig(){
-  try{appConfig=await api("/api/config");}catch(e){appConfig={};}
+  try{
+    appConfig=await api("/api/config",{},12000);
+  }catch(e){
+    appConfig={};
+  }
 }
 
 function urlBase64ToUint8Array(base64){
@@ -1542,33 +1583,33 @@ $("push-alerts").onclick=async()=>{
 };
 
 async function detectBackend(){
-  await loadConfig();
   try{
-    const res=await fetch("/api/health");
-    const raw=await res.text();
-    let h;
-    try{h=JSON.parse(raw);}catch{
-      if(!res.ok||raw.includes("<!DOCTYPE")||raw.includes("Not Found")){
-        $("err").textContent="Server is static-only — Render → astro-platform-starter → Web Service, Start: npm start.";
-        return;
-      }
-    }
-    if(h&&h.ok===true){
-      mode="api";
-      showApiChrome();
-      if(h.db===false){
-        setGateError("Database not configured — login may fail until DATABASE_URL is set on Render.");
-      }
-      try{
-        if(new URLSearchParams(location.search).get("diag")==="1"){
-          setGateError(`Diagnostics: pushEnabled=${appConfig?.pushEnabled?"yes":"no"} · api mode on`);
-        }
-      }catch(e){}
+    const{res,h,raw}=await fetchHealthQuick(8000);
+    if(!res.ok||raw.includes("<!DOCTYPE")||raw.includes("Not Found")){
+      setGateError("Server is static-only — Render → astro-platform-starter → Web Service, Start: npm start.");
       enableGateSignIn();
       return;
     }
+    if(h&&h.ok===true){
+      mode="api";
+      healthOkHint=true;
+      showApiChrome();
+      enableGateSignIn();
+      if(h.db===false){
+        setGateError("Database not configured — login may fail until DATABASE_URL is set on Render.");
+      }
+      void loadConfig().then(()=>{
+        try{
+          if(new URLSearchParams(location.search).get("diag")==="1"){
+            setGateError(`Diagnostics: pushEnabled=${appConfig?.pushEnabled?"yes":"no"} · api mode on`);
+          }
+        }catch(e){}
+        if(mode==="api")showApiChrome();
+      });
+      return;
+    }
   }catch(e){
-    setGateError("Network error — couldn't reach the server. Try again.");
+    setGateError("Network error — couldn't reach the server. You can still tap Continue to retry.");
   }
   try{
     if(typeof claude!=="undefined"){
@@ -1576,15 +1617,25 @@ async function detectBackend(){
       assets=await claude.use("assets");
       const u=await claude.use("user");
       uid=u?await u.id():null;
-      if(nativeDb&&uid){mode="claude";db=nativeDb;return;}
+      if(nativeDb&&uid){mode="claude";db=nativeDb;enableGateSignIn();return;}
     }
   }catch(e){}
-  if(!mode)setGateError($("err").textContent||"Chat unavailable — this site may be misconfigured.");
+  if(!mode&&!$("err").textContent)setGateError("Chat unavailable — tap Continue to try signing in anyway.");
   showAuthShell(false);
   enableGateSignIn();
 }
 
-setTimeout(()=>{if(!name)enableGateSignIn();},5000);
+setTimeout(async()=>{
+  if(name)return;
+  if(!mode){
+    try{
+      const{h}=await fetchHealthQuick(3000);
+      if(h&&h.ok===true){mode="api";healthOkHint=true;}
+    }catch(e){}
+  }
+  unlockGateContinue({forceApi:true});
+  enableGateSignIn();
+},2000);
 (async()=>{
   try{
     await detectBackend();
@@ -1628,6 +1679,7 @@ setTimeout(()=>{if(!name)enableGateSignIn();},5000);
     void refreshBuildBadge();
     parseHashPending();
     if(mode==="api"&&name)onInstallContextMaybeChanged();
+    unlockGateContinue({forceApi:true});
     enableGateSignIn();
   }
 })();
@@ -1650,10 +1702,7 @@ $("go").onclick=async()=>{
   const n=$("u").value.trim().toLowerCase().replace(/[^a-z0-9_]/g,"");
   const pw=$("p").value||"";
   setGateError("");
-  if(!mode){
-    setGateError("Chat unavailable — wait for the server check to finish, then try again.");
-    return;
-  }
+  if(!(await ensureApiModeForLogin()))return;
   if(n.length<3){
     setGateError("Username: use at least 3 letters, numbers, or _");
     return;
