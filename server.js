@@ -584,7 +584,7 @@ app.post(
   );
 
   setSessionCookie(res, token);
-  res.json({ username });
+  res.json({ username, token });
   }),
 );
 

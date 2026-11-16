@@ -618,6 +618,15 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
   <button type="button" class="btn" id="go">Continue</button>
   <div class="err" id="err" role="alert" aria-live="assertive"></div>
 </div></div>
+<script>
+(function gateBootstrapUnlock(){
+  function unlock(){var b=document.getElementById("go");if(!b)return;b.disabled=false;b.textContent="Continue";}
+  unlock();
+  document.addEventListener("DOMContentLoaded",unlock);
+  setTimeout(unlock,0);
+  setTimeout(unlock,1500);
+})();
+</script>
 
 <div id="sw-update" class="hide" role="region" aria-label="App update">
   <p>A newer version is ready.</p>
@@ -903,9 +912,19 @@ let inboxNotes=[];
 let partnerChipTimer=null;
 const PENDING_PARTNER_KEY="shhh-pending-partner";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="28";
+const APP_SW_BUILD="29";
 let healthOkHint=false;
-const LOGIN_GRACE_MS=4000;
+const LOGIN_GRACE_MS=15000;
+const SESSION_TOKEN_KEY="shhh-session-token";
+function storeSessionToken(token){
+  try{if(token)sessionStorage.setItem(SESSION_TOKEN_KEY,String(token));}catch(e){}
+}
+function clearSessionToken(){
+  try{sessionStorage.removeItem(SESSION_TOKEN_KEY);}catch(e){}
+}
+function getSessionToken(){
+  try{return sessionStorage.getItem(SESSION_TOKEN_KEY)||"";}catch(e){return "";}
+}
 let deployCommitShort="";
 let jsErrorToastSent=false;
 const SCRAP_POLL_MS=45000;
@@ -1044,6 +1063,7 @@ function quickLoginTransition(n){
 }
 function resetToGateAfterFailedSession(msg){
   name="";
+  clearSessionToken();
   if(pollTimer)clearInterval(pollTimer);
   pollTimer=null;
   msgById.clear();
@@ -1089,6 +1109,8 @@ async function verifySessionAfterEnter(expectedUser){
 }
 async function api(path,opts={},timeoutMs=30000){
   const headers={...(opts.headers||{})};
+  const bearer=getSessionToken();
+  if(bearer&&!headers.Authorization)headers.Authorization="Bearer "+bearer;
   if(opts.body&&!(opts.body instanceof FormData)){
     headers["Content-Type"]="application/json";
     opts.body=JSON.stringify(opts.body);
@@ -1729,13 +1751,14 @@ $("go").onclick=async()=>{
   btn.textContent="Signing in…";
   try{
     if(mode==="api"){
-      await api("/api/auth/enter",{method:"POST",body:{username:n,password:pw}},30000);
-      await verifySessionAfterEnter(n);
+      const enterRes=await api("/api/auth/enter",{method:"POST",body:{username:n,password:pw}},30000);
+      if(enterRes?.token)storeSessionToken(enterRes.token);
       setSavedName(n);
       $("p").value="";
       quickLoginTransition(n);
       resumeApp(n,{skipShell:true,skipInitialRefresh:true});
-      await refreshApi();
+      void verifySessionAfterEnter(n).catch(()=>{});
+      setTimeout(()=>void refreshApi(),600);
     }else{
       const ref=db.collection("users").doc(n),s=await ref.get();
       if(s.exists&&s.data().owner!==uid){
@@ -2029,6 +2052,7 @@ $("out").onclick=async()=>{
   if(c===1&&!(await saveChat()))return;
   await wipe(false);
   if(mode==="api"){try{await api("/api/auth/leave",{method:"POST"});}catch(e){}}
+  clearSessionToken();
   clearSavedName();
   if(pollTimer)clearInterval(pollTimer);
   if(pollMetaTimer)clearTimeout(pollMetaTimer);
