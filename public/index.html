@@ -939,7 +939,7 @@ let inboxNotes=[];
 let partnerChipTimer=null;
 const PENDING_PARTNER_KEY="shhh-pending-partner";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="31";
+const APP_SW_BUILD="32";
 let healthOkHint=false;
 const LOGIN_GRACE_MS=15000;
 const SESSION_TOKEN_KEY="shhh-session-token";
@@ -1099,7 +1099,7 @@ function resetToGateAfterFailedSession(msg){
   if(moodPollTimer)clearInterval(moodPollTimer);
   if(presenceTimer)clearInterval(presenceTimer);
   pollTimer=null;pollMetaTimer=null;storyPollTimer=null;scrapPollTimer=null;notePollTimer=null;moodPollTimer=null;presenceTimer=null;
-  msgById.clear();
+  resetFeedCache();
   showAuthShell(false);
   setGateError(msg||"Session expired — enter the shared room password to continue.");
   enableGateSignIn();
@@ -1906,7 +1906,10 @@ async function refreshApi(){
       const {messages}=await api("/api/messages");
       lastMsgs=messages;
       lastDocs=messages.map(m=>({data:()=>m,id:m.id}));
-      render(messages);
+      const f=$("feed");
+      if(!(f&&f.dataset.listFp===feedListSig(messages)&&msgById.size===messages.length)){
+        render(messages);
+      }
       const nextPartner=[...messages].reverse().find(m=>m.user!==name&&!String(m.id).startsWith("pending"));
       const animate=!!(nextPartner&&nextPartner.id!==prevMsgId);
       if(animate&&!document.hidden&&nextPartner){
@@ -1963,7 +1966,7 @@ async function wipe(all,confirmPassword){
     if(mode==="api"){
       const body=all&&confirmPassword?{confirmPassword}:undefined;
       await api("/api/messages?all="+(all?"true":"false"),{method:"DELETE",body});
-      msgById.clear();
+      resetFeedCache();
       selectedIds.clear();
       selectMode=false;
       $("selectbar").classList.add("hide");
@@ -2026,7 +2029,7 @@ $("seldel").onclick=async()=>{
   try{
     await api("/api/messages/bulk",{method:"DELETE",body:{ids:[...selectedIds]}});
     setSelectMode(false);
-    msgById.clear();
+    resetFeedCache();
     await refreshApi();
     $("note").textContent="Deleted "+n+" message(s).";
   }catch(e){$("note").textContent="Couldn't delete selected messages.";}
@@ -2219,7 +2222,9 @@ function openMsgMenu(m){
     add("Delete",async()=>{
       try{
         await api("/api/messages/bulk",{method:"DELETE",body:{ids:[m.id]}});
+        const gone=msgById.get(m.id);if(gone)gone.remove();
         msgById.delete(m.id);
+        const f=$("feed");if(f)delete f.dataset.listFp;
         await refreshApi();
       }catch(e){$("note").textContent="Couldn't delete.";}
     },true);
@@ -2264,6 +2269,20 @@ function formatMsgTime(m){
 
 function rowKey(m,idx,list){
   return msgFingerprint(m)+"\x01"+(isStacked(idx,list)?1:0)+(showWhoAt(idx,list)?1:0);
+}
+function feedListSig(list){
+  return (selectMode?"1":"0")+"\n"+list.map((m,i)=>rowKey(m,i,list)).join("\n");
+}
+function resetFeedCache(){
+  msgById.clear();
+  const f=$("feed");
+  if(f)delete f.dataset.listFp;
+}
+function placeMsgEl(f,el,idx){
+  const at=f.children[idx];
+  if(at===el)return;
+  if(at)f.insertBefore(el,at);
+  else f.appendChild(el);
 }
 
 function applyMsgShell(el,m,idx,list){
@@ -2352,15 +2371,23 @@ function createMsgEl(m,idx,list){
 
 function render(list){
   const f=$("feed");
+  if(!f)return;
   const stick=f.scrollHeight-f.scrollTop-f.clientHeight<80;
   if(!list.length){
+    if(f.dataset.listFp==="empty"){updateScrollFab();return;}
     f.textContent="";
-    for(const[id,el]of[...msgById]){el.remove();msgById.delete(id);}
+    msgById.clear();
     const e=document.createElement("div");
     e.className="empty-state";
     e.textContent="No messages yet — say hi, attach a photo, or tap 💗 Thinking of you.";
     f.appendChild(e);
     f.dataset.init=1;
+    f.dataset.listFp="empty";
+    updateScrollFab();
+    return;
+  }
+  const nextFp=feedListSig(list);
+  if(f.dataset.listFp===nextFp&&msgById.size===list.length){
     updateScrollFab();
     return;
   }
@@ -2371,13 +2398,13 @@ function render(list){
     const mk=msgFingerprint(m);
     let el=msgById.get(m.id);
     if(el&&el.dataset.rowKey===rk){
-      f.appendChild(el);
+      placeMsgEl(f,el,idx);
       return;
     }
     if(el&&el.dataset.msgKey===mk){
       el.dataset.rowKey=rk;
       applyMsgShell(el,m,idx,list);
-      f.appendChild(el);
+      placeMsgEl(f,el,idx);
       return;
     }
     let preservedHost=null;
@@ -2390,15 +2417,16 @@ function render(list){
       const slot=neu.querySelector(".media-host");
       if(slot)slot.replaceWith(preservedHost);
     }
-    if(el){
-      el.replaceWith(neu);
-    }else{
-      neu.classList.add("is-new");
-    }
     neu.dataset.msgKey=mk;
     neu.dataset.rowKey=rk;
     msgById.set(m.id,neu);
-    f.appendChild(neu);
+    if(el&&el.parentNode===f){
+      el.replaceWith(neu);
+    }else{
+      neu.classList.add("is-new");
+      neu.addEventListener("animationend",()=>neu.classList.remove("is-new"),{once:true});
+      placeMsgEl(f,neu,idx);
+    }
   });
   for(const[id,el]of[...msgById]){
     if(!seen.has(id)){
@@ -2406,6 +2434,7 @@ function render(list){
       msgById.delete(id);
     }
   }
+  f.dataset.listFp=nextFp;
   if(stick||!f.dataset.init){f.scrollTop=f.scrollHeight;f.dataset.init=1;}
   updateScrollFab();
 }
