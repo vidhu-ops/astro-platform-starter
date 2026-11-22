@@ -67,6 +67,56 @@ html[data-theme="light"]{
   --media-bg:#d8d8de;--danger:#b91c1c;--accent-ring:rgba(143,61,88,.4);
   --star-me:#fff3c4;--stamp-opacity:.72;--gate-glow:rgba(143,61,88,.08);--mark-ring:rgba(92,69,47,.55);--card-elev:rgba(0,0,0,.1);
 }
+html[data-theme="imessage"]{
+  color-scheme:light;
+  --bg:#e5e5ea;--panel:#f2f2f7;--panel2:#ffffff;--ink:#d1d1d6;--input-bg:#ffffff;
+  --rose:#007aff;--heat:#007aff;--wine:#005ecb;--gold:#3a3a3c;--champagne:#1c1c1e;
+  --text:#1c1c1e;--mute:#8e8e93;--line:#c6c6c8;
+  --bubble-them:#e9e9eb;--bubble-them-text:#1c1c1e;
+  --bubble-me-a:#007aff;--bubble-me-b:#007aff;
+  --header-bg:rgba(249,249,251,.96);--bar-bg:rgba(249,249,251,.98);
+  --card-bg:#ffffff;--card-border:#d1d1d6;
+  --btn-primary-a:#007aff;--btn-primary-b:#005ecb;--btn-on-primary:#ffffff;
+  --btn-secondary-bg:#f2f2f7;--btn-secondary-text:#1c1c1e;
+  --overlay:rgba(0,0,0,.4);--scrim:rgba(0,0,0,.45);--scrim-soft:rgba(0,0,0,.32);
+  --shadow:0 1px 2px rgba(0,0,0,.06);
+  --brand-a:#007aff;--brand-b:#005ecb;--brand-c:#0040dd;
+  --reply-me:rgba(255,255,255,.9);--reply-them:#636366;
+  --quote-edge-me:rgba(255,255,255,.55);--quote-edge-them:#007aff;
+  --tool-bg:rgba(0,0,0,.06);--tool-bg-me:rgba(0,0,0,.1);--tool-fg-me:rgba(255,255,255,.95);
+  --link:#007aff;--file-fg:#007aff;--on-accent:#ffffff;
+  --heart-a:#007aff;--heart-b:#5ac8fa;--heart-fg:#ffffff;
+  --tab-on-bg:rgba(0,122,255,.12);--tab-on-fg:#007aff;
+  --media-bg:#d1d1d6;--danger:#ff3b30;--accent-ring:rgba(0,122,255,.35);
+  --star-me:#ffcc00;--stamp-opacity:.65;--gate-glow:rgba(0,122,255,.08);--mark-ring:rgba(0,122,255,.45);--card-elev:rgba(0,0,0,.08);
+  --ui-font:system-ui,-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;
+  --hdr-ink:#1c1c1e;--hdr-mute:#8e8e93;
+}
+html[data-theme="whatsapp"]{
+  color-scheme:light;
+  --bg:#ece5dd;--panel:#ffffff;--panel2:#f0f2f5;--ink:#d1d7db;--input-bg:#ffffff;
+  --rose:#128c7e;--heat:#25d366;--wine:#075e54;--gold:#111b21;--champagne:#111b21;
+  --text:#111b21;--mute:#667781;--line:#d1d7db;
+  --bubble-them:#ffffff;--bubble-them-text:#111b21;
+  --bubble-me-a:#d9fdd3;--bubble-me-b:#c4f1ba;
+  --header-bg:#075e54;--bar-bg:#f0f2f5;
+  --card-bg:#ffffff;--card-border:#d1d7db;
+  --btn-primary-a:#128c7e;--btn-primary-b:#075e54;--btn-on-primary:#ffffff;
+  --btn-secondary-bg:#f0f2f5;--btn-secondary-text:#111b21;
+  --overlay:rgba(0,0,0,.45);--scrim:rgba(0,0,0,.5);--scrim-soft:rgba(0,0,0,.35);
+  --shadow:0 1px 3px rgba(11,20,26,.12);
+  --brand-a:#25d366;--brand-b:#128c7e;--brand-c:#075e54;
+  --reply-me:rgba(17,27,33,.55);--reply-them:#667781;
+  --quote-edge-me:rgba(17,27,33,.35);--quote-edge-them:#128c7e;
+  --tool-bg:rgba(0,0,0,.06);--tool-bg-me:rgba(0,0,0,.05);--tool-fg-me:rgba(17,27,33,.85);
+  --link:#027eb5;--file-fg:#027eb5;--on-accent:#111b21;
+  --heart-a:#128c7e;--heart-b:#25d366;--heart-fg:#ffffff;
+  --tab-on-bg:rgba(37,211,102,.14);--tab-on-fg:#075e54;
+  --media-bg:#cfd4d8;--danger:#ea0038;--accent-ring:rgba(18,140,126,.4);
+  --star-me:#ffd279;--stamp-opacity:.62;--gate-glow:rgba(7,94,84,.1);--mark-ring:rgba(37,211,102,.5);--card-elev:rgba(11,20,26,.1);
+  --ui-font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --hdr-ink:#ffffff;--hdr-mute:rgba(255,255,255,.78);
+}
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%;height:100dvh}
 @supports (-webkit-touch-callout:none){
@@ -85,6 +135,47 @@ html[data-theme="light"] body{
     radial-gradient(700px 400px at -10% 100%,#9b6b7a14,transparent),
     linear-gradient(180deg,#faf9fc 0%,var(--bg) 45%);
 }
+html[data-theme="imessage"] body{
+  font-family:var(--ui-font);
+  background:var(--bg);
+}
+html[data-theme="whatsapp"] body{
+  font-family:var(--ui-font);
+  background-color:var(--bg);
+  background-image:
+    radial-gradient(circle at 12% 18%,rgba(18,140,126,.06) 0,transparent 42%),
+    radial-gradient(circle at 88% 72%,rgba(7,94,84,.05) 0,transparent 38%),
+    repeating-linear-gradient(
+    -12deg,
+    transparent,
+    transparent 11px,
+    rgba(17,27,33,.018) 11px,
+    rgba(17,27,33,.018) 12px
+  );
+}
+html[data-theme="imessage"] header h2,
+html[data-theme="whatsapp"] header h2{
+  background:none;-webkit-background-clip:unset;background-clip:unset;
+  font-family:var(--ui-font);font-style:normal;font-weight:600;letter-spacing:-.02em;
+}
+html[data-theme="imessage"] header h2{color:var(--hdr-ink)}
+html[data-theme="whatsapp"] header{border-bottom-color:#054640}
+html[data-theme="whatsapp"] header h2{color:var(--hdr-ink)}
+html[data-theme="whatsapp"] .hdr-tag,
+html[data-theme="whatsapp"] .hdr-actions span,
+html[data-theme="whatsapp"] #build-badge{color:var(--hdr-mute);border-color:rgba(255,255,255,.22)}
+html[data-theme="whatsapp"] .hdr-icon{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:var(--hdr-ink)}
+html[data-theme="whatsapp"] #maintabs button.on{border-top-color:#25d366}
+html[data-theme="imessage"] #maintabs button.on{border-top-color:#007aff}
+html[data-theme="imessage"] .send,
+html[data-theme="whatsapp"] .send{background:var(--rose);box-shadow:none;color:var(--btn-on-primary)}
+html[data-theme="whatsapp"] .send{color:#ffffff}
+html[data-theme="imessage"] #txt,
+html[data-theme="imessage"] #bar input[type=text]{border-color:#d1d1d6;border-radius:20px}
+html[data-theme="whatsapp"] #txt,
+html[data-theme="whatsapp"] #bar input[type=text]{border-color:#d1d7db;border-radius:24px}
+html[data-theme="imessage"] .msg.me,
+html[data-theme="whatsapp"] .msg.me{box-shadow:none}
 body{
   color:var(--text);
   font-family:"Outfit",system-ui,sans-serif;
@@ -326,6 +417,21 @@ header h2{
 .app-panel .status{font-size:15px;line-height:1.45;margin:0 0 10px;color:var(--text)}
 .app-panel .subline{font-size:12px;color:var(--mute);margin:0 0 14px;line-height:1.4}
 .app-panel .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.theme-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:4px}
+.theme-opt{
+  display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;
+  border:1px solid var(--line);border-radius:14px;padding:10px 12px;cursor:pointer;
+  background:var(--panel2);color:var(--text);font-size:13px;font-weight:500;
+  transition:border-color .15s,box-shadow .15s,background .15s;
+}
+.theme-opt .swatch{width:100%;height:28px;border-radius:8px;border:1px solid rgba(0,0,0,.08)}
+.theme-opt .swatch-dark{background:linear-gradient(90deg,#3a3a3c 38%,#b06b82 38%)}
+.theme-opt .swatch-light{background:linear-gradient(90deg,#e3e3e8 38%,#c45d7a 38%)}
+.theme-opt .swatch-imessage{background:linear-gradient(90deg,#e9e9eb 38%,#007aff 38%)}
+.theme-opt .swatch-whatsapp{background:linear-gradient(90deg,#ffffff 38%,#d9fdd3 38%);box-shadow:inset 0 -10px 0 #075e54}
+.theme-opt strong{font-size:13px;font-weight:600}
+.theme-opt span{font-size:11px;color:var(--mute);line-height:1.3}
+.theme-opt.on{border-color:var(--rose);box-shadow:0 0 0 2px var(--accent-ring);background:var(--tab-on-bg)}
 #pushprompt{position:fixed;inset:0;background:var(--scrim);z-index:44;display:flex;align-items:center;justify-content:center;padding:20px}
 #pushprompt .card{max-width:400px;width:100%}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
@@ -444,7 +550,9 @@ header h2{
 .scrap-intro{font-family:"Cormorant Garamond",Georgia,serif;font-size:26px;font-style:italic;color:var(--brand-b);margin:0 0 6px;line-height:1.15}
 .scrap-sub{font-size:13px;color:var(--mute);margin:0 0 12px;letter-spacing:.02em;line-height:1.45}
 html[data-theme="dark"] #scrapview .scrap-sub{color:#c9c0b8}
-html[data-theme="light"] #scrapview .scrap-sub{color:#4a4248}
+html[data-theme="light"] #scrapview .scrap-sub,
+html[data-theme="imessage"] #scrapview .scrap-sub,
+html[data-theme="whatsapp"] #scrapview .scrap-sub{color:#4a4248}
 .scrap-section{margin:0;padding:0}
 .scrap-section-title{font-family:"Cormorant Garamond",Georgia,serif;font-size:18px;font-style:italic;color:var(--gold);margin:0 0 10px}
 .scrap-cal{
@@ -735,7 +843,7 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
     <button type="button" id="menu-think">💗 Thinking of you</button>
     <button type="button" id="menu-moods">💌 More moods</button>
     <button type="button" id="menu-sv">Save</button>
-    <button type="button" id="menu-theme">◐ Light / dark</button>
+    <button type="button" id="menu-theme">🎨 Theme</button>
     <p class="appmenu-kicker">Go to</p>
     <button type="button" id="menu-chat">💬 Chat</button>
     <button type="button" id="menu-updates">📷 Updates</button>
@@ -861,6 +969,28 @@ html[data-theme="dark"] #notebar textarea,html[data-theme="dark"] #notebar input
       <button type="button" class="btn" id="app-panel-action">Check for updates</button>
       <button type="button" class="btn" id="app-panel-refresh">Refresh app</button>
       <button type="button" class="btn ghost" id="app-panel-alerts">Turn on notifications</button>
+    </div>
+  </section>
+  <section class="app-panel" aria-labelledby="app-theme-title" id="app-theme-panel">
+    <h3 id="app-theme-title">Theme</h3>
+    <p class="subline" id="app-theme-hint">Chat, tabs, and gate follow the preset you pick.</p>
+    <div class="theme-picker" id="theme-picker" role="radiogroup" aria-label="App theme">
+      <button type="button" class="theme-opt" data-theme-pick="dark" role="radio" aria-checked="false">
+        <div class="swatch swatch-dark" aria-hidden="true"></div>
+        <strong>Dark</strong><span>Original rose night mode</span>
+      </button>
+      <button type="button" class="theme-opt" data-theme-pick="light" role="radio" aria-checked="false">
+        <div class="swatch swatch-light" aria-hidden="true"></div>
+        <strong>Light</strong><span>Bright rose day mode</span>
+      </button>
+      <button type="button" class="theme-opt" data-theme-pick="imessage" role="radio" aria-checked="false">
+        <div class="swatch swatch-imessage" aria-hidden="true"></div>
+        <strong>Blue (iMessage)</strong><span>Gray thread, blue sends</span>
+      </button>
+      <button type="button" class="theme-opt" data-theme-pick="whatsapp" role="radio" aria-checked="false">
+        <div class="swatch swatch-whatsapp" aria-hidden="true"></div>
+        <strong>Green (WhatsApp)</strong><span>Green header, beige wall</span>
+      </button>
     </div>
   </section>
 </div>
@@ -1024,7 +1154,7 @@ let moodsAlertReady=false;
 let inboxAlertReady=false;
 const PENDING_PARTNER_KEY="shhh-pending-partner";
 const SW_DISMISS_KEY="shhh-sw-dismiss";
-const APP_SW_BUILD="40";
+const APP_SW_BUILD="41";
 const ALERT_MASTER_KEY="shhh-alerts-master";
 function alertsMasterOn(){
   try{if(localStorage.getItem(ALERT_MASTER_KEY)==="0")return false;}catch(e){}
@@ -1076,6 +1206,13 @@ let replyTo=null,replyLabel="",appConfig=null,deferredInstall=null,gifTier="spic
 const NAME_KEY="shhh-name";
 const TAB_KEY="shhh-tab";
 const THEME_KEY="shhh-theme";
+const THEME_IDS=["dark","light","imessage","whatsapp"];
+const THEME_LABELS={dark:"Dark",light:"Light",imessage:"Blue (iMessage)",whatsapp:"Green (WhatsApp)"};
+const THEME_META={dark:"#9b6b7a",light:"#e8eaef",imessage:"#007aff",whatsapp:"#075e54"};
+const THEME_BTN_ICON={dark:"◐",light:"☀",imessage:"💬",whatsapp:"💚"};
+function normalizeTheme(t){
+  return THEME_IDS.includes(t)?t:"dark";
+}
 const store={get:k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}},del:k=>{try{sessionStorage.removeItem(k)}catch(e){}}};
 function savedName(){
   try{
@@ -1103,29 +1240,47 @@ function savedTab(){
     return t==="date"||t==="chat"||t==="scrap"||t==="app"?t:null;
   }catch(e){return null;}
 }
+function syncThemePicker(t){
+  document.querySelectorAll("[data-theme-pick]").forEach(el=>{
+    const on=el.dataset.themePick===t;
+    el.classList.toggle("on",on);
+    el.setAttribute("aria-checked",on?"true":"false");
+  });
+}
 function applyTheme(t){
-  document.documentElement.dataset.theme=t==="light"?"light":"dark";
+  t=normalizeTheme(t);
+  document.documentElement.dataset.theme=t;
   try{localStorage.setItem(THEME_KEY,t);}catch(e){}
   const meta=document.querySelector('meta[name="theme-color"]');
-  if(meta)meta.content=t==="light"?"#e8eaef":"#9b6b7a";
+  if(meta)meta.content=THEME_META[t]||THEME_META.dark;
   const btn=$("theme");
-  if(btn)btn.textContent=t==="light"?"☀":"◐";
+  if(btn){
+    btn.textContent=THEME_BTN_ICON[t]||"◐";
+    btn.title=`Theme: ${THEME_LABELS[t]||"Dark"} (tap to cycle)`;
+  }
   const menuTheme=$("menu-theme");
-  if(menuTheme)menuTheme.textContent=t==="light"?"☀ Light mode":"◐ Dark mode";
+  if(menuTheme)menuTheme.textContent=`🎨 ${THEME_LABELS[t]||"Dark"}`;
+  syncThemePicker(t);
 }
 function initTheme(){
   let t="dark";
   try{t=localStorage.getItem(THEME_KEY)||"";}catch(e){}
-  if(t!=="light"&&t!=="dark"){
+  if(!THEME_IDS.includes(t)){
     t=window.matchMedia&&window.matchMedia("(prefers-color-scheme:light)").matches?"light":"dark";
   }
   applyTheme(t);
 }
 initTheme();
 $("theme").onclick=()=>{
-  const next=document.documentElement.dataset.theme==="light"?"dark":"light";
-  applyTheme(next);
+  const cur=normalizeTheme(document.documentElement.dataset.theme||"dark");
+  const i=THEME_IDS.indexOf(cur);
+  applyTheme(THEME_IDS[(i+1)%THEME_IDS.length]);
 };
+document.getElementById("theme-picker")?.addEventListener("click",e=>{
+  const btn=e.target.closest("[data-theme-pick]");
+  if(!btn)return;
+  applyTheme(btn.dataset.themePick);
+});
 function setGateError(msg){
   const el=$("err");
   if(!el)return;
@@ -2778,7 +2933,10 @@ $("menu-sv").onclick=menuGo(()=>$("sv")?.click());
 $("menu-sel").onclick=menuGo(()=>$("sel")?.click());
 $("menu-del").onclick=menuGo(()=>$("del")?.click());
 $("menu-out").onclick=menuGo(()=>$("out")?.click());
-$("menu-theme").onclick=menuGo(()=>$("theme")?.click());
+$("menu-theme").onclick=menuGo(()=>{
+  setMainTab("app");
+  requestAnimationFrame(()=>$("app-theme-panel")?.scrollIntoView({behavior:"smooth",block:"nearest"}));
+});
 $("menu-install").onclick=menuGo(()=>$("install")?.click());
 $("menu-update").onclick=menuGo(()=>applySwRefresh());
 
